@@ -1,0 +1,23 @@
+.row {
+  display: flex;
+  gap: 12px;
+  padding: 4px 2px;
+}
+
+.swatch {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline-style: solid;
+  outline-width: 2px;
+  outline-offset: 3px;
+  transition: transform 0.1s ease;
+}
+
+.swatch:active {
+  transform: scale(0.92);
+}

@@ -1,0 +1,32 @@
+.nav {
+  height: var(--bottom-nav-height);
+  background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-decoration: none;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+  padding: 8px 4px;
+}
+
+.item:active {
+  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+}
+
+.active {
+  color: var(--mantine-primary-color-filled);
+}
+
+.fabSlot {
+  position: relative;
+}
+
+.fab {
+  transform: translateY(-12px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
