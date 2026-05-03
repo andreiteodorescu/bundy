@@ -85,7 +85,7 @@ export function HomePage() {
           accentColor="#22c55e"
           icon={<IconPin size={22} stroke={2} />}
           title="Cheltuială fixă"
-          description="Terapie, chirie — sumă identică de fiecare dată"
+          description="Chirie sau alte plăți cu sumă fixă"
           onClick={() => navigate('/fixed-expenses/quick-add')}
         />
 

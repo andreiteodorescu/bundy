@@ -150,6 +150,11 @@ export type Budget = {
   period_end: string;
   selected_days: string[] | null;
   thresholds_pct: number[];
+  /** Filter by category_id (includes all subcategories under it). Empty = no filter. */
+  category_ids: string[];
+  /** Filter by subcategory_id specifically. Empty = no filter. Combined with category_ids
+   *  via OR (an expense matches if its category OR subcategory is in the respective list). */
+  subcategory_ids: string[];
   created_at: string;
 };
 

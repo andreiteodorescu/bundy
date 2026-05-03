@@ -48,6 +48,10 @@ export type UpsertBudgetInput = {
   period_end: string;
   selected_days?: string[] | null;
   thresholds_pct?: number[];
+  /** Optional scope: parent categories (include all subcategories under). */
+  category_ids?: string[];
+  /** Optional scope: specific subcategories. Combined with category_ids via OR. */
+  subcategory_ids?: string[];
 };
 
 export function useUpsertBudget() {
@@ -65,6 +69,8 @@ export function useUpsertBudget() {
         period_end: input.period_end,
         selected_days: input.selected_days ?? null,
         thresholds_pct: input.thresholds_pct ?? [50, 75, 90, 100],
+        category_ids: input.category_ids ?? [],
+        subcategory_ids: input.subcategory_ids ?? [],
       };
       if (input.id) {
         const { data, error } = await supabase
@@ -110,12 +116,22 @@ export function useBudgetProgress(budget: Budget | null | undefined) {
     enabled: Boolean(profileId && budget),
     queryFn: async (): Promise<{ spent: number; pct: number; remaining: number }> => {
       if (!budget) return { spent: 0, pct: 0, remaining: 0 };
-      let query = supabase.from('expenses').select('amount_ron, occurred_on');
+      let query = supabase.from('expenses').select('amount_ron, occurred_on, category_id, subcategory_id');
 
+      // Time filter
       if (budget.period_kind === 'days' && budget.selected_days && budget.selected_days.length > 0) {
         query = query.in('occurred_on', budget.selected_days);
       } else {
         query = query.gte('occurred_on', budget.period_start).lte('occurred_on', budget.period_end);
+      }
+      // Category + subcategory filter combined with OR (Postgrest .or syntax)
+      const cats = budget.category_ids ?? [];
+      const subs = budget.subcategory_ids ?? [];
+      if (cats.length > 0 || subs.length > 0) {
+        const ors: string[] = [];
+        if (cats.length > 0) ors.push(`category_id.in.(${cats.join(',')})`);
+        if (subs.length > 0) ors.push(`subcategory_id.in.(${subs.join(',')})`);
+        query = query.or(ors.join(','));
       }
       const { data, error } = await query;
       if (error) throw error;
