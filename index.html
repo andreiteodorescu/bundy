@@ -2,9 +2,11 @@
 <html lang="ro-RO">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- ?v= cache-bust pentru icoane. iOS/Chrome cache-uiesc apple-touch-icon
+         agresiv; bump versiunea când schimbi imaginile ca să forțezi reload. -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png?v=2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no"
