@@ -10,7 +10,6 @@ import {
   Loader,
   Modal,
   Paper,
-  ScrollArea,
   Stack,
   Text,
   TextInput,
@@ -99,44 +98,40 @@ export function SearchModal() {
       withCloseButton={false}
       padding={0}
       transitionProps={{ transition: 'slide-up', duration: 180 }}
-      styles={{ body: { padding: 0, height: '100dvh', display: 'flex', flexDirection: 'column' } }}
+      styles={{ body: { padding: 0, minHeight: '100dvh' } }}
     >
-      {/* Header with input */}
-      <Group
-        gap="xs"
-        p="sm"
-        wrap="nowrap"
-        style={{
-          borderBottom: '1px solid var(--mantine-color-default-border)',
-          paddingTop: 'calc(env(safe-area-inset-top) + var(--mantine-spacing-sm))',
-        }}
-      >
-        <ActionIcon variant="subtle" size="lg" onClick={() => setOpen(false)} aria-label="Închide">
-          <IconArrowLeft size={20} />
-        </ActionIcon>
-        <TextInput
-          flex={1}
-          placeholder="Caută text, 500, 03-05-2026, 05-2026..."
-          autoFocus
-          size="md"
-          value={input}
-          onChange={(e) => setInput(e.currentTarget.value)}
-          leftSection={<IconSearch size={16} />}
-          rightSection={
-            input ? (
-              <ActionIcon variant="subtle" size="sm" onClick={() => setInput('')} aria-label="Șterge">
-                <IconX size={14} />
-              </ActionIcon>
-            ) : null
-          }
-        />
-      </Group>
+      {/* Sticky header: stays anchored at top of scroll container even when iOS
+          rearranges viewport (keyboard show/hide, etc.). safe-area-inset on the
+          sticky wrapper itself so it always respects the iPhone notch. */}
+      <Box className={classes.stickyHeader}>
+        <Group gap="xs" p="sm" wrap="nowrap">
+          <ActionIcon variant="subtle" size="lg" onClick={() => setOpen(false)} aria-label="Închide">
+            <IconArrowLeft size={20} />
+          </ActionIcon>
+          <TextInput
+            flex={1}
+            placeholder="Caută text, 500, 03-05-2026, 05-2026..."
+            autoFocus
+            size="md"
+            value={input}
+            onChange={(e) => setInput(e.currentTarget.value)}
+            leftSection={<IconSearch size={16} />}
+            rightSection={
+              input ? (
+                <ActionIcon variant="subtle" size="sm" onClick={() => setInput('')} aria-label="Șterge">
+                  <IconX size={14} />
+                </ActionIcon>
+              ) : null
+            }
+          />
+        </Group>
 
-      {/* Smart-detection hint */}
-      {parsed && <DetectionHint parsed={parsed} />}
+        {/* Smart-detection hint stays inside the sticky wrapper so it doesn't get
+            occluded either. */}
+        {parsed && <DetectionHint parsed={parsed} />}
+      </Box>
 
-      <ScrollArea flex={1} type="never">
-        <Box p="md">
+      <Box p="md">
           {trimmed.length < 2 ? (
             <EmptyState
               recent={recent}
@@ -183,7 +178,6 @@ export function SearchModal() {
             </Stack>
           )}
         </Box>
-      </ScrollArea>
     </Modal>
   );
 }

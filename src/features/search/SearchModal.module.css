@@ -1,3 +1,16 @@
+/* Sticky header inside a fullscreen Modal: stays anchored at the top of the
+   scroll container regardless of viewport changes (iOS keyboard show/hide,
+   PWA standalone notch handling, etc). */
+.stickyHeader {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--mantine-color-body, #1a1b1e);
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  /* Reserve space for the iPhone notch in PWA standalone mode */
+  padding-top: env(safe-area-inset-top);
+}
+
 .hint {
   background: var(--mantine-color-default-hover, rgba(255, 255, 255, 0.04));
   border-bottom: 1px solid var(--mantine-color-default-border);
