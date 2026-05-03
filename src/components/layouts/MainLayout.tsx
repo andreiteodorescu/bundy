@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { BottomNav } from '@/components/BottomNav';
+import { SearchModal } from '@/features/search/SearchModal';
 
 export function MainLayout() {
   return (
@@ -8,6 +9,8 @@ export function MainLayout() {
         <Outlet />
       </main>
       <BottomNav />
+      {/* Mounted here (inside RouterProvider) so SearchModal can use useNavigate */}
+      <SearchModal />
     </>
   );
 }

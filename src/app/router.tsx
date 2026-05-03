@@ -78,6 +78,9 @@ const SettingsPage = lazy(() =>
 const HiddenExpensesPage = lazy(() =>
   import('@/features/hidden-expenses/HiddenExpensesPage').then((m) => ({ default: m.HiddenExpensesPage })),
 );
+const AdminUsersPage = lazy(() =>
+  import('@/features/admin/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })),
+);
 
 function PageFallback() {
   return (
@@ -152,6 +155,7 @@ const router = createBrowserRouter([
 
       { path: '/settings', element: lazyRoute(<SettingsPage />) },
       { path: '/hidden-expenses', element: lazyRoute(<HiddenExpensesPage />) },
+      { path: '/admin/users', element: lazyRoute(<AdminUsersPage />) },
 
       { path: '*', element: <Navigate to="/home" replace /> },
     ],

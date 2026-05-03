@@ -10,14 +10,20 @@ import {
   IconEyeOff,
   IconLogout,
   IconPin,
+  IconSearch,
   IconSettings,
+  IconShieldCheck,
   IconWallet,
 } from '@tabler/icons-react';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { useSearchStore } from '@/features/search/store';
+import { useIsAdmin } from '@/features/admin/api';
 
 export function MorePage() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
+  const openSearch = useSearchStore((s) => s.setOpen);
+  const isAdmin = useIsAdmin();
 
   return (
     <Container size="sm" py="md">
@@ -26,7 +32,15 @@ export function MorePage() {
           Mai mult
         </Title>
 
-        <Divider label="Șabloane" labelPosition="left" />
+        <NavLink
+          label="Caută"
+          description="Caută cheltuieli după nume, sumă, dată"
+          leftSection={<IconSearch size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => openSearch(true)}
+        />
+
+        <Divider label="Șabloane" labelPosition="left" mt="sm" />
         <NavLink
           label="Cheltuieli rapide"
           description="Metrou, loto — preț fix, +/- pe zi"
@@ -92,6 +106,19 @@ export function MorePage() {
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/settings')}
         />
+
+        {isAdmin.data === true && (
+          <>
+            <Divider label="Admin" labelPosition="left" mt="sm" />
+            <NavLink
+              label="Utilizatori"
+              description="Listă, ban, ștergere, reset parolă"
+              leftSection={<IconShieldCheck size={20} />}
+              rightSection={<IconChevronRight size={16} />}
+              onClick={() => navigate('/admin/users')}
+            />
+          </>
+        )}
 
         <Button
           mt="lg"

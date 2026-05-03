@@ -1,0 +1,4 @@
+.hint {
+  background: var(--mantine-color-default-hover, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
