@@ -53,7 +53,15 @@ export default defineConfig(({ mode }) => {
     VitePWA({
       registerType: 'prompt',
       injectRegister: 'auto',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
+      includeAssets: [
+        'favicon.ico',
+        'favicon-96x96.png',
+        'apple-touch-icon.png',
+        'robots.txt',
+        'icons/icon-192.png',
+        'icons/icon-512.png',
+        'icons/icon-512-maskable.png',
+      ],
       manifest: {
         name: 'Bundy',
         short_name: 'Bundy',
@@ -66,8 +74,8 @@ export default defineConfig(({ mode }) => {
         start_url: '/',
         lang: 'ro-RO',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
           {
             src: '/icons/icon-512-maskable.png',
             sizes: '512x512',

@@ -58,6 +58,7 @@ export function useRecentExpenses(limit = 500) {
       const { data, error } = await supabase
         .from('expenses')
         .select('*')
+        .eq('hidden', false)
         .order('occurred_on', { ascending: false })
         .limit(limit);
       if (error) throw error;
@@ -79,6 +80,7 @@ export type UpsertExpenseInput = {
   source?: ExpenseSource;
   source_ref_id?: string | null;
   recurrence?: Record<string, unknown> | null;
+  hidden?: boolean;
 };
 
 export function useUpsertExpense() {
@@ -114,6 +116,7 @@ export function useUpsertExpense() {
         source: input.source ?? 'manual',
         source_ref_id: input.source_ref_id ?? null,
         recurrence: input.recurrence ?? null,
+        hidden: input.hidden ?? false,
       };
 
       if (input.id) {

@@ -22,9 +22,11 @@ export async function ensureProfile(user: User): Promise<{ profileId: string; cr
   }
 
   const profileName = (user.user_metadata?.name as string) || user.email?.split('@')[0] || 'Profil';
+  const profileIcon = (user.user_metadata?.profile_icon as string) || 'IconCat';
 
   const { data: profileId, error: rpcErr } = await supabase.rpc('bootstrap_profile', {
     profile_name: profileName,
+    profile_icon: profileIcon,
   });
   if (rpcErr || !profileId) {
     throw rpcErr ?? new Error('Failed to bootstrap profile');

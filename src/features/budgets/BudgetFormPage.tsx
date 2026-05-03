@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
+import { confirmDelete } from '@/lib/confirm';
 import { BudgetCalendar } from './BudgetCalendar';
 import { useBudget, useDeleteBudget, useUpsertBudget } from './api';
 import { getFxRate } from '@/lib/fx';
@@ -84,15 +85,19 @@ export function BudgetFormPage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!params.id) return;
-    if (!window.confirm('Sigur vrei să ștergi acest buget?')) return;
-    try {
-      await del.mutateAsync(params.id);
-      navigate('/budgets');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la ștergere');
-    }
+    confirmDelete({
+      message: 'Sigur vrei să ștergi acest buget?',
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(params.id!);
+          navigate('/budgets');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+        }
+      },
+    });
   }
 
   return (

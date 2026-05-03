@@ -1,13 +1,17 @@
 import { useNavigate } from 'react-router-dom';
-import { Button, Container, NavLink, Stack, Title } from '@mantine/core';
+import { Button, Container, Divider, NavLink, Stack, Title } from '@mantine/core';
 import {
+  IconBolt,
   IconBuildingBank,
   IconCategory,
   IconChevronRight,
+  IconClipboardList,
   IconCreditCard,
+  IconEyeOff,
   IconLogout,
   IconPin,
   IconSettings,
+  IconWallet,
 } from '@tabler/icons-react';
 import { useAuth } from '@/features/auth/AuthProvider';
 
@@ -21,12 +25,31 @@ export function MorePage() {
         <Title order={2} mb="sm">
           Mai mult
         </Title>
+
+        <Divider label="Șabloane" labelPosition="left" />
         <NavLink
-          label="Categorii"
-          leftSection={<IconCategory size={20} />}
+          label="Cheltuieli rapide"
+          description="Metrou, loto — preț fix, +/- pe zi"
+          leftSection={<IconBolt size={20} />}
           rightSection={<IconChevronRight size={16} />}
-          onClick={() => navigate('/categories')}
+          onClick={() => navigate('/quick-expenses')}
         />
+        <NavLink
+          label="Cheltuieli predefinite"
+          description="Freshful, Bolt — pre-completare"
+          leftSection={<IconClipboardList size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => navigate('/predefined-expenses')}
+        />
+        <NavLink
+          label="Cheltuieli fixe"
+          description="Terapie, chirie — sumă identică"
+          leftSection={<IconPin size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => navigate('/fixed-expenses')}
+        />
+
+        <Divider label="Cheltuieli recurente" labelPosition="left" mt="sm" />
         <NavLink
           label="Subscripții"
           leftSection={<IconCreditCard size={20} />}
@@ -39,20 +62,37 @@ export function MorePage() {
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/loans')}
         />
+
+        <Divider label="Configurare" labelPosition="left" mt="sm" />
         <NavLink
-          label="Cheltuieli fixe"
-          leftSection={<IconPin size={20} />}
+          label="Categorii & subcategorii"
+          leftSection={<IconCategory size={20} />}
           rightSection={<IconChevronRight size={16} />}
-          onClick={() => navigate('/fixed-expenses')}
+          onClick={() => navigate('/categories')}
+        />
+        <NavLink
+          label="Bugete"
+          leftSection={<IconWallet size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => navigate('/budgets')}
+        />
+
+        <Divider label="Privat" labelPosition="left" mt="sm" />
+        <NavLink
+          label="Cheltuieli ascunse"
+          description="Necesită PIN"
+          leftSection={<IconEyeOff size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => navigate('/hidden-expenses')}
         />
         <NavLink
           label="Setări"
+          description="PIN, profil"
           leftSection={<IconSettings size={20} />}
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/settings')}
-          disabled
-          description="Phase 7"
         />
+
         <Button
           mt="lg"
           variant="subtle"

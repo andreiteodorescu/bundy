@@ -10,8 +10,17 @@ type AuthContextValue = {
   user: User | null;
   profileId: string | null;
   status: 'loading' | 'authenticated' | 'unauthenticated';
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<void>;
+  signUp: (input: {
+    email: string;
+    password: string;
+    name: string;
+    icon: string;
+    captchaToken?: string;
+  }) => Promise<{ requiresConfirmation: boolean }>;
   signOut: () => Promise<void>;
+  requestPasswordReset: (email: string, captchaToken?: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,13 +82,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: session?.user ?? null,
     profileId,
     status,
-    async signIn(email, password) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+    async signIn(email, password, captchaToken) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+        options: { captchaToken },
+      });
       if (error) throw error;
+    },
+    async signUp({ email, password, name, icon, captchaToken }) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          // user_metadata.name + .profile_icon are read by ensureProfile() after first
+          // sign-in to seed the profile row.
+          data: { name, profile_icon: icon },
+          emailRedirectTo: `${window.location.origin}/login`,
+          captchaToken,
+        },
+      });
+      if (error) throw error;
+      // If email confirmation is enabled, session will be null until they verify.
+      const requiresConfirmation = !data.session;
+      return { requiresConfirmation };
     },
     async signOut() {
       bootstrappingFor.current = null;
       await supabase.auth.signOut();
+    },
+    async requestPasswordReset(email, captchaToken) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+        captchaToken,
+      });
+      if (error) throw error;
+    },
+    async updatePassword(newPassword) {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
     },
   };
 

@@ -9,7 +9,6 @@ import {
   Divider,
   Group,
   Loader,
-  Modal,
   NumberInput,
   Select,
   Stack,
@@ -19,10 +18,10 @@ import {
   Title,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
+import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { ROMANIAN_BANKS } from '@/data/banks';
@@ -52,7 +51,6 @@ export function LoanFormPage() {
   const [active, setActive] = useState(true);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
 
   // Pre-select Finance > Loans by default for new loans (once categories loaded)
   useEffect(() => {
@@ -134,14 +132,19 @@ export function LoanFormPage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!params.id) return;
-    try {
-      await del.mutateAsync(params.id);
-      navigate('/loans');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la ștergere');
-    }
+    confirmDelete({
+      message: 'Sigur vrei să ștergi această rată?',
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(params.id!);
+          navigate('/loans');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+        }
+      },
+    });
   }
 
   const remainingMonths = endDate ? Math.max(0, dayjs(endDate).diff(dayjs(startDate), 'month')) : null;
@@ -313,26 +316,14 @@ export function LoanFormPage() {
               variant="subtle"
               color="red"
               leftSection={<IconTrash size={16} />}
-              onClick={openConfirm}
+              onClick={handleDelete}
+              loading={del.isPending}
             >
               Șterge rata
             </Button>
           </>
         )}
       </Stack>
-
-      <Modal opened={confirmOpen} onClose={closeConfirm} title="Confirmă ștergerea" centered>
-        <Stack>
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={closeConfirm}>
-              Anulează
-            </Button>
-            <Button color="red" onClick={handleDelete} loading={del.isPending}>
-              Șterge
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Container>
   );
 }

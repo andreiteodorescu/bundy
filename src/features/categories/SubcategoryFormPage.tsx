@@ -9,7 +9,6 @@ import {
   Divider,
   Group,
   Loader,
-  Modal,
   Select,
   Stack,
   Switch,
@@ -17,11 +16,11 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { ColorPicker } from '@/components/ColorPicker';
 import { IconPicker } from '@/components/IconPicker';
 import { categoryColors, getIcon } from '@/data/icons.registry';
+import { confirmDelete } from '@/lib/confirm';
 import {
   useCategories,
   useDeleteSubcategory,
@@ -47,7 +46,6 @@ export function SubcategoryFormPage() {
   const [overrideColor, setOverrideColor] = useState(false);
   const [color, setColor] = useState<string>(categoryColors[0]);
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
 
   useEffect(() => {
     if (editing) {
@@ -106,14 +104,20 @@ export function SubcategoryFormPage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!editing) return;
-    try {
-      await del.mutateAsync(editing.id);
-      navigate(`/categories/${editing.parent_category_id}/edit`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la ștergere');
-    }
+    confirmDelete({
+      message:
+        'Subcategoria va fi ștearsă. Cheltuielile asociate vor rămâne în categoria părinte fără subcategorie.',
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(editing.id);
+          navigate(`/categories/${editing.parent_category_id}/edit`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+        }
+      },
+    });
   }
 
   return (
@@ -212,30 +216,14 @@ export function SubcategoryFormPage() {
               variant="subtle"
               color="red"
               leftSection={<IconTrash size={16} />}
-              onClick={openConfirm}
+              onClick={handleDelete}
+              loading={del.isPending}
             >
               Șterge subcategoria
             </Button>
           </>
         )}
       </Stack>
-
-      <Modal opened={confirmOpen} onClose={closeConfirm} title="Confirmă ștergerea" centered>
-        <Stack>
-          <Text size="sm">
-            Subcategoria va fi ștearsă. Cheltuielile asociate vor rămâne în categoria părinte fără
-            subcategorie.
-          </Text>
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={closeConfirm}>
-              Anulează
-            </Button>
-            <Button color="red" onClick={handleDelete} loading={del.isPending}>
-              Șterge
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Container>
   );
 }

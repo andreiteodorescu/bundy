@@ -8,7 +8,6 @@ import {
   Divider,
   Group,
   Loader,
-  Modal,
   NumberInput,
   Select,
   SegmentedControl,
@@ -18,10 +17,10 @@ import {
   Title,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
+import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import {
@@ -53,7 +52,6 @@ export function SubscriptionFormPage() {
   const [workReimbursable, setWorkReimbursable] = useState(false);
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
-  const [confirmOpen, { open: openConfirm, close: closeConfirm }] = useDisclosure(false);
 
   useEffect(() => {
     const sub = editing.data;
@@ -120,14 +118,19 @@ export function SubscriptionFormPage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!params.id) return;
-    try {
-      await del.mutateAsync(params.id);
-      navigate('/subscriptions');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la ștergere');
-    }
+    confirmDelete({
+      message: 'Sigur vrei să ștergi această subscripție?',
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(params.id!);
+          navigate('/subscriptions');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+        }
+      },
+    });
   }
 
   return (
@@ -301,26 +304,14 @@ export function SubscriptionFormPage() {
               variant="subtle"
               color="red"
               leftSection={<IconTrash size={16} />}
-              onClick={openConfirm}
+              onClick={handleDelete}
+              loading={del.isPending}
             >
               Șterge subscripția
             </Button>
           </>
         )}
       </Stack>
-
-      <Modal opened={confirmOpen} onClose={closeConfirm} title="Confirmă ștergerea" centered>
-        <Stack>
-          <Group justify="flex-end">
-            <Button variant="subtle" onClick={closeConfirm}>
-              Anulează
-            </Button>
-            <Button color="red" onClick={handleDelete} loading={del.isPending}>
-              Șterge
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Container>
   );
 }

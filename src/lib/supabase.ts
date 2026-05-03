@@ -76,7 +76,9 @@ export const supabase: SupabaseClient = createClient(
       storageKey: 'bundy.auth.session',
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      // Needed so the password-reset email link (https://bundy.ro/reset-password#access_token=...)
+      // gets picked up automatically and a recovery session is created.
+      detectSessionInUrl: true,
       flowType: 'pkce',
     },
     global: {

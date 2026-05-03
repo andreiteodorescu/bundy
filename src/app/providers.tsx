@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { MantineProvider } from '@mantine/core';
+import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { DatesProvider } from '@mantine/dates';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -23,9 +24,11 @@ export function Providers({ children }: { children: ReactNode }) {
       <DatesProvider settings={{ locale: 'ro', firstDayOfWeek: 1, weekendDays: [0, 6] }}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <Notifications position="top-right" />
-            {children}
-            {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+            <ModalsProvider>
+              <Notifications position="top-right" />
+              {children}
+              {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+            </ModalsProvider>
           </AuthProvider>
         </QueryClientProvider>
       </DatesProvider>

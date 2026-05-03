@@ -46,11 +46,14 @@ export function ExpensesListPage() {
   );
 
   const weeks = useMemo(() => splitMonthIntoWeeks(month), [month]);
-  const expenses = expensesQ.data ?? [];
+  const expensesAll = expensesQ.data ?? [];
+  // Hidden expenses don't show as items, but their amounts ARE included in the grand total
+  // (so it matches the home widget). See /hidden-expenses (PIN-gated) to view them.
+  const expensesVisible = useMemo(() => expensesAll.filter((e) => !e.hidden), [expensesAll]);
 
   const grouped = useMemo(() => {
     return weeks.map((w) => {
-      const items = expenses.filter((e) => {
+      const items = expensesVisible.filter((e) => {
         const d = dayjs(e.occurred_on);
         return (
           (d.isSame(w.start, 'day') || d.isAfter(w.start, 'day')) &&
@@ -60,9 +63,10 @@ export function ExpensesListPage() {
       const total = items.reduce((sum, e) => sum + Number(e.amount_ron), 0);
       return { week: w, items, total };
     });
-  }, [weeks, expenses]);
+  }, [weeks, expensesVisible]);
 
-  const grandTotal = grouped.reduce((s, g) => s + g.total, 0);
+  const grandTotal = expensesAll.reduce((s, e) => s + Number(e.amount_ron), 0);
+  const totalCount = expensesAll.length;
   const isCurrentMonth = dayjs(month).isSame(dayjs(), 'month');
 
   function shiftMonth(delta: number) {
@@ -111,7 +115,7 @@ export function ExpensesListPage() {
           <Center py="xl">
             <Loader />
           </Center>
-        ) : expenses.length === 0 ? (
+        ) : totalCount === 0 ? (
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconReceiptOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
@@ -184,9 +188,16 @@ function ExpenseRow({
             <Icon size={18} stroke={2} />
           </Box>
           <Box flex={1} miw={0}>
-            <Text fw={500} truncate>
-              {expense.name}
-            </Text>
+            <Group gap={6} wrap="nowrap">
+              <Text fw={500} truncate>
+                {expense.name}
+              </Text>
+              {expense.quantity && expense.quantity > 1 && (
+                <Text size="sm" fw={700} c="dimmed" style={{ flex: '0 0 auto' }}>
+                  ×{expense.quantity}
+                </Text>
+              )}
+            </Group>
             <Group gap={6}>
               <Text size="xs" c="dimmed">
                 {dayjs(expense.occurred_on).format('D MMM')}
@@ -196,6 +207,16 @@ function ExpenseRow({
               {expense.source === 'subscription' && (
                 <Badge size="xs" variant="light" leftSection={<IconSparkles size={10} />}>
                   sub
+                </Badge>
+              )}
+              {expense.source === 'loan' && (
+                <Badge size="xs" variant="light" color="orange">
+                  rată
+                </Badge>
+              )}
+              {expense.source === 'quick' && (
+                <Badge size="xs" variant="light" color="yellow">
+                  rapid
                 </Badge>
               )}
             </Group>

@@ -13,6 +13,7 @@ import {
   Popover,
   Select,
   Stack,
+  Switch,
   Text,
   Textarea,
   Title,
@@ -29,10 +30,12 @@ import {
   IconSparkles,
 } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
+import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { useDeleteExpense, useExpense, useRecentExpenses, useUpsertExpense } from './api';
 import { useAutoSuggest } from './useAutoSuggest';
+import { usePredefinedExpense } from '@/features/predefined-expenses/api';
 import { getIcon } from '@/data/icons.registry';
 import type { Suggestion } from '@/lib/autocomplete';
 
@@ -52,6 +55,8 @@ export function AddExpensePage() {
   const params = useParams();
   const editingId = params.id;
   const editing = useExpense(editingId);
+  const predefinedId = searchParams.get('predefined') ?? undefined;
+  const predefined = usePredefinedExpense(predefinedId);
   const cats = useCategories();
   const subs = useSubcategories();
   const history = useRecentExpenses(300);
@@ -72,9 +77,25 @@ export function AddExpensePage() {
   const [autoSuggestion, setAutoSuggestion] = useState<Suggestion | null>(null);
   const [overrideCategory, setOverrideCategory] = useState(false);
   const [recurrence, setRecurrence] = useState<RecurrenceKind>('never');
+  const [hidden, setHidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datePickerOpen, datePickerCtl] = useDisclosure(false);
   const [didLoadEditing, setDidLoadEditing] = useState(false);
+  const [didLoadPredefined, setDidLoadPredefined] = useState(false);
+
+  // Pre-fill form from a predefined template (?predefined=<id>) — only on first load,
+  // and only when not editing an existing expense.
+  useEffect(() => {
+    if (editingId || didLoadPredefined) return;
+    const t = predefined.data;
+    if (!t) return;
+    setName(t.name);
+    setCurrency(t.default_currency);
+    setCategoryId(t.category_id);
+    setSubcategoryId(t.subcategory_id);
+    setOverrideCategory(true); // user picked the template, don't override their choice via auto-suggest
+    setDidLoadPredefined(true);
+  }, [editingId, didLoadPredefined, predefined.data]);
 
   // Hydrate form when editing an existing expense
   useEffect(() => {
@@ -92,6 +113,7 @@ export function AddExpensePage() {
     if (exp.recurrence && typeof exp.recurrence === 'object' && 'kind' in exp.recurrence) {
       setRecurrence((exp.recurrence as { kind: RecurrenceKind }).kind);
     }
+    setHidden(exp.hidden);
     setDidLoadEditing(true);
   }, [editing.data, editingId, didLoadEditing]);
 
@@ -180,6 +202,7 @@ export function AddExpensePage() {
         subcategory_id: subcategoryId,
         note: note.trim() || null,
         recurrence: recurrence === 'never' ? null : { kind: recurrence },
+        hidden,
       });
       notifications.show({
         message: editingId ? `${name.trim()} actualizat` : `${name.trim()} salvat`,
@@ -192,16 +215,20 @@ export function AddExpensePage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!editingId) return;
-    if (!window.confirm('Sigur vrei să ștergi această cheltuială?')) return;
-    try {
-      await del.mutateAsync(editingId);
-      notifications.show({ message: 'Cheltuială ștearsă', color: 'gray' });
-      navigate('/expenses');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la ștergere');
-    }
+    confirmDelete({
+      message: 'Sigur vrei să ștergi această cheltuială?',
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(editingId);
+          notifications.show({ message: 'Cheltuială ștearsă', color: 'gray' });
+          navigate('/expenses');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+        }
+      },
+    });
   }
 
   const isToday = dayjs(date).isSame(dayjs(), 'day');
@@ -380,6 +407,13 @@ export function AddExpensePage() {
           value={recurrence}
           onChange={(v) => setRecurrence((v as RecurrenceKind) ?? 'never')}
           allowDeselect={false}
+        />
+
+        <Switch
+          label="Ascunde din liste"
+          description="Nu apare în lista de cheltuieli, dar suma e inclusă în total. Vizibilă doar în pagina 'Cheltuieli ascunse' (cu PIN)."
+          checked={hidden}
+          onChange={(e) => setHidden(e.currentTarget.checked)}
         />
 
         {error && (

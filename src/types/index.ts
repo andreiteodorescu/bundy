@@ -3,8 +3,11 @@ import type { Currency } from '@/lib/money';
 export type Profile = {
   id: string;
   name: string;
+  icon: string;
   base_currency: string;
   locale: string;
+  hidden_pin_hash: string | null;
+  settings: Record<string, unknown>;
   created_at: string;
 };
 
@@ -32,7 +35,34 @@ export type Subcategory = {
   slug: string | null;
 };
 
-export type ExpenseSource = 'manual' | 'subscription' | 'fixed' | 'loan';
+export type ExpenseSource = 'manual' | 'subscription' | 'fixed' | 'loan' | 'quick';
+
+export type QuickExpense = {
+  id: string;
+  profile_id: string;
+  name: string;
+  amount: number;
+  currency: Currency;
+  category_id: string | null;
+  subcategory_id: string | null;
+  icon: string | null;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+};
+
+export type PredefinedExpense = {
+  id: string;
+  profile_id: string;
+  name: string;
+  default_currency: Currency;
+  category_id: string | null;
+  subcategory_id: string | null;
+  icon: string | null;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+};
 
 export type Loan = {
   id: string;
@@ -70,6 +100,8 @@ export type Expense = {
   source: ExpenseSource;
   source_ref_id: string | null;
   recurrence: Record<string, unknown> | null;
+  quantity: number | null;
+  hidden: boolean;
   created_at: string;
   updated_at: string;
 };

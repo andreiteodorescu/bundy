@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
+import { confirmDelete } from '@/lib/confirm';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import {
   useDeleteFixedExpense,
@@ -80,15 +81,19 @@ export function FixedExpenseFormPage() {
     }
   }
 
-  async function handleDelete() {
+  function handleDelete() {
     if (!params.id) return;
-    if (!window.confirm('Sigur vrei să ștergi acest șablon?')) return;
-    try {
-      await del.mutateAsync(params.id);
-      navigate('/fixed-expenses');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la ștergere');
-    }
+    confirmDelete({
+      message: 'Sigur vrei să ștergi acest șablon?',
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(params.id!);
+          navigate('/fixed-expenses');
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+        }
+      },
+    });
   }
 
   return (

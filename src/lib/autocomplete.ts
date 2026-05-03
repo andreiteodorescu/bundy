@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js';
+import { normalize } from './text';
 import type { BrandRule, Expense } from '@/types';
 
 export type Suggestion = {
@@ -26,10 +27,11 @@ type Context = {
  * and let the user pick manually.
  */
 export function suggestCategory(input: string, ctx: Context): Suggestion | null {
-  const lc = input.trim().toLowerCase();
-  if (lc.length < 2) return null;
+  const lcRaw = input.trim().toLowerCase();
+  if (lcRaw.length < 2) return null;
+  const lcNorm = normalize(input.trim());
 
-  const ruleHit = matchRules(lc, ctx.userRules) ?? matchRules(lc, ctx.seedRules);
+  const ruleHit = matchRules(lcNorm, ctx.userRules) ?? matchRules(lcNorm, ctx.seedRules);
   if (ruleHit) return ruleHit;
 
   if (ctx.history.length > 0) {
@@ -38,7 +40,7 @@ export function suggestCategory(input: string, ctx: Context): Suggestion | null 
       threshold: 0.35,
       includeScore: true,
     });
-    const results = fuse.search(lc, { limit: 1 });
+    const results = fuse.search(lcRaw, { limit: 1 });
     const best = results[0];
     if (best && (best.score ?? 1) < 0.35 && best.item.category_id) {
       return {
@@ -55,21 +57,21 @@ export function suggestCategory(input: string, ctx: Context): Suggestion | null 
   return null;
 }
 
-function matchRules(lc: string, rules: BrandRule[]): Suggestion | null {
+function matchRules(lcNorm: string, rules: BrandRule[]): Suggestion | null {
   const sorted = [...rules].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
   for (const rule of sorted) {
-    const p = rule.pattern.toLowerCase();
+    const p = normalize(rule.pattern);
     let hit = false;
     if (rule.match_kind === 'starts_with') {
-      hit = lc.startsWith(p);
+      hit = lcNorm.startsWith(p);
     } else if (rule.match_kind === 'regex') {
       try {
-        hit = new RegExp(rule.pattern, 'i').test(lc);
+        hit = new RegExp(rule.pattern, 'i').test(lcNorm);
       } catch {
         hit = false;
       }
     } else {
-      hit = lc.includes(p);
+      hit = lcNorm.includes(p);
     }
     if (hit) {
       return {

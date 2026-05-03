@@ -4,10 +4,14 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { MainLayout } from '@/components/layouts/MainLayout';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { SignupPage } from '@/features/auth/SignupPage';
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 
-// Lazy-load page components so each route ships its own chunk.
-// Mantine charts and dnd-kit are heavy; this keeps the initial bundle small.
+const HomePage = lazy(() =>
+  import('@/features/home/HomePage').then((m) => ({ default: m.HomePage })),
+);
 const ExpensesListPage = lazy(() =>
   import('@/features/expenses/ExpensesListPage').then((m) => ({ default: m.ExpensesListPage })),
 );
@@ -56,6 +60,24 @@ const LoansListPage = lazy(() =>
 const LoanFormPage = lazy(() =>
   import('@/features/loans/LoanFormPage').then((m) => ({ default: m.LoanFormPage })),
 );
+const QuickExpensesListPage = lazy(() =>
+  import('@/features/quick-expenses/QuickExpensesListPage').then((m) => ({ default: m.QuickExpensesListPage })),
+);
+const QuickExpenseFormPage = lazy(() =>
+  import('@/features/quick-expenses/QuickExpenseFormPage').then((m) => ({ default: m.QuickExpenseFormPage })),
+);
+const PredefinedExpensesListPage = lazy(() =>
+  import('@/features/predefined-expenses/PredefinedExpensesListPage').then((m) => ({ default: m.PredefinedExpensesListPage })),
+);
+const PredefinedExpenseFormPage = lazy(() =>
+  import('@/features/predefined-expenses/PredefinedExpenseFormPage').then((m) => ({ default: m.PredefinedExpenseFormPage })),
+);
+const SettingsPage = lazy(() =>
+  import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const HiddenExpensesPage = lazy(() =>
+  import('@/features/hidden-expenses/HiddenExpensesPage').then((m) => ({ default: m.HiddenExpensesPage })),
+);
 
 function PageFallback() {
   return (
@@ -72,7 +94,12 @@ function lazyRoute(node: React.ReactNode) {
 const router = createBrowserRouter([
   {
     element: <AuthLayout />,
-    children: [{ path: '/login', element: <LoginPage /> }],
+    children: [
+      { path: '/login', element: <LoginPage /> },
+      { path: '/signup', element: <SignupPage /> },
+      { path: '/forgot-password', element: <ForgotPasswordPage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
+    ],
   },
   {
     element: (
@@ -81,31 +108,52 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/expenses" replace /> },
+      { index: true, element: <Navigate to="/home" replace /> },
+      { path: '/home', element: lazyRoute(<HomePage />) },
+
       { path: '/expenses', element: lazyRoute(<ExpensesListPage />) },
-      { path: '/expenses/quick-add', element: lazyRoute(<FixedExpensesPrePage />) },
       { path: '/expenses/add', element: lazyRoute(<AddExpensePage />) },
       { path: '/expenses/:id/edit', element: lazyRoute(<AddExpensePage />) },
+
       { path: '/analytics', element: lazyRoute(<AnalyticsPage />) },
+
       { path: '/budgets', element: lazyRoute(<BudgetsListPage />) },
       { path: '/budgets/new', element: lazyRoute(<BudgetFormPage />) },
       { path: '/budgets/:id/edit', element: lazyRoute(<BudgetFormPage />) },
+
       { path: '/more', element: lazyRoute(<MorePage />) },
+
       { path: '/categories', element: lazyRoute(<CategoriesListPage />) },
       { path: '/categories/new', element: lazyRoute(<CategoryFormPage />) },
       { path: '/categories/:id/edit', element: lazyRoute(<CategoryFormPage />) },
       { path: '/subcategories/new', element: lazyRoute(<SubcategoryFormPage />) },
       { path: '/subcategories/:id/edit', element: lazyRoute(<SubcategoryFormPage />) },
+
       { path: '/subscriptions', element: lazyRoute(<SubscriptionsListPage />) },
       { path: '/subscriptions/new', element: lazyRoute(<SubscriptionFormPage />) },
       { path: '/subscriptions/:id/edit', element: lazyRoute(<SubscriptionFormPage />) },
+
       { path: '/fixed-expenses', element: lazyRoute(<FixedExpensesListPage />) },
       { path: '/fixed-expenses/new', element: lazyRoute(<FixedExpenseFormPage />) },
       { path: '/fixed-expenses/:id/edit', element: lazyRoute(<FixedExpenseFormPage />) },
+      { path: '/fixed-expenses/quick-add', element: lazyRoute(<FixedExpensesPrePage />) },
+
       { path: '/loans', element: lazyRoute(<LoansListPage />) },
       { path: '/loans/new', element: lazyRoute(<LoanFormPage />) },
       { path: '/loans/:id/edit', element: lazyRoute(<LoanFormPage />) },
-      { path: '*', element: <Navigate to="/expenses" replace /> },
+
+      { path: '/quick-expenses', element: lazyRoute(<QuickExpensesListPage />) },
+      { path: '/quick-expenses/new', element: lazyRoute(<QuickExpenseFormPage />) },
+      { path: '/quick-expenses/:id/edit', element: lazyRoute(<QuickExpenseFormPage />) },
+
+      { path: '/predefined-expenses', element: lazyRoute(<PredefinedExpensesListPage />) },
+      { path: '/predefined-expenses/new', element: lazyRoute(<PredefinedExpenseFormPage />) },
+      { path: '/predefined-expenses/:id/edit', element: lazyRoute(<PredefinedExpenseFormPage />) },
+
+      { path: '/settings', element: lazyRoute(<SettingsPage />) },
+      { path: '/hidden-expenses', element: lazyRoute(<HiddenExpensesPage />) },
+
+      { path: '*', element: <Navigate to="/home" replace /> },
     ],
   },
 ]);

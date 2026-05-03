@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -14,7 +13,7 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
+import { IconArrowLeft, IconPin, IconPlus } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
 import { useUpsertExpense } from '@/features/expenses/api';
 import { todayIso } from '@/lib/dates';
@@ -24,11 +23,11 @@ import { useFixedExpenses } from './api';
 import type { FixedExpense } from '@/types';
 
 /**
- * Pre-page shown when the user clicks the (+) FAB on the bottom nav. If the user has any
- * fixed_expense templates, this page lists them as one-tap quick-adds. Tapping a template
- * inserts an expense for today using the template's amount/category.
+ * Quick-add page for fixed-expense templates. Reachable from the "Cheltuială fixă" card
+ * on the home page. Tapping a template inserts an expense for today using the template's
+ * amount and category — one tap, no form.
  *
- * If no templates exist, BottomNav routes directly to /expenses/add and skips this page.
+ * Empty state nudges the user to create their first template.
  */
 export function FixedExpensesPrePage() {
   const navigate = useNavigate();
@@ -36,13 +35,6 @@ export function FixedExpensesPrePage() {
   const cats = useCategories();
   const upsert = useUpsertExpense();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
-
-  // Skip the pre-page entirely when there are no templates
-  useEffect(() => {
-    if (!fixed.isLoading && (fixed.data?.length ?? 0) === 0) {
-      navigate('/expenses/add', { replace: true });
-    }
-  }, [fixed.isLoading, fixed.data, navigate]);
 
   async function quickAdd(fx: FixedExpense) {
     try {
@@ -69,26 +61,50 @@ export function FixedExpensesPrePage() {
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
-        <Group gap="xs">
+        <Group gap="xs" justify="space-between">
           <Button
             variant="subtle"
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/home')}
           >
             Înapoi
           </Button>
+          <Button
+            size="compact-sm"
+            leftSection={<IconPlus size={16} />}
+            onClick={() => navigate('/fixed-expenses/new')}
+          >
+            Șablon nou
+          </Button>
         </Group>
 
-        <Title order={2}>Quick add</Title>
-        <Text size="sm" c="dimmed">
-          Tap pe un șablon pentru a adăuga instant cheltuiala pe ziua de azi.
-        </Text>
+        <Box>
+          <Title order={2}>Cheltuială fixă</Title>
+          <Text size="sm" c="dimmed">
+            Tap pe un șablon pentru a adăuga cheltuiala instant pe ziua de azi.
+          </Text>
+        </Box>
 
         {fixed.isLoading ? (
-          <Center py="md">
+          <Center py="xl">
             <Loader />
+          </Center>
+        ) : (fixed.data ?? []).length === 0 ? (
+          <Center py="xl">
+            <Stack align="center" gap="xs">
+              <IconPin size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
+              <Text c="dimmed">Niciun șablon fix definit</Text>
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => navigate('/fixed-expenses/new')}
+                leftSection={<IconPlus size={16} />}
+              >
+                Adaugă primul
+              </Button>
+            </Stack>
           </Center>
         ) : (
           <Stack gap="xs">
@@ -97,11 +113,7 @@ export function FixedExpensesPrePage() {
               const Icon = getIcon(category?.icon);
               const color = category?.color ?? 'var(--mantine-color-gray-6)';
               return (
-                <UnstyledButton
-                  key={fx.id}
-                  onClick={() => quickAdd(fx)}
-                  disabled={upsert.isPending}
-                >
+                <UnstyledButton key={fx.id} onClick={() => quickAdd(fx)} disabled={upsert.isPending}>
                   <Paper withBorder radius="md" p="md">
                     <Group wrap="nowrap" gap="sm">
                       <Box
@@ -137,15 +149,6 @@ export function FixedExpensesPrePage() {
             })}
           </Stack>
         )}
-
-        <Button
-          variant="light"
-          leftSection={<IconPlus size={18} />}
-          onClick={() => navigate('/expenses/add')}
-          size="md"
-        >
-          Adaugă cheltuială nouă
-        </Button>
       </Stack>
     </Container>
   );
