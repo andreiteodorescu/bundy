@@ -17,6 +17,7 @@ import {
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
+import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import {
   useDeleteFixedExpense,
@@ -146,6 +147,7 @@ export function FixedExpenseFormPage() {
           label="Categorie"
           required
           searchable
+          filter={diacriticsFilter}
           data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
           value={categoryId}
           onChange={(v) => {

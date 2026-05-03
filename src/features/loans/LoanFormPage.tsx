@@ -23,6 +23,7 @@ import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
+import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { ROMANIAN_BANKS } from '@/data/banks';
 import { useDeleteLoan, useLoan, useUpsertLoan } from './api';
@@ -181,6 +182,7 @@ export function LoanFormPage() {
           onChange={setBank}
           placeholder="ex: BCR"
           limit={10}
+          filter={diacriticsFilter}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
@@ -263,6 +265,7 @@ export function LoanFormPage() {
           label="Categorie"
           required
           searchable
+          filter={diacriticsFilter}
           data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
           value={categoryId}
           onChange={(v) => {

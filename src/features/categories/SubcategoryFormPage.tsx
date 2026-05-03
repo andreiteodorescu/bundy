@@ -21,6 +21,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { IconPicker } from '@/components/IconPicker';
 import { categoryColors, getIcon } from '@/data/icons.registry';
 import { confirmDelete } from '@/lib/confirm';
+import { diacriticsFilter } from '@/lib/text';
 import {
   useCategories,
   useDeleteSubcategory,
@@ -163,6 +164,7 @@ export function SubcategoryFormPage() {
           label="Categoria părinte"
           required
           searchable
+          filter={diacriticsFilter}
           data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
           value={parentId}
           onChange={(v) => setParentId(v)}

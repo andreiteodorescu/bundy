@@ -32,7 +32,7 @@ import {
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
-import { cleanExpenseName } from '@/lib/text';
+import { cleanExpenseName, diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { useDeleteExpense, useExpense, useRecentExpenses, useUpsertExpense } from './api';
 import { useAutoSuggest } from './useAutoSuggest';
@@ -265,6 +265,7 @@ export function AddExpensePage() {
           placeholder="ex: Comanda Freshful"
           maxDropdownHeight={240}
           limit={20}
+          filter={diacriticsFilter}
         />
 
         {autoSuggestion && category && !overrideCategory && (
@@ -355,6 +356,7 @@ export function AddExpensePage() {
           label="Categorie"
           required
           searchable
+          filter={diacriticsFilter}
           data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
           value={categoryId}
           onChange={handleCategoryChange}

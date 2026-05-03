@@ -33,3 +33,32 @@ export function cleanExpenseName(name: string): string {
   for (const p of HINT_PATTERNS) cleaned = cleaned.replace(p, '');
   return cleaned.trim();
 }
+
+/**
+ * Diacritics-insensitive filter for Mantine Select / MultiSelect / Autocomplete.
+ *
+ *   <Select filter={diacriticsFilter} ... />
+ *
+ * User types "vacanta" → matches "Vacanță". Type "macare" → matches "Mâncare & Băuturi".
+ * Handles both flat option lists and grouped lists (preserves group structure, only
+ * keeps groups that have at least one matching item).
+ *
+ * We use the OptionsFilter type from Mantine for proper typing.
+ */
+import type { OptionsFilter } from '@mantine/core';
+
+export const diacriticsFilter: OptionsFilter = ({ options, search }) => {
+  const q = normalize(search.trim());
+  if (!q) return options;
+
+  const out: typeof options = [];
+  for (const opt of options) {
+    if ('group' in opt && Array.isArray(opt.items)) {
+      const items = opt.items.filter((it) => normalize(it.label).includes(q));
+      if (items.length > 0) out.push({ ...opt, items });
+    } else if ('label' in opt) {
+      if (normalize(opt.label).includes(q)) out.push(opt);
+    }
+  }
+  return out;
+};

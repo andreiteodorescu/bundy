@@ -3,6 +3,7 @@ import { Box, Button, Group, MultiSelect, Stack, Text } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { ymd } from '@/lib/dates';
+import { diacriticsFilter } from '@/lib/text';
 
 type Props = {
   /** ISO date strings (YYYY-MM-DD) */
@@ -83,6 +84,7 @@ export function BudgetCalendar({ value, onChange }: Props) {
         placeholder="ex: aprilie, mai..."
         clearable
         searchable
+        filter={diacriticsFilter}
       />
 
       <Box>

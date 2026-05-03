@@ -19,6 +19,7 @@ import {
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
+import { diacriticsFilter } from '@/lib/text';
 import { BudgetCalendar } from './BudgetCalendar';
 import { useBudget, useDeleteBudget, useUpsertBudget } from './api';
 import { getFxRate } from '@/lib/fx';
@@ -183,6 +184,7 @@ export function BudgetFormPage() {
             onChange={setCategoryIds}
             searchable
             clearable
+            filter={diacriticsFilter}
           />
         )}
 
@@ -196,6 +198,7 @@ export function BudgetFormPage() {
             onChange={setSubcategoryIds}
             searchable
             clearable
+            filter={diacriticsFilter}
           />
         )}
 
