@@ -6,6 +6,7 @@ import {
   Button,
   Center,
   Group,
+  Image,
   Paper,
   PasswordInput,
   Stack,
@@ -56,8 +57,18 @@ export function LoginPage() {
       <Paper p="xl" radius="lg" withBorder w="100%" maw={420}>
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
-            <Stack gap={2} align="center">
-              <Title order={2}>Bundy</Title>
+            <Stack gap="xs" align="center">
+              <Image
+                src="/icons/icon-192.png"
+                alt="Bundy"
+                w={80}
+                h={80}
+                radius="lg"
+                fit="contain"
+              />
+              <Title order={2} mt={4}>
+                Bundy
+              </Title>
               <Text size="sm" c="dimmed">
                 Gestionare cheltuieli personale
               </Text>

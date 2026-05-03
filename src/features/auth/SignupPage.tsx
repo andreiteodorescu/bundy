@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Center,
+  Image,
   Paper,
   PasswordInput,
   Stack,
@@ -114,8 +115,18 @@ export function SignupPage() {
       <Paper p="xl" radius="lg" withBorder w="100%" maw={460}>
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
-            <Stack gap={2} align="center">
-              <Title order={2}>Cont nou</Title>
+            <Stack gap="xs" align="center">
+              <Image
+                src="/icons/icon-192.png"
+                alt="Bundy"
+                w={64}
+                h={64}
+                radius="md"
+                fit="contain"
+              />
+              <Title order={2} mt={4}>
+                Cont nou
+              </Title>
               <Text size="sm" c="dimmed">
                 Bundy — gestionare cheltuieli personale
               </Text>
