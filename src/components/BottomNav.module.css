@@ -1,5 +1,8 @@
 .nav {
-  height: var(--bottom-nav-height);
+  /* Total height grows with safe-area + PWA lift so the inner content area
+     stays at --bottom-nav-height (64px). Otherwise padding-bottom would eat
+     into the content (border-box) and squash the icons + FAB. */
+  height: calc(var(--bottom-nav-height) + var(--safe-bottom) + var(--pwa-bottom-lift));
   background: var(--mantine-color-body, #1a1b1e);
 }
 
