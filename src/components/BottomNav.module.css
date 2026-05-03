@@ -1,6 +1,6 @@
 .nav {
   height: var(--bottom-nav-height);
-  background: var(--mantine-color-body);
+  background: var(--mantine-color-body, #1a1b1e);
 }
 
 .item {
@@ -10,16 +10,32 @@
   justify-content: center;
   gap: 2px;
   text-decoration: none;
-  color: var(--mantine-color-dimmed);
+  color: var(--mantine-color-dimmed, #909296);
+  -webkit-text-fill-color: currentColor;
   padding: 8px 4px;
 }
 
+/* iOS WebKit (especially in standalone PWA mode) sometimes fails to propagate
+   currentColor to <a>-nested SVGs. Force explicit inheritance + sane fallback.
+   The first selector targets every Tabler SVG inside a nav item. */
+.item svg {
+  display: block;
+  flex-shrink: 0;
+  color: inherit;
+  stroke: currentColor;
+  fill: none;
+}
+
 .item:active {
-  background: var(--mantine-color-default-hover);
+  background: var(--mantine-color-default-hover, rgba(255, 255, 255, 0.05));
 }
 
 .active {
-  color: var(--mantine-primary-color-filled);
+  color: var(--mantine-primary-color-filled, #4f6cc2);
+}
+
+.active svg {
+  color: var(--mantine-primary-color-filled, #4f6cc2);
 }
 
 .fabSlot {

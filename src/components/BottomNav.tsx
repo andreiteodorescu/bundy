@@ -67,9 +67,13 @@ function NavItem({
   active: boolean;
 }) {
   const { Icon, to, label } = item;
+  // iOS WebKit in PWA standalone has bugs propagating currentColor to <svg>
+  // nested in <a>. Pass explicit `color` prop on the Tabler icon so stroke
+  // is set inline on the SVG element, bypassing the color-inheritance chain.
+  const iconColor = active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-dimmed)';
   return (
     <NavLink to={to} className={`${classes.item} ${active ? classes.active : ''}`}>
-      <Icon size={22} stroke={active ? 2.2 : 1.8} />
+      <Icon size={22} stroke={active ? 2.2 : 1.8} color={iconColor} />
       <Text size="xs" mt={2} fw={active ? 600 : 400}>
         {label}
       </Text>
