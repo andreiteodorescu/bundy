@@ -23,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { ActiveBudgetBanner } from '@/features/budgets/ActiveBudgetBanner';
+import { cleanExpenseName } from '@/lib/text';
 import { useExpensesByMonth } from './api';
 import { splitMonthIntoWeeks } from '@/lib/dates';
 import { formatRon } from '@/lib/money';
@@ -190,7 +191,7 @@ function ExpenseRow({
           <Box flex={1} miw={0}>
             <Group gap={6} wrap="nowrap">
               <Text fw={500} truncate>
-                {expense.name}
+                {cleanExpenseName(expense.name)}
               </Text>
               {expense.quantity && expense.quantity > 1 && (
                 <Text size="sm" fw={700} c="dimmed" style={{ flex: '0 0 auto' }}>

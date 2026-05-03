@@ -32,6 +32,7 @@ import {
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
+import { cleanExpenseName } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { useDeleteExpense, useExpense, useRecentExpenses, useUpsertExpense } from './api';
 import { useAutoSuggest } from './useAutoSuggest';
@@ -148,12 +149,16 @@ export function AddExpensePage() {
 
   const accentColor = category?.color ?? 'var(--mantine-color-accent-5)';
 
-  // History combobox: dedup by name (case-insensitive), keep most recent occurrence for category hint
+  // History combobox: strip cosmetic hints like "(eating out)"/"(food delivery)"
+  // (used by historical seed) and dedup by cleaned name. New expenses save with
+  // the clean name so the dropdown stays tidy.
   const historyOptions = useMemo(() => {
     const seen = new Map<string, string>();
     for (const exp of history.data ?? []) {
-      const key = exp.name.trim().toLowerCase();
-      if (!seen.has(key)) seen.set(key, exp.name.trim());
+      const cleaned = cleanExpenseName(exp.name);
+      if (!cleaned) continue;
+      const key = cleaned.toLowerCase();
+      if (!seen.has(key)) seen.set(key, cleaned);
     }
     return Array.from(seen.values());
   }, [history.data]);

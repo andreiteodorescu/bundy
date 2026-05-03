@@ -30,6 +30,7 @@ import {
 } from '@/lib/pin';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { formatRon } from '@/lib/money';
+import { cleanExpenseName } from '@/lib/text';
 import { getIcon } from '@/data/icons.registry';
 import type { Expense } from '@/types';
 
@@ -291,7 +292,7 @@ function HiddenExpensesList() {
                       </Box>
                       <Box flex={1} miw={0}>
                         <Text fw={500} truncate>
-                          {exp.name}
+                          {cleanExpenseName(exp.name)}
                         </Text>
                         <Text size="xs" c="dimmed">
                           {dayjs(exp.occurred_on).format('D MMM YYYY')}
