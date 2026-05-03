@@ -59,6 +59,16 @@ src/
     icons.registry.ts         Subset curat ~60 Tabler icons
   styles/                     theme.ts (Mantine), globals.css (safe-area-inset)
   types/                      TS types (Expense, Budget, Category, Subscription, ...)
+  features/
+    auth/                     SignupPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, AuthProvider, bootstrap RPC
+    home/                     HomePage cu acțiuni stagger-animate + total widget + ActiveBudgetBanner
+    quick-expenses/           Templates preț FIX cu stepper -/+ pe zi (Metrou, Loto)
+    predefined-expenses/      Templates preț VARIABIL cu tap-to-prefill (Freshful, Bolt)
+    settings/                 SettingsPage (avatar, parolă, PIN TTL, șterge cont) + MorePage drawer
+    hidden-expenses/          PIN-gate page pentru cheltuieli ascunse
+  components/
+    AnimalIconPicker          Picker de animal-avatar pentru profil
+    CaptchaGate                Wrapper hCaptcha (no-op în dev fără env var)
 supabase/
   migrations/
     0001_init.sql             Schemă completă + RLS + triggers
@@ -67,12 +77,20 @@ supabase/
     0004_weekly_cadence.sql   Adaugă 'weekly' la cadence
     0005_translate_seeded_names.sql  Traducere RO pentru categoriile is_system existente
     0006_loans.sql            Tabela loans (Rate) + RLS + 'loan' source pe expenses
+    0007_add_adoption_category.sql  Categoria 'Adopție' la profile existente
+    0008_quick_predefined.sql Tabele quick_expenses + predefined_expenses + 'quick' source + col `quantity`
+    0009_recategorize_diacritics.sql  Re-categorizare expenses cu diacritice (Spălat mașină etc.)
+    0010_add_debt_category.sql Categoria 'Datorie' la profile existente
+    0011_hidden_pin_settings.sql  expenses.hidden + profiles.hidden_pin_hash + profiles.settings jsonb
+    0012_profile_icon.sql     profiles.icon + bootstrap_profile() acceptă profile_icon
+    0013_delete_account.sql   delete_my_account() RPC pentru self-delete cu cascade
 scripts/
   historical-data.ts          ~180 cheltuieli Feb/Mar/Apr 2026 (input user)
   seed-historical.ts          Inserare backfill (folosește service role key)
 public/
   robots.txt                  Disallow: /  (no Google indexing)
-  icons/                      PWA icons (192, 512, 512-maskable) — ÎNCĂ DE GENERAT
+  favicon.ico, favicon-96x96.png, apple-touch-icon.png
+  icons/icon-192.png, icon-512.png, icon-512-maskable.png
 .env.local                    Secrets (gitignored)
 vite.config.ts                PWA, code-splitting manualChunks, dev BNR middleware
 vercel.json                   X-Robots-Tag noindex pe toate rutele
@@ -89,19 +107,30 @@ vercel.json                   X-Robots-Tag noindex pe toate rutele
    - **anon public** key
    - **service_role** key (secret, doar pentru `api/fx.ts` și `scripts/seed-historical.ts`)
 3. SQL Editor → New query → rulează ÎN ORDINE:
-   - `supabase/migrations/0001_init.sql`
-   - `supabase/migrations/0003_bootstrap_rpc.sql` (sare peste 0002, e deprecated)
-   - `supabase/migrations/0004_weekly_cadence.sql`
-   - `supabase/migrations/0005_translate_seeded_names.sql` *(dacă userii deja existenți au categorii în engleză)*
-   - `supabase/migrations/0006_loans.sql`
-4. Authentication → Providers → Email → **dezactivează "Enable Sign Ups"** (nimeni nu poate crea cont singur).
-5. Authentication → Users → Add user → introdu email + parolă pentru tine.
+   - `0001_init.sql`
+   - `0003_bootstrap_rpc.sql` (sare peste 0002, e deprecated)
+   - `0004_weekly_cadence.sql`
+   - `0005_translate_seeded_names.sql` *(dacă userii deja existenți au categorii în engleză)*
+   - `0006_loans.sql`
+   - `0007_add_adoption_category.sql`
+   - `0008_quick_predefined.sql`
+   - `0009_recategorize_diacritics.sql` *(opțional, doar dacă ai backfill-uit istoric)*
+   - `0010_add_debt_category.sql`
+   - `0011_hidden_pin_settings.sql`
+   - `0012_profile_icon.sql`
+   - `0013_delete_account.sql`
+4. Authentication → Providers → Email → **Enable Sign Ups: ON** (oricine cu URL-ul `bundy.ro` poate crea cont; verificarea email e obligatorie din default).
+5. Authentication → URL Configuration:
+   - **Site URL**: `https://bundy.ro` (prod) sau `http://localhost:5173` (dev)
+   - **Redirect URLs**: `https://bundy.ro/**`, `https://www.bundy.ro/**`, `http://localhost:5173/**`
+6. Authentication → **Attack Protection** → Captcha: hCaptcha + paste secret key (opțional, vezi mai jos).
 
 ### 2. `.env.local` (lângă `package.json`)
 ```
 VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
+VITE_HCAPTCHA_SITE_KEY=...   # opțional, lasă gol în dev pentru a sări captcha-ul
 ```
 Fără ghilimele, fără spații. Restartează `npm run dev` după modificări (Vite citește env doar la start).
 
@@ -123,12 +152,62 @@ Inserează ~180 cheltuieli Feb/Mar/Apr 2026 din `scripts/historical-data.ts`. Id
 
 ## Adăugare user nou (prieten)
 
-Doar în Supabase Dashboard:
-1. Authentication → Users → **Add user** → email + parolă temporară.
-2. Userul se loghează în app cu acele credențiale → `bootstrap_profile()` îi creează automat profilul lui și categoriile (RLS îl ține izolat de datele tale).
-3. Dacă vrei să îi resetezi parola: Authentication → Users → click pe user → Reset password.
+Userul se duce singur la `https://bundy.ro/signup` și își face cont:
+1. Email + parolă (min 6 chars) + nume + alege un animal-avatar (pisică, câine, etc.)
+2. Trece captcha (hCaptcha)
+3. Primește email de verificare → click pe link → cont activat
+4. Login → `bootstrap_profile()` RPC îi creează profil + categorii + subcategorii RO seedate
+5. RLS îl izolează: nu vede datele tale, tu nu vezi datele lui
 
-> Nu adăuga useri în `.env.local` — autentificarea merge prin Supabase Auth, nu prin variabile de mediu.
+**Reset parolă uitată**: pe pagina de login → "Am uitat parola" → primește link prin email.
+
+**Reset parolă din contul tău**: Settings → "Schimbă parola".
+
+**Self-delete**: Settings → "Zonă periculoasă" → "Șterge contul" → cascade delete pentru tot (cheltuieli, bugete etc.) + ștergerea userului din `auth.users`.
+
+> Manual delete prin Supabase Dashboard nu mai e necesar — userii își administrează singuri contul.
+
+---
+
+## hCaptcha (anti-bot signup/login/forgot)
+
+**De ce**: dacă bundy.ro e public, fără captcha cineva poate face zeci de mii de signup-uri spam și ar consuma rate-limits / DB rows. hCaptcha free tier e generos (1M req/lună).
+
+**Setup** (~10 min):
+1. Cont gratis la https://hcaptcha.com → Add site → introdu `bundy.ro` (localhost nu e acceptat de hCaptcha — folosește test keys mai jos pentru dev)
+2. Site key: vizibil pe pagina sitului
+3. Secret key: vizibil pe pagina account-level Settings (NU per-site)
+4. `.env.local` + Vercel env vars: `VITE_HCAPTCHA_SITE_KEY=site-key`
+5. Supabase Dashboard → Authentication → **Attack Protection** → Captcha Provider: hCaptcha → Secret key: paste
+
+**Test keys (DEV)** care trec mereu captcha-ul automat:
+```
+Site key:    10000000-ffff-ffff-ffff-000000000001
+Secret key:  0x0000000000000000000000000000000000000000
+```
+Pune site key în `.env.local`, secret key în Supabase → captcha-ul rulează în dev fără puzzle real.
+
+**Important**: când captcha e activat în Supabase, e cerut pe **TOATE** endpoint-urile auth: signup, login, forgot password. CaptchaGate apare pe toate cele 3 pagini.
+
+**Skip captcha în dev**: lasă `VITE_HCAPTCHA_SITE_KEY` gol → CaptchaGate randează un mesaj "captcha disabled" și submit merge fără. Dar dacă captcha e ON în Supabase, login va eșua cu "no captcha_token found" — dezactivează în Supabase Auth → Attack Protection sau folosește test keys.
+
+---
+
+## Cheltuieli ascunse + PIN (privacy)
+
+**Caz de uz**: vrei să marchezi unele cheltuieli ca private, să nu apară în liste. Suma e inclusă în total (deci totalul matches `total = visible + ascunse`), dar item-ul nu se vede.
+
+**Cum:**
+- Adaugă/Edit cheltuială → toggle "Ascunde din liste" → cheltuiala dispare din ExpensesListPage, Analytics charts, autocomplete history, etc.
+- "Mai mult" → "Cheltuieli ascunse" → introdu PIN-ul de 4 cifre → vezi lista, edit normal, scoate din ascundere
+
+**Setare PIN**: Settings → "Cheltuieli ascunse" → "Setează PIN" (4 cifre) → confirmă (re-introdu).
+
+**Sliding TTL (window)**: după ce introduci PIN-ul, e valid 5 min default (configurabil în Settings: 1/5/15/60 min). Fereastra se reînnoiește la fiecare interacțiune cu pagina ascunsă. La revenire din background după >TTL, cere PIN-ul din nou.
+
+**Wipeout total** (PIN cerut imediat): închizi tab-ul Safari / închizi PWA pe iOS din memorie / hard refresh.
+
+**SECURITY CAVEAT**: 4 cifre = 10K combinații, brute-force în <1 sec. PIN-ul protejează din **priviri rapide**, nu de un atacator determinat cu acces la DB. Nu pune date sensibile (parole, conturi bancare) la "ascunse".
 
 ---
 
@@ -224,23 +303,76 @@ npm run seed:historical      # Backfill Feb/Mar/Apr 2026 (folosește service_rol
 
 ## Deploy pe Vercel + bundy.ro
 
-1. Push repoul pe GitHub (privat).
-2. https://vercel.com → New Project → import repo. Framework auto-detectat (Vite).
-3. Project Settings → Environment Variables → adaugă cele 3 din `.env.local`. **NU** adăuga `SUPABASE_SERVICE_ROLE_KEY` cu prefix VITE_ — păstrează-l fără prefix (e folosit doar în `api/fx.ts`).
-4. Deploy. URL-ul preview va fi `bundy.vercel.app` sau similar.
-5. Project → Domains → adaugă `bundy.ro` și `www.bundy.ro`. Vercel îți afișează 2 nameservers (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`).
-6. La ROTLD (rotld.ro) → panel domeniu `bundy.ro` → schimbă nameservers la cele de la Vercel.
-7. Așteaptă propagare DNS (1-24h). SSL via Let's Encrypt automat.
+### 1. Pre-flight
+```bash
+npm run build           # trebuie să treacă fără erori
+git add -A && git commit -m "..." && git push
+```
+
+### 2. Vercel project
+1. https://vercel.com → New Project → import repo. Framework auto-detectat (Vite).
+2. **Install Command**: dacă build eșuează cu peer-dep errors, schimbă la `npm install --legacy-peer-deps`.
+3. Project Settings → Environment Variables (toate `Production, Preview` — NU Development):
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (fără prefix VITE_; folosit doar în `api/fx.ts`)
+   - `VITE_HCAPTCHA_SITE_KEY`
+4. Deploy. URL preview e `bundy-xxx.vercel.app`.
+
+### 3. Custom domain
+1. Project → Settings → Domains → adaugă `bundy.ro` și `www.bundy.ro`.
+2. Vercel afișează 2 nameservers: `ns1.vercel-dns.com`, `ns2.vercel-dns.com`.
+3. La ROTLD (rotld.ro) → panel domeniu `bundy.ro` → secțiunea Nameservers → schimbă la cele de la Vercel.
+4. Așteaptă propagare DNS (1-24h, de obicei < 2h). SSL Let's Encrypt automat după DNS valid.
+
+### 4. Update Supabase pentru prod
+- Authentication → URL Configuration:
+  - Site URL: `https://bundy.ro`
+  - Redirect URLs: `https://bundy.ro/**`, `https://www.bundy.ro/**`, `http://localhost:5173/**` (păstrează pentru dev)
+
+### 5. Update hCaptcha pentru prod
+- Dashboard hCaptcha → site → adaugă `bundy.ro` la hostnames (dacă opțiunea există în UI-ul curent)
+- Vercel env vars: confirmă că `VITE_HCAPTCHA_SITE_KEY` e setată — fără ea, captcha nu apare iar login eșuează cu "no captcha_token found"
+
+### 6. Verificări post-deploy
+```bash
+# DNS propagat la Vercel?
+dig @1.1.1.1 bundy.ro A +short        # trebuie IP Vercel (76.76.21.x sau 64.29.17.x)
+
+# HTTP merge?
+curl -sIL https://bundy.ro/ | head -10
+
+# noindex headers?
+curl -I https://bundy.ro/ | grep -i robots   # trebuie x-robots-tag: noindex, nofollow
+
+# robots.txt?
+curl https://bundy.ro/robots.txt              # trebuie User-agent: *\nDisallow: /
+```
 
 ### iOS PWA install
 1. Deschide `https://bundy.ro` în Safari pe iPhone.
-2. Share → "Add to Home Screen" → numele "Bundy".
-3. Lansează din home screen → arată ca app standalone (fără bară Safari).
+2. Share button (jos centru) → "Add to Home Screen" → "Bundy".
+3. Lansează din home screen → app standalone, fără bară Safari.
+4. Login persistent (custom storage adapter localStorage + IndexedDB) → după 7+ zile inactivitate ar trebui să fii încă logat.
 
-### Verificări post-deploy
-- `curl -I https://bundy.ro/` → header `X-Robots-Tag: noindex, nofollow`.
-- `https://bundy.ro/robots.txt` → `Disallow: /`.
-- DevTools (Safari) pe iPhone → Application → IndexedDB → `keyval-store` → după login există cheia `bundy.auth.session`.
+### Troubleshooting deploy
+
+**Site returnează "Invalid Configuration" în Vercel după >2h**:
+- Verifică nameservers în ROTLD: `dig bundy.ro NS +short` — trebuie să vezi `ns1.vercel-dns.com.` și `ns2.vercel-dns.com.`
+- Dacă apare gol de la resolverul tău local, încearcă cu DNS public: `dig @1.1.1.1 bundy.ro NS +short`
+- Cache local pe Mac: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` apoi restart browser
+
+**SSL "Pending" mai mult de 30 min după DNS valid**:
+- În Vercel → Domains → click Refresh
+- Sau Settings → Domains → Remove bundy.ro → Add din nou
+
+**Login eșuează în prod cu "no captcha_token found"**:
+- Verifică Vercel env vars: `VITE_HCAPTCHA_SITE_KEY` setat
+- Verifică că domeniul curent e permis în hCaptcha (sau hostnames goale = orice permis)
+- Re-deploy după update env vars (Vite citește env la build)
+
+**Build Vercel eșuează "ERESOLVE peer deps"**:
+- Settings → General → Install Command → `npm install --legacy-peer-deps` → Save → Redeploy
 
 ---
 

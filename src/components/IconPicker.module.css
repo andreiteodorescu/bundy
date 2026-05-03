@@ -14,8 +14,8 @@
   align-items: center;
   justify-content: center;
   border: 2px solid transparent;
-  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
-  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+  background: var(--mantine-color-default-hover);
+  color: var(--mantine-color-text);
   transition: transform 0.1s ease;
 }
 

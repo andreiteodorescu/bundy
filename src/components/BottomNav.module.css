@@ -1,6 +1,6 @@
 .nav {
   height: var(--bottom-nav-height);
-  background: light-dark(var(--mantine-color-white), var(--mantine-color-dark-7));
+  background: var(--mantine-color-body);
 }
 
 .item {
@@ -10,12 +10,12 @@
   justify-content: center;
   gap: 2px;
   text-decoration: none;
-  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+  color: var(--mantine-color-dimmed);
   padding: 8px 4px;
 }
 
 .item:active {
-  background: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+  background: var(--mantine-color-default-hover);
 }
 
 .active {
