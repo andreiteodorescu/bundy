@@ -1,0 +1,42 @@
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.totalRowRight {
+  text-align: right;
+}
+
+@media (max-width: 599px) {
+  .totalRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .totalRowRight {
+    text-align: left;
+  }
+}
+
+/* Donut + legend layout: side-by-side on wide, stacked under 400px so category
+   names get their own row instead of being squeezed into ellipsis. */
+.donutLayout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 399px) {
+  .donutLayout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .donutLegend {
+    width: 100%;
+  }
+}

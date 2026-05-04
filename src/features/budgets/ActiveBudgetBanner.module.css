@@ -13,9 +13,13 @@
   display: none;
 }
 
-/* Each slide = exactly the container width (no peek). Snap aligns its left edge. */
+/* Each slide = exactly the container width (no peek). Snap aligns its left edge.
+   `min-width: 0` lets the slide shrink to fit narrow viewports (<400px) so children
+   with `flex: 1` can ellipsis-truncate instead of forcing horizontal overflow. */
 .slide {
   flex: 0 0 100%;
+  min-width: 0;
+  box-sizing: border-box;
   scroll-snap-align: start;
 }
 

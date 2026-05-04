@@ -8,6 +8,7 @@ import {
   Loader,
   Paper,
   SegmentedControl,
+  Select,
   Stack,
   Text,
   Title,
@@ -20,6 +21,7 @@ import { useCategories, useSubcategories } from '@/features/categories/api';
 import { formatRon } from '@/lib/money';
 import { splitMonthIntoWeeks } from '@/lib/dates';
 import { useExpensesInRange, useMonthlyTotals } from './api';
+import classes from './AnalyticsPage.module.css';
 
 /** Compact axis tick: 1234 → "1.2k", 12345 → "12k", 234 → "234" */
 function compactRon(v: number): string {
@@ -36,6 +38,8 @@ type RangeKind = 'month' | 'last3' | 'year';
 export function AnalyticsPage() {
   const [range, setRange] = useState<RangeKind>('month');
   const [month, setMonth] = useState<Date>(() => dayjs().startOf('month').toDate());
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterSubcategory, setFilterSubcategory] = useState<string | null>(null);
 
   const { startDate, endDate, label } = useMemo(() => {
     if (range === 'month') {
@@ -54,19 +58,47 @@ export function AnalyticsPage() {
   }, [range, month]);
 
   const expenses = useExpensesInRange(startDate, endDate);
-  const monthly = useMonthlyTotals(6);
+  const monthly = useMonthlyTotals(6, {
+    categoryId: filterCategory,
+    subcategoryId: filterSubcategory,
+  });
   const cats = useCategories();
   const subs = useSubcategories();
   const catById = useMemo(() => new Map((cats.data ?? []).map((c) => [c.id, c])), [cats.data]);
   const subById = useMemo(() => new Map((subs.data ?? []).map((s) => [s.id, s])), [subs.data]);
 
-  const totalSpent = (expenses.data ?? []).reduce((s, e) => s + Number(e.amount_ron), 0);
-  const expenseCount = (expenses.data ?? []).length;
+  const isFiltered = Boolean(filterCategory || filterSubcategory);
+
+  /** Expenses after applying the category/subcategory filter (subcategory wins if both set). */
+  const filteredExpenses = useMemo(() => {
+    const all = expenses.data ?? [];
+    if (filterSubcategory) return all.filter((e) => e.subcategory_id === filterSubcategory);
+    if (filterCategory) return all.filter((e) => e.category_id === filterCategory);
+    return all;
+  }, [expenses.data, filterCategory, filterSubcategory]);
+
+  const totalSpent = filteredExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
+  const expenseCount = filteredExpenses.length;
   const avgPerExpense = expenseCount > 0 ? totalSpent / expenseCount : 0;
+
+  /** Subcategory options scoped to the selected category (when one is selected). */
+  const subcategoryOptions = useMemo(() => {
+    const all = subs.data ?? [];
+    const filtered = filterCategory
+      ? all.filter((s) => s.parent_category_id === filterCategory)
+      : all;
+    return filtered.map((s) => {
+      const parent = catById.get(s.parent_category_id);
+      return {
+        value: s.id,
+        label: filterCategory ? s.name : `${parent?.name ?? '—'} › ${s.name}`,
+      };
+    });
+  }, [subs.data, filterCategory, catById]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of expenses.data ?? []) {
+    for (const e of filteredExpenses) {
       if (!e.category_id) continue;
       map.set(e.category_id, (map.get(e.category_id) ?? 0) + Number(e.amount_ron));
     }
@@ -76,15 +108,15 @@ export function AnalyticsPage() {
         return { id, name: c?.name ?? 'Necategorizat', color: c?.color ?? '#888', value };
       })
       .sort((a, b) => b.value - a.value);
-  }, [expenses.data, catById]);
+  }, [filteredExpenses, catById]);
 
   const bySubcategory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of expenses.data ?? []) {
+    for (const e of filteredExpenses) {
       if (!e.subcategory_id) continue;
       map.set(e.subcategory_id, (map.get(e.subcategory_id) ?? 0) + Number(e.amount_ron));
     }
-    return Array.from(map.entries())
+    const arr = Array.from(map.entries())
       .map(([id, value]) => {
         const s = subById.get(id);
         const c = s ? catById.get(s.parent_category_id) : null;
@@ -96,15 +128,17 @@ export function AnalyticsPage() {
           value,
         };
       })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
-  }, [expenses.data, subById, catById]);
+      .sort((a, b) => b.value - a.value);
+    // When unfiltered, keep the page tidy with top 8. When filtered, show all so small
+    // categories (e.g. bilete loto) become visible.
+    return isFiltered ? arr : arr.slice(0, 8);
+  }, [filteredExpenses, subById, catById, isFiltered]);
 
   const weeklyForMonth = useMemo(() => {
     if (range !== 'month') return [];
     const weeks = splitMonthIntoWeeks(month);
     return weeks.map((w) => {
-      const inWeek = (expenses.data ?? []).filter((e) => {
+      const inWeek = filteredExpenses.filter((e) => {
         const d = dayjs(e.occurred_on);
         return (
           (d.isSame(w.start, 'day') || d.isAfter(w.start, 'day')) &&
@@ -116,7 +150,7 @@ export function AnalyticsPage() {
         total: inWeek.reduce((s, e) => s + Number(e.amount_ron), 0),
       };
     });
-  }, [range, month, expenses.data]);
+  }, [range, month, filteredExpenses]);
 
   const isCurrentMonth = dayjs(month).isSame(dayjs(), 'month');
 
@@ -124,6 +158,34 @@ export function AnalyticsPage() {
     <Container size="sm" py="md">
       <Stack gap="md">
         <Title order={2}>Analytics</Title>
+
+        <Group gap="xs" wrap="nowrap">
+          <Select
+            placeholder="Toate categoriile"
+            data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            value={filterCategory}
+            onChange={(v) => {
+              setFilterCategory(v);
+              // Clear subcategory if it no longer belongs to the chosen category.
+              const sub = (subs.data ?? []).find((s) => s.id === filterSubcategory);
+              if (sub && v && sub.parent_category_id !== v) setFilterSubcategory(null);
+            }}
+            searchable
+            clearable
+            flex={1}
+            size="sm"
+          />
+          <Select
+            placeholder="Toate subcategoriile"
+            data={subcategoryOptions}
+            value={filterSubcategory}
+            onChange={setFilterSubcategory}
+            searchable
+            clearable
+            flex={1}
+            size="sm"
+          />
+        </Group>
 
         <SegmentedControl
           fullWidth
@@ -176,7 +238,7 @@ export function AnalyticsPage() {
         ) : (
           <>
             <Paper withBorder radius="md" p="md">
-              <Group justify="space-between" align="flex-start">
+              <div className={classes.totalRow}>
                 <Box>
                   <Text size="xs" c="dimmed">
                     Total {label}
@@ -185,7 +247,7 @@ export function AnalyticsPage() {
                     {formatRon(totalSpent)}
                   </Text>
                 </Box>
-                <Box ta="right">
+                <Box className={classes.totalRowRight}>
                   <Text size="xs" c="dimmed">
                     {expenseCount} {expenseCount === 1 ? 'cheltuială' : 'cheltuieli'}
                   </Text>
@@ -193,7 +255,7 @@ export function AnalyticsPage() {
                     medie {formatRon(avgPerExpense)}
                   </Text>
                 </Box>
-              </Group>
+              </div>
             </Paper>
 
             {/* Monthly trend (last 6 months, always shown) */}
@@ -235,13 +297,13 @@ export function AnalyticsPage() {
               </Paper>
             )}
 
-            {/* Category donut */}
-            {byCategory.length > 0 && (
+            {/* Category donut — hidden when scoped to one category/subcategory (single slice is meaningless) */}
+            {!isFiltered && byCategory.length > 0 && (
               <Paper withBorder radius="md" p="md">
                 <Text fw={600} mb="sm">
                   Cheltuieli pe categorii
                 </Text>
-                <Group align="flex-start" gap="md" wrap="nowrap">
+                <div className={classes.donutLayout}>
                   <DonutChart
                     data={byCategory.map((c) => ({ name: c.name, value: c.value, color: c.color }))}
                     size={160}
@@ -252,7 +314,7 @@ export function AnalyticsPage() {
                     chartLabel={formatRon(totalSpent)}
                     valueFormatter={(v) => formatRon(v)}
                   />
-                  <Stack gap={6} flex={1} miw={0}>
+                  <Stack gap={6} flex={1} miw={0} className={classes.donutLegend}>
                     {byCategory.slice(0, 6).map((c) => (
                       <Group key={c.id} justify="space-between" wrap="nowrap" gap={6}>
                         <Group gap={6} wrap="nowrap" miw={0}>
@@ -267,22 +329,22 @@ export function AnalyticsPage() {
                       </Group>
                     ))}
                   </Stack>
-                </Group>
+                </div>
               </Paper>
             )}
 
-            {/* Top subcategories */}
+            {/* Subcategories breakdown — top 8 by default, full list when filtered */}
             {bySubcategory.length > 0 && (
               <Paper withBorder radius="md" p="md">
                 <Text fw={600} mb="sm">
-                  Top subcategorii
+                  {isFiltered ? 'Cheltuieli pe subcategorii' : 'Top subcategorii'}
                 </Text>
                 <Stack gap="xs">
                   {bySubcategory.map((s) => {
                     const pct = totalSpent > 0 ? (s.value / totalSpent) * 100 : 0;
                     return (
                       <Box key={s.id}>
-                        <Group justify="space-between" mb={4}>
+                        <Group justify="space-between" mb={4} gap={4}>
                           <Text size="sm" truncate>
                             {s.name}{' '}
                             <Text component="span" size="xs" c="dimmed">

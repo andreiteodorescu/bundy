@@ -135,6 +135,19 @@ export function useDeleteQuickExpense() {
   });
 }
 
+export function useReorderQuickExpenses() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const updates = ids.map((id, index) =>
+        supabase.from('quick_expenses').update({ sort_order: index }).eq('id', id),
+      );
+      await Promise.all(updates);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: QUICK_EXPENSES_KEY }),
+  });
+}
+
 /**
  * Step the quantity of a quick template's daily aggregate by `delta`.
  *

@@ -4,6 +4,9 @@
      into the content (border-box) and squash the icons + FAB. */
   height: calc(var(--bottom-nav-height) + var(--safe-bottom) + var(--pwa-bottom-lift));
   background: var(--mantine-color-body, #1a1b1e);
+  /* Border only on top + bottom (no left/right edges visible against viewport). */
+  border-top: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .item {

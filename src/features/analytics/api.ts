@@ -28,16 +28,25 @@ export function useExpensesInRange(start: string, end: string) {
 
 /**
  * Last N months of monthly totals. Returns ascending by month so charts read left-to-right.
+ * Optional filter narrows aggregation to a specific category or subcategory.
  */
-export function useMonthlyTotals(monthsBack = 6) {
+export function useMonthlyTotals(
+  monthsBack = 6,
+  filter?: { categoryId?: string | null; subcategoryId?: string | null },
+) {
   const start = dayjs().subtract(monthsBack - 1, 'month').startOf('month').format('YYYY-MM-DD');
   const end = dayjs().endOf('month').format('YYYY-MM-DD');
   const expenses = useExpensesInRange(start, end);
 
   const totals: { month: string; label: string; total: number }[] = [];
   if (expenses.data) {
+    const filtered = expenses.data.filter((e) => {
+      if (filter?.subcategoryId) return e.subcategory_id === filter.subcategoryId;
+      if (filter?.categoryId) return e.category_id === filter.categoryId;
+      return true;
+    });
     const by = new Map<string, number>();
-    for (const e of expenses.data) {
+    for (const e of filtered) {
       const k = dayjs(e.occurred_on).format('YYYY-MM');
       by.set(k, (by.get(k) ?? 0) + Number(e.amount_ron));
     }

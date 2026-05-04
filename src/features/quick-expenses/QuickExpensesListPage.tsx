@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ActionIcon,
@@ -13,13 +14,35 @@ import {
   Text,
   Title,
 } from '@mantine/core';
-import { IconArrowLeft, IconBolt, IconMinus, IconPlus } from '@tabler/icons-react';
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  IconArrowLeft,
+  IconBolt,
+  IconGripVertical,
+  IconMinus,
+  IconPlus,
+} from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney } from '@/lib/money';
 import { getIcon } from '@/data/icons.registry';
 import {
   useQuickExpenses,
   useQuickTodayAggregates,
+  useReorderQuickExpenses,
   useStepQuickExpense,
 } from './api';
 import type { QuickExpense } from '@/types';
@@ -30,8 +53,31 @@ export function QuickExpensesListPage() {
   const today = useQuickTodayAggregates();
   const cats = useCategories();
   const step = useStepQuickExpense();
+  const reorder = useReorderQuickExpenses();
 
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+
+  const [order, setOrder] = useState<string[]>([]);
+  useEffect(() => {
+    if (templates.data) setOrder(templates.data.map((t) => t.id));
+  }, [templates.data]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const oldIndex = order.indexOf(active.id as string);
+    const newIndex = order.indexOf(over.id as string);
+    const next = arrayMove(order, oldIndex, newIndex);
+    setOrder(next);
+    reorder.mutate(next);
+  }
+
+  const byId = new Map((templates.data ?? []).map((t) => [t.id, t]));
+  const ordered: QuickExpense[] = order
+    .map((id) => byId.get(id))
+    .filter((t): t is QuickExpense => t !== undefined);
 
   const todayTotal = Array.from((today.data ?? new Map()).values()).reduce(
     (s, e) => s + Number(e.amount_ron),
@@ -85,7 +131,7 @@ export function QuickExpensesListPage() {
           <Center py="xl">
             <Loader />
           </Center>
-        ) : (templates.data ?? []).length === 0 ? (
+        ) : ordered.length === 0 ? (
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconBolt size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
@@ -101,19 +147,23 @@ export function QuickExpensesListPage() {
             </Stack>
           </Center>
         ) : (
-          <Stack gap="xs">
-            {(templates.data ?? []).map((tpl) => (
-              <QuickRow
-                key={tpl.id}
-                template={tpl}
-                qty={today.data?.get(tpl.id)?.quantity ?? 0}
-                category={catById.get(tpl.category_id ?? '') ?? null}
-                onStep={(delta) => step.mutate({ template: tpl, delta })}
-                onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
-                disabled={step.isPending}
-              />
-            ))}
-          </Stack>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={order} strategy={verticalListSortingStrategy}>
+              <Stack gap="xs">
+                {ordered.map((tpl) => (
+                  <QuickRow
+                    key={tpl.id}
+                    template={tpl}
+                    qty={today.data?.get(tpl.id)?.quantity ?? 0}
+                    category={catById.get(tpl.category_id ?? '') ?? null}
+                    onStep={(delta) => step.mutate({ template: tpl, delta })}
+                    onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
+                    disabled={step.isPending}
+                  />
+                ))}
+              </Stack>
+            </SortableContext>
+          </DndContext>
         )}
       </Stack>
     </Container>
@@ -135,13 +185,38 @@ function QuickRow({
   onEdit: () => void;
   disabled: boolean;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: template.id,
+  });
   const Icon = getIcon(template.icon ?? category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const lineTotal = Number(template.amount) * qty;
 
   return (
-    <Paper withBorder radius="md" p="sm">
+    <Paper
+      ref={setNodeRef}
+      withBorder
+      radius="md"
+      p="sm"
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        touchAction: 'none',
+      }}
+    >
       <Group wrap="nowrap" gap="sm" align="center">
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="lg"
+          className="reorder-grip"
+          {...attributes}
+          {...listeners}
+          aria-label="Trage pentru reordonare"
+        >
+          <IconGripVertical size={18} />
+        </ActionIcon>
         <Box
           onClick={onEdit}
           style={{

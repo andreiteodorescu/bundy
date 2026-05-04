@@ -98,3 +98,16 @@ export function useDeletePredefined() {
     onSuccess: () => qc.invalidateQueries({ queryKey: PREDEFINED_EXPENSES_KEY }),
   });
 }
+
+export function useReorderPredefined() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const updates = ids.map((id, index) =>
+        supabase.from('predefined_expenses').update({ sort_order: index }).eq('id', id),
+      );
+      await Promise.all(updates);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: PREDEFINED_EXPENSES_KEY }),
+  });
+}

@@ -32,7 +32,7 @@ export function BottomNav() {
   const theme = useMantineTheme();
 
   return (
-    <Paper component="nav" className={`bottom-nav ${classes.nav}`} radius={0} withBorder shadow="md">
+    <Paper component="nav" className={`bottom-nav ${classes.nav}`} radius={0} shadow="md">
       <Group gap={0} grow wrap="nowrap" align="stretch" h="100%">
         <NavItem item={items[0]} active={location.pathname === '/home' || location.pathname === '/'} />
         <NavItem

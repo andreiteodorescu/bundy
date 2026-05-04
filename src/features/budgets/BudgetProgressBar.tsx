@@ -15,7 +15,7 @@ export function BudgetProgressBar({ budget, compact = false }: { budget: Budget;
 
   return (
     <>
-      <Group justify="space-between" mb={6}>
+      <Group justify="space-between" mb={6} gap={6} wrap="wrap">
         <Badge color={status.color} variant="light" size="sm">
           {status.label}
         </Badge>
@@ -24,7 +24,7 @@ export function BudgetProgressBar({ budget, compact = false }: { budget: Budget;
         </Text>
       </Group>
       <Progress value={Math.min(pct, 100)} color={color} size={compact ? 'sm' : 'md'} radius="xl" />
-      <Group justify="space-between" mt={compact ? 2 : 6}>
+      <Group justify="space-between" mt={compact ? 2 : 6} gap={6} wrap="wrap">
         <Text size="xs" c="dimmed">
           {formatRon(spent)} cheltuiți
         </Text>

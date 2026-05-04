@@ -65,3 +65,12 @@ a {
   padding-bottom: calc(var(--safe-bottom) + var(--pwa-bottom-lift));
   z-index: 100;
 }
+
+/* Reorder grip on quick/predefined/fixed expense list rows. Hidden on very narrow
+   viewports (≤360px) to free horizontal space — DnD reorder isn't usable there
+   anyway (better suited to tablet/desktop). */
+@media (max-width: 360px) {
+  .reorder-grip {
+    display: none !important;
+  }
+}

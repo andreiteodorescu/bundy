@@ -27,6 +27,9 @@ const BudgetsListPage = lazy(() =>
 const BudgetFormPage = lazy(() =>
   import('@/features/budgets/BudgetFormPage').then((m) => ({ default: m.BudgetFormPage })),
 );
+const BudgetsArchivePage = lazy(() =>
+  import('@/features/budgets/BudgetsArchivePage').then((m) => ({ default: m.BudgetsArchivePage })),
+);
 const MorePage = lazy(() =>
   import('@/features/settings/MorePage').then((m) => ({ default: m.MorePage })),
 );
@@ -121,6 +124,7 @@ const router = createBrowserRouter([
       { path: '/analytics', element: lazyRoute(<AnalyticsPage />) },
 
       { path: '/budgets', element: lazyRoute(<BudgetsListPage />) },
+      { path: '/budgets/archive', element: lazyRoute(<BudgetsArchivePage />) },
       { path: '/budgets/new', element: lazyRoute(<BudgetFormPage />) },
       { path: '/budgets/:id/edit', element: lazyRoute(<BudgetFormPage />) },
 

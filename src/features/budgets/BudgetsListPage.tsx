@@ -15,7 +15,8 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import dayjs from 'dayjs';
-import { IconPlus, IconWalletOff } from '@tabler/icons-react';
+import { IconArchive, IconChevronRight, IconPlus, IconWalletOff } from '@tabler/icons-react';
+import { ARCHIVE_THRESHOLD_DAYS } from './BudgetsArchivePage';
 import { formatRon } from '@/lib/money';
 import { useBudgets } from './api';
 import { useCategories, useSubcategories } from '@/features/categories/api';
@@ -31,18 +32,25 @@ export function BudgetsListPage() {
   const subById = new Map((subs.data ?? []).map((s) => [s.id, s]));
 
   const today = dayjs().format('YYYY-MM-DD');
+  const archiveCutoff = dayjs(today).subtract(ARCHIVE_THRESHOLD_DAYS, 'day').format('YYYY-MM-DD');
   const active: Budget[] = [];
   const upcoming: Budget[] = [];
   const past: Budget[] = [];
+  const archived: Budget[] = [];
   for (const b of budgets.data ?? []) {
+    const lastDay = b.selected_days?.length
+      ? b.selected_days[b.selected_days.length - 1]
+      : b.period_end;
     if (b.selected_days?.length) {
       if (b.selected_days.includes(today)) active.push(b);
-      else if (b.selected_days[b.selected_days.length - 1] >= today) upcoming.push(b);
-      else past.push(b);
+      else if (lastDay >= today) upcoming.push(b);
+      else if (lastDay >= archiveCutoff) past.push(b);
+      else archived.push(b);
     } else {
       if (today >= b.period_start && today <= b.period_end) active.push(b);
       else if (today < b.period_start) upcoming.push(b);
-      else past.push(b);
+      else if (b.period_end >= archiveCutoff) past.push(b);
+      else archived.push(b);
     }
   }
 
@@ -82,6 +90,33 @@ export function BudgetsListPage() {
             {past.length > 0 && (
               <Section title="Trecute" budgets={past} navigate={navigate} catById={catById} subById={subById} dim />
             )}
+            {archived.length > 0 && (
+              <UnstyledButton
+                onClick={() => navigate('/budgets/archive')}
+                px="md"
+                py="sm"
+                style={{
+                  borderRadius: 8,
+                  border: '1px solid var(--mantine-color-default-border)',
+                }}
+              >
+                <Group justify="space-between" wrap="nowrap">
+                  <Group gap={8} wrap="nowrap">
+                    <IconArchive size={18} />
+                    <Box>
+                      <Text size="sm" fw={600}>
+                        Arhivă bugete
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {archived.length}{' '}
+                        {archived.length === 1 ? 'buget arhivat' : 'bugete arhivate'}
+                      </Text>
+                    </Box>
+                  </Group>
+                  <IconChevronRight size={16} color="var(--mantine-color-dimmed)" />
+                </Group>
+              </UnstyledButton>
+            )}
           </Stack>
         )}
       </Stack>
@@ -97,6 +132,7 @@ function Section({
   subById,
   highlight = false,
   dim = false,
+  hideTitle = false,
 }: {
   title: string;
   budgets: Budget[];
@@ -105,12 +141,15 @@ function Section({
   subById: Map<string, Subcategory>;
   highlight?: boolean;
   dim?: boolean;
+  hideTitle?: boolean;
 }) {
   return (
     <Stack gap="xs">
-      <Text size="sm" fw={600} c={highlight ? 'accent' : dim ? 'dimmed' : undefined} px={4}>
-        {title}
-      </Text>
+      {!hideTitle && (
+        <Text size="sm" fw={600} c={highlight ? 'accent' : dim ? 'dimmed' : undefined} px={4}>
+          {title}
+        </Text>
+      )}
       <Stack gap="xs">
         {budgets.map((b) => (
           <UnstyledButton key={b.id} onClick={() => navigate(`/budgets/${b.id}/edit`)}>

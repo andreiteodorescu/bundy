@@ -16,7 +16,9 @@ export const seedSubcategories: SeedSubcategory[] = [
   // Transport & Car
   { slug: 'car',            parent_slug: 'transport-car',   name: 'Combustibil mașină',    icon: 'IconGasStation',       sort_order: 1 },
   { slug: 'parking',        parent_slug: 'transport-car',   name: 'Parcare',               icon: 'IconParking',          sort_order: 2 },
-  { slug: 'public-transport', parent_slug: 'transport-car', name: 'Transport public',      icon: 'IconBusStop',          sort_order: 3 },
+  { slug: 'public-transport-metro', parent_slug: 'transport-car', name: 'Transport public - metrou',  icon: 'IconBusStop',  sort_order: 3 },
+  { slug: 'public-transport-bus',   parent_slug: 'transport-car', name: 'Transport public - autobuz', icon: 'IconBus',      sort_order: 10 },
+  { slug: 'public-transport-train', parent_slug: 'transport-car', name: 'Transport public - tren',    icon: 'IconTrain',    sort_order: 11 },
   { slug: 'ride-sharing',   parent_slug: 'transport-car',   name: 'Ride sharing',          icon: 'IconCarSuv',           sort_order: 4 },
   { slug: 'insurance',      parent_slug: 'transport-car',   name: 'Asigurări',             icon: 'IconShield',           sort_order: 5 },
   { slug: 'car-wash',       parent_slug: 'transport-car',   name: 'Spălat mașină',         icon: 'IconDroplet',          sort_order: 6 },

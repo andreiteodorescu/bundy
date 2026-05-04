@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, Container, Divider, NavLink, Stack, Title } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import {
   IconBolt,
   IconBuildingBank,
@@ -10,6 +11,7 @@ import {
   IconEyeOff,
   IconLogout,
   IconPin,
+  IconRefresh,
   IconSearch,
   IconSettings,
   IconShieldCheck,
@@ -18,12 +20,14 @@ import {
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useSearchStore } from '@/features/search/store';
 import { useIsAdmin } from '@/features/admin/api';
+import { isStandalonePWA } from '@/lib/pwa';
 
 export function MorePage() {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const openSearch = useSearchStore((s) => s.setOpen);
   const isAdmin = useIsAdmin();
+  const showPwaRefresh = isStandalonePWA();
 
   return (
     <Container size="sm" py="md">
@@ -118,6 +122,21 @@ export function MorePage() {
               onClick={() => navigate('/admin/users')}
             />
           </>
+        )}
+
+        {showPwaRefresh && (
+          <NavLink
+            label="Reîncarcă aplicația"
+            leftSection={<IconRefresh size={20} />}
+            onClick={() => {
+              notifications.show({
+                message: 'Se reîncarcă aplicația…',
+                color: 'gray',
+                autoClose: 1500,
+              });
+              setTimeout(() => window.location.reload(), 200);
+            }}
+          />
         )}
 
         <Button

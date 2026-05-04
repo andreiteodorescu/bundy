@@ -33,6 +33,7 @@ import {
   IconArrowLeft,
   IconChevronRight,
   IconGripVertical,
+  IconPencil,
   IconPin,
   IconPlus,
 } from '@tabler/icons-react';
@@ -161,7 +162,15 @@ function SortableFixedRow({
       }}
     >
       <Group wrap="nowrap" gap="sm">
-        <ActionIcon variant="subtle" color="gray" size="lg" {...attributes} {...listeners}>
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="lg"
+          className="reorder-grip"
+          aria-label="Trage pentru reordonare"
+          {...attributes}
+          {...listeners}
+        >
           <IconGripVertical size={18} />
         </ActionIcon>
         <Box
@@ -188,9 +197,16 @@ function SortableFixedRow({
             {category ? ` · ${category.name}` : ''}
           </Text>
         </UnstyledButton>
-        <ActionIcon variant="subtle" color="gray" onClick={onClick}>
-          <IconChevronRight size={18} />
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="lg"
+          aria-label="Editează șablon"
+          onClick={onClick}
+        >
+          <IconPencil size={18} />
         </ActionIcon>
+        <IconChevronRight size={18} />
       </Group>
     </Paper>
   );

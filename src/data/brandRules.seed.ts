@@ -70,10 +70,14 @@ export const seedBrandRules: SeedRule[] = [
   { pattern: 'ikea',         category_slug: 'shopping',    subcategory_slug: 'home-goods' },
 
   // Transport
-  { pattern: 'metrou',       category_slug: 'transport-car', subcategory_slug: 'public-transport' },
-  { pattern: 'stb',          category_slug: 'transport-car', subcategory_slug: 'public-transport' },
-  { pattern: 'cfr',          category_slug: 'transport-car', subcategory_slug: 'public-transport' },
-  { pattern: 'abonament metrou', category_slug: 'transport-car', subcategory_slug: 'public-transport', priority: 5 },
+  { pattern: 'metrou',       category_slug: 'transport-car', subcategory_slug: 'public-transport-metro' },
+  { pattern: 'abonament metrou', category_slug: 'transport-car', subcategory_slug: 'public-transport-metro', priority: 5 },
+  { pattern: 'stb',          category_slug: 'transport-car', subcategory_slug: 'public-transport-bus' },
+  { pattern: 'autobuz',      category_slug: 'transport-car', subcategory_slug: 'public-transport-bus' },
+  { pattern: 'troleibuz',    category_slug: 'transport-car', subcategory_slug: 'public-transport-bus' },
+  { pattern: 'tramvai',      category_slug: 'transport-car', subcategory_slug: 'public-transport-bus' },
+  { pattern: 'cfr',          category_slug: 'transport-car', subcategory_slug: 'public-transport-train' },
+  { pattern: 'tren',         category_slug: 'transport-car', subcategory_slug: 'public-transport-train' },
   { pattern: 'uber',         category_slug: 'transport-car', subcategory_slug: 'ride-sharing' },
   { pattern: 'bolt',         category_slug: 'transport-car', subcategory_slug: 'ride-sharing' }, // 'bolt food' wins via priority
   { pattern: 'blue cab',     category_slug: 'transport-car', subcategory_slug: 'ride-sharing' },

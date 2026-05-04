@@ -177,7 +177,7 @@ export function BudgetFormPage() {
         {subcategoryIds.length === 0 && (
           <MultiSelect
             label="Categorii întregi (opțional)"
-            description="Sumează TOT din categoria aleasă, inclusiv subcategoriile (ex: 'Vacanță' → toată categoria Vacanță)."
+            description="Însumează TOT din categoria aleasă, inclusiv subcategoriile (ex: 'Vacanță' → toată categoria Vacanță)."
             placeholder="ex: Vacanță, Mâncare & Băuturi"
             data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
             value={categoryIds}
@@ -191,7 +191,7 @@ export function BudgetFormPage() {
         {categoryIds.length === 0 && (
           <MultiSelect
             label="Subcategorii specifice (opțional)"
-            description="Sumează DOAR subcategoriile alese (ex: 'În oraș' singur, fără Băcănie / Food Delivery / Băuturi)."
+            description="Însumează DOAR subcategoriile alese (ex: 'În oraș' singur, fără Băcănie / Food Delivery / Băuturi)."
             placeholder="ex: Mâncare & Băuturi › În oraș"
             data={subcategoryOptions}
             value={subcategoryIds}
@@ -236,7 +236,7 @@ export function BudgetFormPage() {
 
         {categoryIds.length === 0 && subcategoryIds.length === 0 && (
           <Text size="xs" c="dimmed" mt={-8}>
-            ⚠ Fără categorii sau subcategorii alese, bugetul sumează tot ce cheltui în perioada respectivă.
+            ⚠ Fără categorii sau subcategorii alese, bugetul însumează tot ce cheltui în perioada respectivă.
           </Text>
         )}
 
