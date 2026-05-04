@@ -156,12 +156,27 @@ export const seedBrandRules: SeedRule[] = [
   { pattern: 'loterie',      category_slug: 'lottery' },
   { pattern: 'loz ',         category_slug: 'lottery' },
 
-  // Vacation (no subcategory — parent captures all)
+  // Vacation — parent
   { pattern: 'vacanta',      category_slug: 'vacation' },
   { pattern: 'vacante',      category_slug: 'vacation' },
-  { pattern: 'ryanair',      category_slug: 'vacation' },
-  { pattern: 'wizz',         category_slug: 'vacation' },
+  // Vacation — flights (Bilete avion)
+  { pattern: 'bilete avion', category_slug: 'vacation', subcategory_slug: 'vacation-flights', priority: 6 },
+  { pattern: 'bilet avion',  category_slug: 'vacation', subcategory_slug: 'vacation-flights', priority: 6 },
+  { pattern: 'avion',        category_slug: 'vacation', subcategory_slug: 'vacation-flights' },
+  { pattern: 'ryanair',      category_slug: 'vacation', subcategory_slug: 'vacation-flights' },
+  { pattern: 'wizz',         category_slug: 'vacation', subcategory_slug: 'vacation-flights' },
+  { pattern: 'tarom',        category_slug: 'vacation', subcategory_slug: 'vacation-flights' },
+  // Vacation — accommodation (Cazare)
+  { pattern: 'cazare hotel', category_slug: 'vacation', subcategory_slug: 'vacation-hotel', priority: 6 },
+  { pattern: 'cazare airbnb', category_slug: 'vacation', subcategory_slug: 'vacation-airbnb', priority: 6 },
+  { pattern: 'airbnb',       category_slug: 'vacation', subcategory_slug: 'vacation-airbnb' },
+  { pattern: 'cazare',       category_slug: 'vacation', subcategory_slug: 'vacation-hotel' },
+  // Vacation — airport transport
+  { pattern: 'transport aeroport', category_slug: 'vacation', subcategory_slug: 'vacation-airport-transport', priority: 6 },
   { pattern: 'aeroport',     category_slug: 'vacation' },
+  // Vacation — car rental
+  { pattern: 'inchiriere masina', category_slug: 'vacation', subcategory_slug: 'vacation-car-rental' },
+  { pattern: 'rent a car',   category_slug: 'vacation', subcategory_slug: 'vacation-car-rental' },
 
   // Gifts
   { pattern: 'cadou',        category_slug: 'gifts' },
