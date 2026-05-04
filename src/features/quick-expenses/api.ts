@@ -77,6 +77,7 @@ export type UpsertQuickInput = {
   category_id: string | null;
   subcategory_id: string | null;
   icon: string | null;
+  tags?: string[];
   sort_order?: number;
   active?: boolean;
 };
@@ -95,6 +96,7 @@ export function useUpsertQuickExpense() {
         category_id: input.category_id,
         subcategory_id: input.subcategory_id,
         icon: input.icon,
+        tags: input.tags ?? [],
         sort_order: input.sort_order ?? 999,
         active: input.active ?? true,
       };
@@ -189,6 +191,7 @@ export function useStepQuickExpense() {
 
       if (!existing) {
         if (delta < 0) return { quantity: 0 };
+        const propagatedTags = ['quick', ...(template.tags?.filter((t) => t !== 'quick') ?? [])];
         const { error } = await supabase.from('expenses').insert({
           profile_id: profileId,
           name: template.name,
@@ -201,7 +204,7 @@ export function useStepQuickExpense() {
           source: 'quick',
           source_ref_id: template.id,
           quantity: 1,
-          tags: ['quick'],
+          tags: propagatedTags,
         });
         if (error) throw error;
         return { quantity: 1 };

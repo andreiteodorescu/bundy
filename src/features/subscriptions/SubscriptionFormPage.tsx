@@ -56,7 +56,8 @@ export function SubscriptionFormPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [active, setActive] = useState(true);
-  const [workReimbursable, setWorkReimbursable] = useState(false);
+  const [companyCard, setCompanyCard] = useState(false);
+  const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +89,8 @@ export function SubscriptionFormPage() {
     setCategoryId(sub.category_id);
     setSubcategoryId(sub.subcategory_id);
     setActive(sub.active);
-    setWorkReimbursable(sub.tags.includes('work-reimbursable'));
+    setCompanyCard(sub.tags.includes('company-card'));
+    setCompanyCardTouched(true);
     setStartDate(new Date(sub.start_date));
     setBrandLogo(sub.brand_logo ?? null);
   }, [editing.data]);
@@ -102,6 +104,14 @@ export function SubscriptionFormPage() {
   }
 
   const childSubs = (subs.data ?? []).filter((s) => s.parent_category_id === categoryId);
+
+  // Auto-suggest "company card" toggle when category is Work & Business — until user
+  // explicitly toggles the Switch.
+  const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
+  useEffect(() => {
+    if (companyCardTouched) return;
+    if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   async function handleSave() {
     setError(null);
@@ -121,7 +131,7 @@ export function SubscriptionFormPage() {
     if (!categoryId) return setError('Alege o categorie');
     try {
       const tags: string[] = ['subscription'];
-      if (workReimbursable) tags.push('work-reimbursable');
+      if (companyCard) tags.push('company-card');
       await upsert.mutateAsync({
         id: params.id,
         name: name.trim(),
@@ -340,9 +350,12 @@ export function SubscriptionFormPage() {
 
         <Switch
           label="Plătită cu cardul firmei"
-          description="ex: Claude Max. Aplică automat tag-ul 'work-reimbursable' pe fiecare cheltuială generată — util pentru filtre în Analytics."
-          checked={workReimbursable}
-          onChange={(e) => setWorkReimbursable(e.currentTarget.checked)}
+          description="ex: Claude Max. Cheltuielile generate sunt excluse din totalul personal în Analytics."
+          checked={companyCard}
+          onChange={(e) => {
+            setCompanyCard(e.currentTarget.checked);
+            setCompanyCardTouched(true);
+          }}
         />
 
         {error && (

@@ -196,9 +196,9 @@ function SubscriptionRow({
             <Text fw={500} truncate>
               {subscription.name}
             </Text>
-            {subscription.tags.includes('work-reimbursable') && (
+            {subscription.tags.includes('company-card') && (
               <Badge size="xs" variant="light" color="gray">
-                work
+                firmă
               </Badge>
             )}
           </Group>

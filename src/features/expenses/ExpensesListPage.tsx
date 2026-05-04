@@ -96,7 +96,15 @@ export function ExpensesListPage() {
     });
   }, [weeks, expensesVisible]);
 
-  const grandTotal = expensesAll.reduce((s, e) => s + Number(e.amount_ron), 0);
+  const { personalTotal, companyCardTotal } = expensesAll.reduce(
+    (acc, e) => {
+      const amt = Number(e.amount_ron);
+      if (e.tags?.includes('company-card')) acc.companyCardTotal += amt;
+      else acc.personalTotal += amt;
+      return acc;
+    },
+    { personalTotal: 0, companyCardTotal: 0 },
+  );
   const totalCount = expensesAll.length;
   const isCurrentMonth = dayjs(month).isSame(dayjs(), 'month');
 
@@ -132,14 +140,26 @@ export function ExpensesListPage() {
         </Group>
 
         <Paper withBorder radius="md" p="sm">
-          <Group justify="space-between">
-            <Text size="sm" c="dimmed">
-              Total {isCurrentMonth ? 'până azi' : 'pe lună'}
-            </Text>
-            <Text fw={700} size="xl">
-              {formatRon(grandTotal)}
-            </Text>
-          </Group>
+          <Stack gap={4}>
+            <Group justify="space-between" wrap="nowrap" gap="sm">
+              <Text size="sm" c="dimmed">
+                Total {isCurrentMonth ? 'până azi' : 'pe lună'} · cont personal
+              </Text>
+              <Text fw={700} size="xl">
+                {formatRon(personalTotal)}
+              </Text>
+            </Group>
+            {companyCardTotal > 0 && (
+              <Group justify="space-between" wrap="nowrap" gap="sm">
+                <Text size="xs" c="dimmed">
+                  Cont firmă
+                </Text>
+                <Text fw={600} size="sm" c="dimmed">
+                  {formatRon(companyCardTotal)}
+                </Text>
+              </Group>
+            )}
+          </Stack>
         </Paper>
 
         {expensesQ.isLoading ? (
@@ -248,6 +268,11 @@ function ExpenseRow({
               {expense.source === 'quick' && (
                 <Badge size="xs" variant="light" color="yellow">
                   rapid
+                </Badge>
+              )}
+              {expense.tags?.includes('company-card') && (
+                <Badge size="xs" variant="light" color="gray">
+                  firmă
                 </Badge>
               )}
             </Group>

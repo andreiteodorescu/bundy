@@ -71,7 +71,7 @@ export async function runLoanGenerator(profileId: string): Promise<{ created: nu
         occurred_on: date,
         category_id: loan.category_id,
         subcategory_id: loan.subcategory_id,
-        tags: ['loan'],
+        tags: ['loan', ...(loan.tags?.filter((t) => t !== 'loan') ?? [])],
         source: 'loan',
         source_ref_id: loan.id,
         note: loan.note,

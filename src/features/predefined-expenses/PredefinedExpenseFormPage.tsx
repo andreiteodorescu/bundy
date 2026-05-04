@@ -40,6 +40,8 @@ export function PredefinedExpenseFormPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [active, setActive] = useState(true);
+  const [companyCard, setCompanyCard] = useState(false);
+  const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,7 +52,15 @@ export function PredefinedExpenseFormPage() {
     setCategoryId(t.category_id);
     setSubcategoryId(t.subcategory_id);
     setActive(t.active);
+    setCompanyCard(t.tags?.includes('company-card') ?? false);
+    setCompanyCardTouched(true);
   }, [editing.data]);
+
+  const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
+  useEffect(() => {
+    if (companyCardTouched) return;
+    if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   if (!isNew && editing.isLoading) {
     return (
@@ -75,6 +85,7 @@ export function PredefinedExpenseFormPage() {
         subcategory_id: subcategoryId,
         icon: null,
         active,
+        tags: companyCard ? ['company-card'] : [],
       });
       navigate('/predefined-expenses');
     } catch (err) {
@@ -159,6 +170,16 @@ export function PredefinedExpenseFormPage() {
           label="Activ"
           checked={active}
           onChange={(e) => setActive(e.currentTarget.checked)}
+        />
+
+        <Switch
+          label="Plătit cu cardul firmei"
+          description="Cheltuielile generate vor fi excluse din totalul personal în Analytics."
+          checked={companyCard}
+          onChange={(e) => {
+            setCompanyCard(e.currentTarget.checked);
+            setCompanyCardTouched(true);
+          }}
         />
 
         {error && (

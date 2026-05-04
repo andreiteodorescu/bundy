@@ -53,6 +53,8 @@ export function LoanFormPage() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [active, setActive] = useState(true);
+  const [companyCard, setCompanyCard] = useState(false);
+  const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -102,7 +104,15 @@ export function LoanFormPage() {
     setSubcategoryId(l.subcategory_id);
     setActive(l.active);
     setNote(l.note ?? '');
+    setCompanyCard(l.tags?.includes('company-card') ?? false);
+    setCompanyCardTouched(true);
   }, [editing.data]);
+
+  const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
+  useEffect(() => {
+    if (companyCardTouched) return;
+    if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   const childSubs = useMemo(
     () => (subs.data ?? []).filter((s) => s.parent_category_id === categoryId),
@@ -143,6 +153,7 @@ export function LoanFormPage() {
         category_id: categoryId,
         subcategory_id: subcategoryId,
         active,
+        tags: companyCard ? ['company-card'] : [],
         note: note.trim() || null,
       });
       navigate('/loans');
@@ -321,6 +332,16 @@ export function LoanFormPage() {
           description="Cheltuielile se generează automat la fiecare scadență, până la data de sfârșit"
           checked={active}
           onChange={(e) => setActive(e.currentTarget.checked)}
+        />
+
+        <Switch
+          label="Plătită cu cardul firmei"
+          description="Cheltuielile generate vor fi excluse din totalul personal în Analytics."
+          checked={companyCard}
+          onChange={(e) => {
+            setCompanyCard(e.currentTarget.checked);
+            setCompanyCardTouched(true);
+          }}
         />
 
         <Textarea

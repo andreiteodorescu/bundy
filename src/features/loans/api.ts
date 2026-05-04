@@ -54,6 +54,7 @@ export type UpsertLoanInput = {
   category_id: string | null;
   subcategory_id: string | null;
   active: boolean;
+  tags?: string[];
   note: string | null;
 };
 
@@ -77,6 +78,7 @@ export function useUpsertLoan() {
         category_id: input.category_id,
         subcategory_id: input.subcategory_id,
         active: input.active,
+        tags: input.tags ?? [],
         note: input.note,
       };
       if (input.id) {

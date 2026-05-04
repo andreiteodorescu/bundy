@@ -49,6 +49,7 @@ export function FixedExpensesPrePage() {
         subcategory_id: fx.subcategory_id,
         source: 'fixed',
         source_ref_id: fx.id,
+        tags: fx.tags ?? [],
       });
       notifications.show({ message: `${fx.name} adăugat`, color: 'green', autoClose: 1600 });
       navigate('/expenses');

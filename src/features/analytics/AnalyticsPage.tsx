@@ -61,6 +61,8 @@ export function AnalyticsPage() {
   const monthly = useMonthlyTotals(6, {
     categoryId: filterCategory,
     subcategoryId: filterSubcategory,
+    // When filtering, include company-card expenses so Work & Business etc. show up.
+    excludeCompanyCard: !filterCategory && !filterSubcategory,
   });
   const cats = useCategories();
   const subs = useSubcategories();
@@ -69,17 +71,34 @@ export function AnalyticsPage() {
 
   const isFiltered = Boolean(filterCategory || filterSubcategory);
 
-  /** Expenses after applying the category/subcategory filter (subcategory wins if both set). */
-  const filteredExpenses = useMemo(() => {
-    const all = expenses.data ?? [];
-    if (filterSubcategory) return all.filter((e) => e.subcategory_id === filterSubcategory);
-    if (filterCategory) return all.filter((e) => e.category_id === filterCategory);
-    return all;
+  /** Expenses after category/subcategory filter (subcategory wins if both set), separated
+   *  into "personal" (no `company-card` tag) and "company-card" buckets. The personal
+   *  set drives all charts/totals by default; the company-card total is shown as a
+   *  secondary line so the user knows it exists without polluting their personal stats.
+   *
+   *  When the user explicitly filters by a category/subcategory (e.g. Munca & Business),
+   *  they're drilling into a specific scope — show ALL matching expenses, no exclusion,
+   *  otherwise filtering Work & Business would be empty since most are company-card. */
+  const { personalExpenses, companyCardExpenses } = useMemo(() => {
+    let all = expenses.data ?? [];
+    if (filterSubcategory) all = all.filter((e) => e.subcategory_id === filterSubcategory);
+    else if (filterCategory) all = all.filter((e) => e.category_id === filterCategory);
+    const filterActive = Boolean(filterCategory || filterSubcategory);
+    if (filterActive) return { personalExpenses: all, companyCardExpenses: [] };
+    const personal = [];
+    const cc = [];
+    for (const e of all) {
+      if (e.tags?.includes('company-card')) cc.push(e);
+      else personal.push(e);
+    }
+    return { personalExpenses: personal, companyCardExpenses: cc };
   }, [expenses.data, filterCategory, filterSubcategory]);
 
+  const filteredExpenses = personalExpenses;
   const totalSpent = filteredExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
   const expenseCount = filteredExpenses.length;
   const avgPerExpense = expenseCount > 0 ? totalSpent / expenseCount : 0;
+  const companyCardTotal = companyCardExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
 
   /** Subcategory options scoped to the selected category (when one is selected). */
   const subcategoryOptions = useMemo(() => {
@@ -246,6 +265,11 @@ export function AnalyticsPage() {
                   <Text fw={800} size="2rem" lh={1.1}>
                     {formatRon(totalSpent)}
                   </Text>
+                  {companyCardTotal > 0 && (
+                    <Text size="xs" c="dimmed" mt={2}>
+                      + {formatRon(companyCardTotal)} cu cardul firmei (excluse din total)
+                    </Text>
+                  )}
                 </Box>
                 <Box className={classes.totalRowRight}>
                   <Text size="xs" c="dimmed">

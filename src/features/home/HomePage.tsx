@@ -20,7 +20,15 @@ export function HomePage() {
   const expenses = useExpensesByMonth(month);
   const quickToday = useQuickTodayAggregates();
 
-  const total = (expenses.data ?? []).reduce((s, e) => s + Number(e.amount_ron), 0);
+  const { personalTotal, companyCardTotal } = (expenses.data ?? []).reduce(
+    (acc, e) => {
+      const amt = Number(e.amount_ron);
+      if (e.tags?.includes('company-card')) acc.companyCardTotal += amt;
+      else acc.personalTotal += amt;
+      return acc;
+    },
+    { personalTotal: 0, companyCardTotal: 0 },
+  );
   const monthLabel = dayjs().format('MMMM YYYY').replace(/^./, (c) => c.toUpperCase());
 
   // Today's quick count (sum of quantities) — surfaced as a small hint on the Quick card
@@ -41,13 +49,23 @@ export function HomePage() {
         <UnstyledButton onClick={() => navigate('/expenses')} className={classes.totalCard}>
           <Paper withBorder radius="md" p="md">
             <Group justify="space-between" align="flex-start" wrap="nowrap">
-              <Box>
+              <Box miw={0} flex={1}>
                 <Text size="xs" c="dimmed">
-                  Total {monthLabel}
+                  Total {monthLabel} · cont personal
                 </Text>
                 <Text fw={800} size="2rem" lh={1.1}>
-                  {formatRon(total)}
+                  {formatRon(personalTotal)}
                 </Text>
+                {companyCardTotal > 0 && (
+                  <>
+                    <Text size="xs" c="dimmed" mt={6}>
+                      Cont firmă
+                    </Text>
+                    <Text fw={600} size="md" lh={1.2}>
+                      {formatRon(companyCardTotal)}
+                    </Text>
+                  </>
+                )}
               </Box>
               <IconChevronRight size={20} stroke={2} color="var(--mantine-color-dimmed)" />
             </Group>

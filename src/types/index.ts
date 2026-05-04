@@ -48,6 +48,7 @@ export type QuickExpense = {
   icon: string | null;
   sort_order: number;
   active: boolean;
+  tags: string[];
   created_at: string;
 };
 
@@ -61,6 +62,7 @@ export type PredefinedExpense = {
   icon: string | null;
   sort_order: number;
   active: boolean;
+  tags: string[];
   created_at: string;
 };
 
@@ -79,6 +81,7 @@ export type Loan = {
   category_id: string | null;
   subcategory_id: string | null;
   active: boolean;
+  tags: string[];
   note: string | null;
   created_at: string;
 };
@@ -136,6 +139,7 @@ export type FixedExpense = {
   currency: Currency;
   category_id: string | null;
   subcategory_id: string | null;
+  tags: string[];
   sort_order: number;
 };
 

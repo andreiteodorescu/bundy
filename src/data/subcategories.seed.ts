@@ -75,8 +75,9 @@ export const seedSubcategories: SeedSubcategory[] = [
   { slug: 'investments',    parent_slug: 'finance',         name: 'Investiții',            icon: 'IconChartLine',        sort_order: 2 },
   { slug: 'taxes',          parent_slug: 'finance',         name: 'Taxe & Impozite',       icon: 'IconReceiptTax',       sort_order: 3 },
   { slug: 'loans',          parent_slug: 'finance',         name: 'Credite',               icon: 'IconCreditCard',       sort_order: 4 },
-  { slug: 'accountant',     parent_slug: 'finance',         name: 'Contabil',              icon: 'IconCalculator',       sort_order: 5 },
   // Work
   { slug: 'work-software',  parent_slug: 'work-business',   name: 'Software',              icon: 'IconCode',             sort_order: 1 },
   { slug: 'courses',        parent_slug: 'work-business',   name: 'Cursuri / Învățare',    icon: 'IconSchool',           sort_order: 2 },
+  { slug: 'accountant',     parent_slug: 'work-business',   name: 'Contabil',              icon: 'IconCalculator',       sort_order: 3 },
+  { slug: 'work-taxes',     parent_slug: 'work-business',   name: 'Taxe & Impozite',       icon: 'IconReceiptTax',       sort_order: 4 },
 ];

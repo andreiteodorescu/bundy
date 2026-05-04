@@ -190,6 +190,9 @@ export const seedBrandRules: SeedRule[] = [
   { pattern: 'zambile',      category_slug: 'gifts' },
   { pattern: 'martisoar',    category_slug: 'gifts' },
 
-  // Finance
-  { pattern: 'impozit',      category_slug: 'finance',      subcategory_slug: 'taxes' },
+  // Work & Business — taxes / accounting
+  { pattern: 'contabil',     category_slug: 'work-business', subcategory_slug: 'accountant' },
+  { pattern: 'impozit',      category_slug: 'work-business', subcategory_slug: 'work-taxes' },
+  { pattern: 'dividende',    category_slug: 'work-business', subcategory_slug: 'work-taxes' },
+  { pattern: 'anaf',         category_slug: 'work-business', subcategory_slug: 'work-taxes' },
 ];

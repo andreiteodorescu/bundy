@@ -32,15 +32,22 @@ export function useExpensesInRange(start: string, end: string) {
  */
 export function useMonthlyTotals(
   monthsBack = 6,
-  filter?: { categoryId?: string | null; subcategoryId?: string | null },
+  filter?: {
+    categoryId?: string | null;
+    subcategoryId?: string | null;
+    /** When true (default), expenses tagged `company-card` are excluded from totals. */
+    excludeCompanyCard?: boolean;
+  },
 ) {
   const start = dayjs().subtract(monthsBack - 1, 'month').startOf('month').format('YYYY-MM-DD');
   const end = dayjs().endOf('month').format('YYYY-MM-DD');
   const expenses = useExpensesInRange(start, end);
+  const excludeCompanyCard = filter?.excludeCompanyCard ?? true;
 
   const totals: { month: string; label: string; total: number }[] = [];
   if (expenses.data) {
     const filtered = expenses.data.filter((e) => {
+      if (excludeCompanyCard && e.tags?.includes('company-card')) return false;
       if (filter?.subcategoryId) return e.subcategory_id === filter.subcategoryId;
       if (filter?.categoryId) return e.category_id === filter.categoryId;
       return true;

@@ -46,6 +46,7 @@ export type UpsertFixedInput = {
   currency: Currency;
   category_id: string | null;
   subcategory_id: string | null;
+  tags?: string[];
   sort_order?: number;
 };
 
@@ -62,6 +63,7 @@ export function useUpsertFixedExpense() {
         currency: input.currency,
         category_id: input.category_id,
         subcategory_id: input.subcategory_id,
+        tags: input.tags ?? [],
         sort_order: input.sort_order ?? 999,
       };
       if (input.id) {

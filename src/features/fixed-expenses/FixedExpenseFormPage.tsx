@@ -11,6 +11,7 @@ import {
   NumberInput,
   Select,
   Stack,
+  Switch,
   Text,
   TextInput,
   Title,
@@ -44,6 +45,8 @@ export function FixedExpenseFormPage() {
   const [currency, setCurrency] = useState<Currency>('RON');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
+  const [companyCard, setCompanyCard] = useState(false);
+  const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Live RON preview for foreign-currency templates. Uses today's BNR rate as a
@@ -70,7 +73,16 @@ export function FixedExpenseFormPage() {
     setCurrency(fx.currency);
     setCategoryId(fx.category_id);
     setSubcategoryId(fx.subcategory_id);
+    setCompanyCard(fx.tags?.includes('company-card') ?? false);
+    setCompanyCardTouched(true);
   }, [editing.data]);
+
+  // Auto-suggest company card when category is Work & Business
+  const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
+  useEffect(() => {
+    if (companyCardTouched) return;
+    if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   if (!isNew && editing.isLoading) {
     return (
@@ -95,6 +107,7 @@ export function FixedExpenseFormPage() {
         currency,
         category_id: categoryId,
         subcategory_id: subcategoryId,
+        tags: companyCard ? ['company-card'] : [],
       });
       navigate('/fixed-expenses');
     } catch (err) {
@@ -199,6 +212,16 @@ export function FixedExpenseFormPage() {
             onChange={(v) => setSubcategoryId(v && v !== '' ? v : null)}
           />
         )}
+
+        <Switch
+          label="Plătit cu cardul firmei"
+          description="Marchează că nu plătești tu — exclus din totalul personal în Analytics."
+          checked={companyCard}
+          onChange={(e) => {
+            setCompanyCard(e.currentTarget.checked);
+            setCompanyCardTouched(true);
+          }}
+        />
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>

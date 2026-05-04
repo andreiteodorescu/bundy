@@ -46,6 +46,7 @@ export type UpsertPredefinedInput = {
   category_id: string | null;
   subcategory_id: string | null;
   icon: string | null;
+  tags?: string[];
   sort_order?: number;
   active?: boolean;
 };
@@ -63,6 +64,7 @@ export function useUpsertPredefined() {
         category_id: input.category_id,
         subcategory_id: input.subcategory_id,
         icon: input.icon,
+        tags: input.tags ?? [],
         sort_order: input.sort_order ?? 999,
         active: input.active ?? true,
       };

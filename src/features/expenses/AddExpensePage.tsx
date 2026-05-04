@@ -85,6 +85,8 @@ export function AddExpensePage() {
   const [datePickerOpen, datePickerCtl] = useDisclosure(false);
   const [didLoadEditing, setDidLoadEditing] = useState(false);
   const [didLoadPredefined, setDidLoadPredefined] = useState(false);
+  const [companyCard, setCompanyCard] = useState(false);
+  const [companyCardTouched, setCompanyCardTouched] = useState(false);
 
   // Live RON conversion preview for foreign-currency amounts. Uses the BNR rate for
   // the expense's `occurred_on` date (not today) so the preview matches what will be
@@ -113,6 +115,10 @@ export function AddExpensePage() {
     setCategoryId(t.category_id);
     setSubcategoryId(t.subcategory_id);
     setOverrideCategory(true); // user picked the template, don't override their choice via auto-suggest
+    if (t.tags?.includes('company-card')) {
+      setCompanyCard(true);
+      setCompanyCardTouched(true);
+    }
     setDidLoadPredefined(true);
   }, [editingId, didLoadPredefined, predefined.data]);
 
@@ -133,8 +139,23 @@ export function AddExpensePage() {
       setRecurrence((exp.recurrence as { kind: RecurrenceKind }).kind);
     }
     setHidden(exp.hidden);
+    setCompanyCard(exp.tags.includes('company-card'));
+    setCompanyCardTouched(true);
     setDidLoadEditing(true);
   }, [editing.data, editingId, didLoadEditing]);
+
+  // Auto-suggest "company card" toggle when the picked category is Work & Business.
+  // Only applies until the user explicitly interacts with the Switch (companyCardTouched).
+  const workBusinessCategoryId = useMemo(
+    () => (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null,
+    [cats.data],
+  );
+  useEffect(() => {
+    if (companyCardTouched) return;
+    if (categoryId && categoryId === workBusinessCategoryId) {
+      setCompanyCard(true);
+    }
+  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   // Auto-suggest reacts to name input (debounced via React render coalescing)
   useEffect(() => {
@@ -226,6 +247,7 @@ export function AddExpensePage() {
         note: note.trim() || null,
         recurrence: recurrence === 'never' ? null : { kind: recurrence },
         hidden,
+        tags: companyCard ? ['company-card'] : [],
       });
       notifications.show({
         message: editingId ? `${name.trim()} actualizat` : `${name.trim()} salvat`,
@@ -451,6 +473,16 @@ export function AddExpensePage() {
           value={recurrence}
           onChange={(v) => setRecurrence((v as RecurrenceKind) ?? 'never')}
           allowDeselect={false}
+        />
+
+        <Switch
+          label="Plătit cu cardul firmei"
+          description="Marchează că nu ai plătit din banii tăi. Exclus din totalul personal în Analytics."
+          checked={companyCard}
+          onChange={(e) => {
+            setCompanyCard(e.currentTarget.checked);
+            setCompanyCardTouched(true);
+          }}
         />
 
         <Switch
