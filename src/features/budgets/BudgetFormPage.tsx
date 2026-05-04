@@ -16,8 +16,10 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
-import { CURRENCIES, type Currency } from '@/lib/money';
+import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { BudgetCalendar } from './BudgetCalendar';
@@ -70,6 +72,21 @@ export function BudgetFormPage() {
     const sorted = [...selectedDays].sort();
     return { start: sorted[0], end: sorted[sorted.length - 1], count: sorted.length };
   }, [selectedDays]);
+
+  // Live RON preview using the rate from the budget's first day (matches save logic);
+  // falls back to today if no days are picked yet.
+  const fxDate = periodInfo?.start ?? dayjs().format('YYYY-MM-DD');
+  const fxRate = useQuery({
+    queryKey: ['fx', fxDate, currency],
+    queryFn: () => getFxRate(fxDate, currency),
+    enabled: currency !== 'RON',
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: 1,
+  });
+  const amountRonPreview =
+    currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
+      ? amount * fxRate.data.rate_to_ron
+      : null;
 
   if (!isNew && editing.isLoading) {
     return (
@@ -168,6 +185,20 @@ export function BudgetFormPage() {
             w={92}
           />
         </Group>
+
+        {currency !== 'RON' && (
+          <Text size="xs" c="dimmed" mt={-8}>
+            {fxRate.isLoading
+              ? 'Se încarcă cursul BNR…'
+              : amountRonPreview !== null
+                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR din ${dayjs(fxRate.data?.date ?? fxDate).format('D MMM YYYY')}`
+                : fxRate.isError
+                  ? 'Curs BNR indisponibil — se va încerca la salvare.'
+                  : periodInfo === null
+                    ? 'Alege perioada și introdu o sumă pentru a vedea echivalentul în RON.'
+                    : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+          </Text>
+        )}
 
         <BudgetCalendar value={selectedDays} onChange={setSelectedDays} />
 

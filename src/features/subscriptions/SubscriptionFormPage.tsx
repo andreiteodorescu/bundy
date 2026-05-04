@@ -19,9 +19,11 @@ import {
   Title,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
+import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
-import { CURRENCIES, type Currency } from '@/lib/money';
+import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { diacriticsFilter } from '@/lib/text';
@@ -58,6 +60,21 @@ export function SubscriptionFormPage() {
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Live RON preview using today's BNR rate. Each future charge will be re-converted
+  // at its own date by the subscription generator, so this is just an indicator.
+  const todayIso = dayjs().format('YYYY-MM-DD');
+  const fxRate = useQuery({
+    queryKey: ['fx', todayIso, currency],
+    queryFn: () => getFxRate(todayIso, currency),
+    enabled: currency !== 'RON',
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: 1,
+  });
+  const amountRonPreview =
+    currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
+      ? amount * fxRate.data.rate_to_ron
+      : null;
 
   useEffect(() => {
     const sub = editing.data;
@@ -206,6 +223,18 @@ export function SubscriptionFormPage() {
             w={92}
           />
         </Group>
+
+        {currency !== 'RON' && (
+          <Text size="xs" c="dimmed" mt={-8}>
+            {fxRate.isLoading
+              ? 'Se încarcă cursul BNR…'
+              : amountRonPreview !== null
+                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR de azi (recalculat la fiecare debitare)`
+                : fxRate.isError
+                  ? 'Curs BNR indisponibil — se va recalcula la generarea cheltuielii.'
+                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+          </Text>
+        )}
 
         <SegmentedControl
           fullWidth

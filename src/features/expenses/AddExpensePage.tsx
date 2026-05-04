@@ -29,7 +29,9 @@ import {
   IconCalendar,
   IconSparkles,
 } from '@tabler/icons-react';
-import { CURRENCIES, type Currency } from '@/lib/money';
+import { useQuery } from '@tanstack/react-query';
+import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { cleanExpenseName, diacriticsFilter } from '@/lib/text';
@@ -83,6 +85,22 @@ export function AddExpensePage() {
   const [datePickerOpen, datePickerCtl] = useDisclosure(false);
   const [didLoadEditing, setDidLoadEditing] = useState(false);
   const [didLoadPredefined, setDidLoadPredefined] = useState(false);
+
+  // Live RON conversion preview for foreign-currency amounts. Uses the BNR rate for
+  // the expense's `occurred_on` date (not today) so the preview matches what will be
+  // saved on submit. RON is the base — query is disabled for RON.
+  const dateIso = ymd(date);
+  const fxRate = useQuery({
+    queryKey: ['fx', dateIso, currency],
+    queryFn: () => getFxRate(dateIso, currency),
+    enabled: currency !== 'RON',
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: 1,
+  });
+  const amountRonPreview =
+    currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
+      ? amount * fxRate.data.rate_to_ron
+      : null;
 
   // Pre-fill form from a predefined template (?predefined=<id>) — only on first load,
   // and only when not editing an existing expense.
@@ -316,6 +334,18 @@ export function AddExpensePage() {
             w={92}
           />
         </Group>
+
+        {currency !== 'RON' && (
+          <Text size="xs" c="dimmed" mt={-8}>
+            {fxRate.isLoading
+              ? 'Se încarcă cursul BNR…'
+              : amountRonPreview !== null
+                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR din ${dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY')}`
+                : fxRate.isError
+                  ? 'Curs BNR indisponibil — se va încerca la salvare.'
+                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+          </Text>
+        )}
 
         <Box>
           <Text size="sm" fw={500} mb={4}>

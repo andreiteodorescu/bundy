@@ -19,6 +19,7 @@ import { IconArrowLeft, IconCreditCard, IconPlus } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon, round2 } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
+import { useFxRates } from '@/lib/useFxRates';
 import { BrandTile } from '@/components/BrandTile';
 import { useSubscriptions, useToggleSubscription } from './api';
 import type { Subscription } from '@/types';
@@ -41,6 +42,7 @@ export function SubscriptionsListPage() {
   const cats = useCategories();
   const toggle = useToggleSubscription();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+  const fx = useFxRates((subs.data ?? []).map((s) => s.currency));
 
   const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
   const [totalCurrencies, setTotalCurrencies] = useState<Set<string>>(new Set());
@@ -128,6 +130,7 @@ export function SubscriptionsListPage() {
                   key={sub.id}
                   subscription={sub}
                   category={catById.get(sub.category_id ?? '') ?? null}
+                  rateRon={fx.rateOf(sub.currency)}
                   onToggle={(active) => toggle.mutate({ id: sub.id, active })}
                   onClick={() => navigate(`/subscriptions/${sub.id}/edit`)}
                 />
@@ -160,16 +163,20 @@ export function SubscriptionsListPage() {
 function SubscriptionRow({
   subscription,
   category,
+  rateRon,
   onToggle,
   onClick,
 }: {
   subscription: Subscription;
   category: { color: string; icon: string; name: string } | null;
+  rateRon: number | null;
   onToggle: (active: boolean) => void;
   onClick: () => void;
 }) {
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const cadenceLabel = formatCadence(subscription);
+  const showRon = subscription.currency !== 'RON' && rateRon !== null;
+  const amountRon = showRon ? Number(subscription.amount) * rateRon : null;
 
   return (
     <Paper withBorder radius="md" p="sm" style={{ opacity: subscription.active ? 1 : 0.55 }}>
@@ -196,7 +203,9 @@ function SubscriptionRow({
             )}
           </Group>
           <Text size="xs" c="dimmed">
-            {formatMoney(Number(subscription.amount), subscription.currency)} · {cadenceLabel}
+            {formatMoney(Number(subscription.amount), subscription.currency)}
+            {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
+            {' · '}{cadenceLabel}
           </Text>
         </Box>
         <Switch

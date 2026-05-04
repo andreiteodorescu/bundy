@@ -37,7 +37,8 @@ import {
   IconPlus,
 } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
-import { formatMoney } from '@/lib/money';
+import { formatMoney, formatRon } from '@/lib/money';
+import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
 import {
   useQuickExpenses,
@@ -54,6 +55,7 @@ export function QuickExpensesListPage() {
   const cats = useCategories();
   const step = useStepQuickExpense();
   const reorder = useReorderQuickExpenses();
+  const fx = useFxRates((templates.data ?? []).map((t) => t.currency));
 
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
 
@@ -156,6 +158,7 @@ export function QuickExpensesListPage() {
                     template={tpl}
                     qty={today.data?.get(tpl.id)?.quantity ?? 0}
                     category={catById.get(tpl.category_id ?? '') ?? null}
+                    rateRon={fx.rateOf(tpl.currency)}
                     onStep={(delta) => step.mutate({ template: tpl, delta })}
                     onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
                     disabled={step.isPending}
@@ -174,6 +177,7 @@ function QuickRow({
   template,
   qty,
   category,
+  rateRon,
   onStep,
   onEdit,
   disabled,
@@ -181,6 +185,7 @@ function QuickRow({
   template: QuickExpense;
   qty: number;
   category: { color: string; icon: string; name: string } | null;
+  rateRon: number | null;
   onStep: (delta: 1 | -1) => void;
   onEdit: () => void;
   disabled: boolean;
@@ -191,6 +196,8 @@ function QuickRow({
   const Icon = getIcon(template.icon ?? category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const lineTotal = Number(template.amount) * qty;
+  const showRon = template.currency !== 'RON' && rateRon !== null;
+  const unitRon = showRon ? Number(template.amount) * rateRon : null;
 
   return (
     <Paper
@@ -240,6 +247,7 @@ function QuickRow({
           </Text>
           <Text size="xs" c="dimmed">
             {formatMoney(Number(template.amount), template.currency)}
+            {showRon && unitRon !== null && ` ≈ ${formatRon(unitRon)}`}
             {qty > 0 ? ` · azi ${formatMoney(lineTotal, template.currency)}` : ''}
           </Text>
         </Box>

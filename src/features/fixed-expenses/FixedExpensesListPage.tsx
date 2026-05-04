@@ -38,7 +38,8 @@ import {
   IconPlus,
 } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
-import { formatMoney } from '@/lib/money';
+import { formatMoney, formatRon } from '@/lib/money';
+import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
 import { useFixedExpenses, useReorderFixedExpenses } from './api';
 import type { FixedExpense } from '@/types';
@@ -48,6 +49,7 @@ export function FixedExpensesListPage() {
   const fixed = useFixedExpenses();
   const cats = useCategories();
   const reorder = useReorderFixedExpenses();
+  const fx = useFxRates((fixed.data ?? []).map((f) => f.currency));
   const [order, setOrder] = useState<string[]>([]);
 
   useEffect(() => {
@@ -97,9 +99,6 @@ export function FixedExpensesListPage() {
             Adaugă
           </Button>
         </Group>
-        <Text size="sm" c="dimmed">
-          Aceste șabloane apar înainte de pagina "Adaugă cheltuială" pentru un quick-add cu un singur tap.
-        </Text>
 
         {fixed.isLoading ? (
           <Center py="xl">
@@ -116,12 +115,13 @@ export function FixedExpensesListPage() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={order} strategy={verticalListSortingStrategy}>
               <Stack gap="xs">
-                {ordered.map((fx) => (
+                {ordered.map((row) => (
                   <SortableFixedRow
-                    key={fx.id}
-                    fixed={fx}
-                    category={catById.get(fx.category_id ?? '') ?? null}
-                    onClick={() => navigate(`/fixed-expenses/${fx.id}/edit`)}
+                    key={row.id}
+                    fixed={row}
+                    category={catById.get(row.category_id ?? '') ?? null}
+                    rateRon={fx.rateOf(row.currency)}
+                    onClick={() => navigate(`/fixed-expenses/${row.id}/edit`)}
                   />
                 ))}
               </Stack>
@@ -136,10 +136,12 @@ export function FixedExpensesListPage() {
 function SortableFixedRow({
   fixed,
   category,
+  rateRon,
   onClick,
 }: {
   fixed: FixedExpense;
   category: { color: string; icon: string; name: string } | null;
+  rateRon: number | null;
   onClick: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -147,6 +149,8 @@ function SortableFixedRow({
   });
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
+  const showRon = fixed.currency !== 'RON' && rateRon !== null;
+  const amountRon = showRon ? Number(fixed.amount) * rateRon : null;
 
   return (
     <Paper
@@ -194,6 +198,7 @@ function SortableFixedRow({
           </Text>
           <Text size="xs" c="dimmed">
             {formatMoney(Number(fixed.amount), fixed.currency)}
+            {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
             {category ? ` · ${category.name}` : ''}
           </Text>
         </UnstyledButton>

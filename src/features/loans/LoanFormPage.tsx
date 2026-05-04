@@ -13,14 +13,17 @@ import {
   Select,
   Stack,
   Switch,
+  Text,
   Textarea,
   TextInput,
   Title,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
+import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
-import { CURRENCIES, type Currency } from '@/lib/money';
+import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { diacriticsFilter } from '@/lib/text';
@@ -52,6 +55,21 @@ export function LoanFormPage() {
   const [active, setActive] = useState(true);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Live RON preview for the monthly payment when the loan is in a foreign currency.
+  // Uses today's BNR rate — each generated charge will be re-converted at its own date.
+  const todayIso = dayjs().format('YYYY-MM-DD');
+  const fxRate = useQuery({
+    queryKey: ['fx', todayIso, currency],
+    queryFn: () => getFxRate(todayIso, currency),
+    enabled: currency !== 'RON',
+    staleTime: 6 * 60 * 60 * 1000,
+    retry: 1,
+  });
+  const monthlyRonPreview =
+    currency !== 'RON' && fxRate.data && typeof monthlyPayment === 'number' && monthlyPayment > 0
+      ? monthlyPayment * fxRate.data.rate_to_ron
+      : null;
 
   // Pre-select Finance > Loans by default for new loans (once categories loaded)
   useEffect(() => {
@@ -207,6 +225,18 @@ export function LoanFormPage() {
             w={92}
           />
         </Group>
+
+        {currency !== 'RON' && (
+          <Text size="xs" c="dimmed" mt={-8}>
+            {fxRate.isLoading
+              ? 'Se încarcă cursul BNR…'
+              : monthlyRonPreview !== null
+                ? `≈ ${formatRon(monthlyRonPreview)}/lună la cursul BNR de azi (recalculat la fiecare debitare)`
+                : fxRate.isError
+                  ? 'Curs BNR indisponibil — se va recalcula la generarea cheltuielii.'
+                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+          </Text>
+        )}
 
         <NumberInput
           label="Ziua scadentă (1-31)"

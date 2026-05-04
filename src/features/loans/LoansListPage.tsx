@@ -19,6 +19,7 @@ import { IconArrowLeft, IconBuildingBank, IconPlus } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon, round2 } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
+import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
 import { useLoans, useToggleLoan } from './api';
 import type { Loan } from '@/types';
@@ -29,6 +30,7 @@ export function LoansListPage() {
   const cats = useCategories();
   const toggle = useToggleLoan();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+  const fx = useFxRates((loans.data ?? []).map((l) => l.currency));
 
   const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
 
@@ -108,6 +110,7 @@ export function LoansListPage() {
                   key={loan.id}
                   loan={loan}
                   category={catById.get(loan.category_id ?? '') ?? null}
+                  rateRon={fx.rateOf(loan.currency)}
                   onToggle={(active) => toggle.mutate({ id: loan.id, active })}
                   onClick={() => navigate(`/loans/${loan.id}/edit`)}
                 />
@@ -136,16 +139,20 @@ export function LoansListPage() {
 function LoanRow({
   loan,
   category,
+  rateRon,
   onToggle,
   onClick,
 }: {
   loan: Loan;
   category: { color: string; icon: string; name: string } | null;
+  rateRon: number | null;
   onToggle: (active: boolean) => void;
   onClick: () => void;
 }) {
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
+  const showRon = loan.currency !== 'RON' && rateRon !== null;
+  const monthlyRon = showRon ? Number(loan.monthly_payment) * rateRon : null;
 
   const remaining = loan.end_date
     ? Math.max(0, dayjs(loan.end_date).diff(dayjs(), 'month'))
@@ -183,7 +190,9 @@ function LoanRow({
             )}
           </Group>
           <Text size="xs" c="dimmed">
-            {formatMoney(Number(loan.monthly_payment), loan.currency)} · ziua {loan.charge_day}
+            {formatMoney(Number(loan.monthly_payment), loan.currency)}
+            {showRon && monthlyRon !== null && ` ≈ ${formatRon(monthlyRon)}`}
+            {' · ziua '}{loan.charge_day}
             {remaining !== null && ` · ${remaining} ${remaining === 1 ? 'lună rămasă' : 'luni rămase'}`}
           </Text>
         </Box>

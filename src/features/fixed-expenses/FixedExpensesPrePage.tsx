@@ -17,7 +17,8 @@ import { IconArrowLeft, IconPin, IconPlus } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
 import { useUpsertExpense } from '@/features/expenses/api';
 import { todayIso } from '@/lib/dates';
-import { formatMoney } from '@/lib/money';
+import { formatMoney, formatRon } from '@/lib/money';
+import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
 import { useFixedExpenses } from './api';
 import type { FixedExpense } from '@/types';
@@ -35,6 +36,7 @@ export function FixedExpensesPrePage() {
   const cats = useCategories();
   const upsert = useUpsertExpense();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+  const fxRates = useFxRates((fixed.data ?? []).map((f) => f.currency));
 
   async function quickAdd(fx: FixedExpense) {
     try {
@@ -112,6 +114,9 @@ export function FixedExpensesPrePage() {
               const category = catById.get(fx.category_id ?? '') ?? null;
               const Icon = getIcon(category?.icon);
               const color = category?.color ?? 'var(--mantine-color-gray-6)';
+              const rate = fxRates.rateOf(fx.currency);
+              const showRon = fx.currency !== 'RON' && rate !== null;
+              const amountRon = showRon ? Number(fx.amount) * rate : null;
               return (
                 <UnstyledButton key={fx.id} onClick={() => quickAdd(fx)} disabled={upsert.isPending}>
                   <Paper withBorder radius="md" p="md">
@@ -139,9 +144,16 @@ export function FixedExpensesPrePage() {
                           {category?.name ?? 'Fără categorie'}
                         </Text>
                       </Box>
-                      <Text fw={700} size="lg">
-                        {formatMoney(Number(fx.amount), fx.currency)}
-                      </Text>
+                      <Box ta="right">
+                        <Text fw={700} size="lg">
+                          {formatMoney(Number(fx.amount), fx.currency)}
+                        </Text>
+                        {showRon && amountRon !== null && (
+                          <Text size="xs" c="dimmed">
+                            ≈ {formatRon(amountRon)}
+                          </Text>
+                        )}
+                      </Box>
                     </Group>
                   </Paper>
                 </UnstyledButton>
