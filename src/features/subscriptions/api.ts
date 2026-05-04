@@ -54,6 +54,7 @@ export type UpsertSubscriptionInput = {
   active: boolean;
   start_date: string;
   end_date?: string | null;
+  brand_logo?: string | null;
 };
 
 export function useUpsertSubscription() {
@@ -76,6 +77,7 @@ export function useUpsertSubscription() {
         active: input.active,
         start_date: input.start_date,
         end_date: input.end_date ?? null,
+        brand_logo: input.brand_logo ?? null,
       };
       if (input.id) {
         const { data, error } = await supabase

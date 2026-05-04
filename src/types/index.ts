@@ -124,6 +124,8 @@ export type Subscription = {
   paused_until: string | null;
   start_date: string;
   end_date: string | null;
+  /** Optional brand logo slug (e.g. 'netflix'). NULL = auto-detect by name. */
+  brand_logo: string | null;
 };
 
 export type FixedExpense = {

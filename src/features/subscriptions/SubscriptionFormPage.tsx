@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
+  Box,
   Button,
   Center,
   Container,
@@ -13,6 +14,7 @@ import {
   SegmentedControl,
   Stack,
   Switch,
+  Text,
   TextInput,
   Title,
 } from '@mantine/core';
@@ -23,6 +25,8 @@ import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { diacriticsFilter } from '@/lib/text';
+import { BrandPicker } from '@/components/BrandPicker';
+import { BrandTile } from '@/components/BrandTile';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import {
   useDeleteSubscription,
@@ -52,6 +56,7 @@ export function SubscriptionFormPage() {
   const [active, setActive] = useState(true);
   const [workReimbursable, setWorkReimbursable] = useState(false);
   const [startDate, setStartDate] = useState<Date>(new Date());
+  const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,6 +73,7 @@ export function SubscriptionFormPage() {
     setActive(sub.active);
     setWorkReimbursable(sub.tags.includes('work-reimbursable'));
     setStartDate(new Date(sub.start_date));
+    setBrandLogo(sub.brand_logo ?? null);
   }, [editing.data]);
 
   if (!isNew && editing.isLoading) {
@@ -112,6 +118,7 @@ export function SubscriptionFormPage() {
         active,
         tags,
         start_date: ymd(startDate),
+        brand_logo: brandLogo,
       });
       navigate('/subscriptions');
     } catch (err) {
@@ -158,6 +165,26 @@ export function SubscriptionFormPage() {
           onChange={(e) => setName(e.currentTarget.value)}
           placeholder="ex: Netflix Premium"
         />
+
+        <Box>
+          <Group gap={6} mb={6} align="center">
+            <Text size="sm" fw={500}>
+              Logo
+            </Text>
+            <BrandTile
+              name={name}
+              brandSlug={brandLogo}
+              fallbackIconName={null}
+              fallbackColor="var(--mantine-color-dimmed)"
+              size={28}
+              iconSize={16}
+            />
+          </Group>
+          <Text size="xs" c="dimmed" mb="xs">
+            Auto = se detectează automat după nume. Sau alegi manual din lista de mai jos.
+          </Text>
+          <BrandPicker value={brandLogo} onChange={setBrandLogo} />
+        </Box>
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput

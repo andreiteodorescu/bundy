@@ -61,6 +61,10 @@ export default defineConfig(({ mode }) => {
         'icons/icon-192.png',
         'icons/icon-512.png',
         'icons/icon-512-maskable.png',
+        'brands/*.svg',
+        'brands/*.png',
+        'brands/*.jpeg',
+        'brands/*.jpg',
       ],
       manifest: {
         name: 'Bundy',

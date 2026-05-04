@@ -17,8 +17,9 @@ export type SeedRule = {
 };
 
 export const seedBrandRules: SeedRule[] = [
-  // Groceries
-  { pattern: 'freshful',     category_slug: 'food-drinks', subcategory_slug: 'groceries' },
+  // Online groceries (delivered to door — separate from in-store)
+  { pattern: 'freshful',     category_slug: 'food-drinks', subcategory_slug: 'online-groceries' },
+  // Physical-store groceries
   { pattern: 'mega image',   category_slug: 'food-drinks', subcategory_slug: 'groceries' },
   { pattern: 'carrefour',    category_slug: 'food-drinks', subcategory_slug: 'groceries' },
   { pattern: 'kaufland',     category_slug: 'food-drinks', subcategory_slug: 'groceries' },
@@ -147,14 +148,20 @@ export const seedBrandRules: SeedRule[] = [
   // Entertainment
   { pattern: 'cinema',       category_slug: 'entertainment', subcategory_slug: 'cinema' },
   { pattern: 'multiplex',    category_slug: 'entertainment', subcategory_slug: 'cinema' },
-  { pattern: 'bilet loto',   category_slug: 'entertainment', subcategory_slug: 'events' },
-  { pattern: 'loz ',         category_slug: 'entertainment', subcategory_slug: 'events' },
 
-  // Vacation
-  { pattern: 'vacanta',      category_slug: 'vacation',     subcategory_slug: 'travel' },
-  { pattern: 'ryanair',      category_slug: 'vacation',     subcategory_slug: 'travel' },
-  { pattern: 'wizz',         category_slug: 'vacation',     subcategory_slug: 'travel' },
-  { pattern: 'aeroport',     category_slug: 'vacation',     subcategory_slug: 'travel' },
+  // Lottery (own top-level category)
+  { pattern: 'bilet loto',   category_slug: 'lottery', priority: 8 },
+  { pattern: 'bilete loto',  category_slug: 'lottery', priority: 8 },
+  { pattern: 'loto',         category_slug: 'lottery' },
+  { pattern: 'loterie',      category_slug: 'lottery' },
+  { pattern: 'loz ',         category_slug: 'lottery' },
+
+  // Vacation (no subcategory — parent captures all)
+  { pattern: 'vacanta',      category_slug: 'vacation' },
+  { pattern: 'vacante',      category_slug: 'vacation' },
+  { pattern: 'ryanair',      category_slug: 'vacation' },
+  { pattern: 'wizz',         category_slug: 'vacation' },
+  { pattern: 'aeroport',     category_slug: 'vacation' },
 
   // Gifts
   { pattern: 'cadou',        category_slug: 'gifts' },

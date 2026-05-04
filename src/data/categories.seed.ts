@@ -23,8 +23,9 @@ export const seedCategories: SeedCategory[] = [
   { slug: 'gifts',          name: 'Cadouri',                   color: '#f43f5e', icon: 'IconGift',           sort_order: 10 },
   { slug: 'donations',      name: 'Donații',                   color: '#a855f7', icon: 'IconHeart',          sort_order: 11 },
   { slug: 'pets',           name: 'Animale',                   color: '#84cc16', icon: 'IconPaw',            sort_order: 12 },
-  { slug: 'vacation',       name: 'Vacanță',                   color: '#14b8a6', icon: 'IconPlane',          sort_order: 13 },
+  { slug: 'vacation',       name: 'Vacante',                   color: '#14b8a6', icon: 'IconPlane',          sort_order: 13 },
   { slug: 'adoption',       name: 'Adopție',                   color: '#f59e0b', icon: 'IconBabyCarriage',   sort_order: 14 },
   { slug: 'debt',           name: 'Datorie',                   color: '#ef4444', icon: 'IconUsers',          sort_order: 15 },
-  { slug: 'misc',           name: 'Diverse',                   color: '#94a3b8', icon: 'IconDots',           sort_order: 16 },
+  { slug: 'lottery',        name: 'Loterie',                   color: '#a855f7', icon: 'IconTicket',         sort_order: 16 },
+  { slug: 'misc',           name: 'Diverse',                   color: '#94a3b8', icon: 'IconDots',           sort_order: 17 },
 ];

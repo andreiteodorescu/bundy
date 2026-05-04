@@ -19,7 +19,7 @@ import { IconArrowLeft, IconCreditCard, IconPlus } from '@tabler/icons-react';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon, round2 } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
-import { getIcon } from '@/data/icons.registry';
+import { BrandTile } from '@/components/BrandTile';
 import { useSubscriptions, useToggleSubscription } from './api';
 import type { Subscription } from '@/types';
 
@@ -168,29 +168,21 @@ function SubscriptionRow({
   onToggle: (active: boolean) => void;
   onClick: () => void;
 }) {
-  const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const cadenceLabel = formatCadence(subscription);
 
   return (
     <Paper withBorder radius="md" p="sm" style={{ opacity: subscription.active ? 1 : 0.55 }}>
       <Group wrap="nowrap" gap="sm">
-        <Box
-          onClick={onClick}
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: `${color}22`,
-            color,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flex: '0 0 auto',
-            cursor: 'pointer',
-          }}
-        >
-          <Icon size={18} stroke={2} />
+        <Box onClick={onClick} style={{ cursor: 'pointer', flex: '0 0 auto' }}>
+          <BrandTile
+            name={subscription.name}
+            brandSlug={subscription.brand_logo}
+            fallbackIconName={category?.icon ?? null}
+            fallbackColor={color}
+            size={36}
+            iconSize={18}
+          />
         </Box>
         <Box flex={1} miw={0} onClick={onClick} style={{ cursor: 'pointer' }}>
           <Group gap={6} wrap="nowrap">

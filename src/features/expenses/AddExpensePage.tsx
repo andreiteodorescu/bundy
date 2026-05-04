@@ -214,7 +214,13 @@ export function AddExpensePage() {
         color: 'green',
         autoClose: 1800,
       });
-      navigate('/expenses');
+      // Edit mode: go back via history so /expenses keeps its ?month=... param.
+      // New mode: jump straight to the month of the saved expense.
+      if (editingId) {
+        navigate(-1);
+      } else {
+        navigate(`/expenses?month=${ymd(date)}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Eroare la salvare');
     }
@@ -228,7 +234,8 @@ export function AddExpensePage() {
         try {
           await del.mutateAsync(editingId);
           notifications.show({ message: 'Cheltuială ștearsă', color: 'gray' });
-          navigate('/expenses');
+          // Same logic — preserve the month the user came from
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Eroare la ștergere');
         }
@@ -442,7 +449,7 @@ export function AddExpensePage() {
             Șterge cheltuiala
           </Button>
         )}
-        <Anchor component="button" type="button" onClick={() => navigate('/expenses')} ta="center">
+        <Anchor component="button" type="button" onClick={() => navigate(-1)} ta="center">
           Anulează
         </Anchor>
       </Stack>

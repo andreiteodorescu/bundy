@@ -28,10 +28,12 @@ export function BudgetCalendar({ value, onChange }: Props) {
   const dates = useMemo(() => value.map((s) => new Date(s)), [value]);
 
   function selectThisMonth() {
-    onChange(daysInRange(today, today.endOf('month')));
+    // Entire current month (1st → last day), not just from today onwards.
+    onChange(daysInRange(today.startOf('month'), today.endOf('month')));
   }
   function selectThisYear() {
-    onChange(daysInRange(today, today.endOf('year')));
+    // Entire current year (Jan 1 → Dec 31), not just from today onwards.
+    onChange(daysInRange(today.startOf('year'), today.endOf('year')));
   }
   function selectMonths(months: string[]) {
     setPickedMonths(months);
@@ -42,17 +44,17 @@ export function BudgetCalendar({ value, onChange }: Props) {
     const set = new Set<string>();
     for (const ym of months) {
       const monthStart = dayjs(`${ym}-01`).startOf('month');
-      const start = monthStart.isBefore(today) ? today : monthStart;
       const end = monthStart.endOf('month');
-      for (const d of daysInRange(start, end)) set.add(d);
+      for (const d of daysInRange(monthStart, end)) set.add(d);
     }
     onChange(Array.from(set).sort());
   }
 
   const monthOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [];
-    let cursor = today.startOf('month');
-    for (let i = 0; i < 12; i++) {
+    // Show 6 months back + current + 12 months forward = 19 total
+    let cursor = today.startOf('month').subtract(6, 'month');
+    for (let i = 0; i < 19; i++) {
       opts.push({
         value: cursor.format('YYYY-MM'),
         label: cursor.format('MMMM YYYY'),
@@ -95,7 +97,6 @@ export function BudgetCalendar({ value, onChange }: Props) {
             const arr = Array.isArray(next) ? next : [];
             onChange(arr.map((d) => ymd(d as unknown as Date)).sort());
           }}
-          minDate={today.toDate()}
           firstDayOfWeek={1}
           weekendDays={[0, 6]}
         />

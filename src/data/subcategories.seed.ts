@@ -8,23 +8,27 @@ export type SeedSubcategory = {
 
 export const seedSubcategories: SeedSubcategory[] = [
   // Food & Drinks
-  { slug: 'groceries',      parent_slug: 'food-drinks',     name: 'Băcănie',               icon: 'IconShoppingCart',     sort_order: 1 },
-  { slug: 'eating-out',     parent_slug: 'food-drinks',     name: 'În oraș',               icon: 'IconToolsKitchen3',    sort_order: 2 },
-  { slug: 'food-delivery',  parent_slug: 'food-drinks',     name: 'Livrare mâncare',       icon: 'IconTruckDelivery',    sort_order: 3 },
-  { slug: 'drinks',         parent_slug: 'food-drinks',     name: 'Băuturi',               icon: 'IconGlass',            sort_order: 4 },
+  { slug: 'groceries',         parent_slug: 'food-drinks',  name: 'Băcănie',               icon: 'IconShoppingCart',     sort_order: 1 },
+  { slug: 'online-groceries',  parent_slug: 'food-drinks',  name: 'Băcănie online',        icon: 'IconShoppingBag',      sort_order: 2 },
+  { slug: 'eating-out',        parent_slug: 'food-drinks',  name: 'În oraș',               icon: 'IconToolsKitchen3',    sort_order: 3 },
+  { slug: 'food-delivery',     parent_slug: 'food-drinks',  name: 'Livrare mâncare',       icon: 'IconTruckDelivery',    sort_order: 4 },
+  { slug: 'drinks',            parent_slug: 'food-drinks',  name: 'Băuturi',               icon: 'IconGlass',            sort_order: 5 },
   // Transport & Car
-  { slug: 'car',            parent_slug: 'transport-car',   name: 'Mașină (combustibil)',  icon: 'IconGasStation',       sort_order: 1 },
+  { slug: 'car',            parent_slug: 'transport-car',   name: 'Combustibil mașină',    icon: 'IconGasStation',       sort_order: 1 },
   { slug: 'parking',        parent_slug: 'transport-car',   name: 'Parcare',               icon: 'IconParking',          sort_order: 2 },
   { slug: 'public-transport', parent_slug: 'transport-car', name: 'Transport public',      icon: 'IconBusStop',          sort_order: 3 },
   { slug: 'ride-sharing',   parent_slug: 'transport-car',   name: 'Ride sharing',          icon: 'IconCarSuv',           sort_order: 4 },
   { slug: 'insurance',      parent_slug: 'transport-car',   name: 'Asigurări',             icon: 'IconShield',           sort_order: 5 },
   { slug: 'car-wash',       parent_slug: 'transport-car',   name: 'Spălat mașină',         icon: 'IconDroplet',          sort_order: 6 },
+  { slug: 'car-service',    parent_slug: 'transport-car',   name: 'Revizie mașină',        icon: 'IconCar',              sort_order: 7 },
+  { slug: 'car-maintenance',parent_slug: 'transport-car',   name: 'Mentenanță mașină',     icon: 'IconTool',             sort_order: 8 },
+  { slug: 'car-parts',      parent_slug: 'transport-car',   name: 'Piese mașină',          icon: 'IconTool',             sort_order: 9 },
   // Home & Bills
   { slug: 'rent',           parent_slug: 'home-bills',      name: 'Chirie',                icon: 'IconKey',              sort_order: 1 },
   { slug: 'electricity',    parent_slug: 'home-bills',      name: 'Curent',                icon: 'IconBolt',             sort_order: 2 },
   { slug: 'gas',            parent_slug: 'home-bills',      name: 'Gaze',                  icon: 'IconFlame',            sort_order: 3 },
   { slug: 'water',          parent_slug: 'home-bills',      name: 'Apă',                   icon: 'IconDroplet',          sort_order: 4 },
-  { slug: 'internet-tv',    parent_slug: 'home-bills',      name: 'Internet / TV',         icon: 'IconWifi',             sort_order: 5 },
+  { slug: 'internet-tv',    parent_slug: 'home-bills',      name: 'Internet / TV / Telefon', icon: 'IconWifi',           sort_order: 5 },
   { slug: 'maintenance',    parent_slug: 'home-bills',      name: 'Întreținere',           icon: 'IconBuildingCommunity', sort_order: 6 },
   { slug: 'repairs',        parent_slug: 'home-bills',      name: 'Reparații',             icon: 'IconTool',             sort_order: 7 },
   // Shopping
@@ -54,8 +58,13 @@ export const seedSubcategories: SeedSubcategory[] = [
   { slug: 'cinema',         parent_slug: 'entertainment',   name: 'Filme / Cinema',        icon: 'IconMovie',            sort_order: 1 },
   { slug: 'events',         parent_slug: 'entertainment',   name: 'Evenimente / Concerte', icon: 'IconTicket',           sort_order: 2 },
   { slug: 'hobbies',        parent_slug: 'entertainment',   name: 'Hobby-uri',             icon: 'IconPalette',          sort_order: 3 },
-  // Vacation
-  { slug: 'travel',         parent_slug: 'vacation',        name: 'Călătorii / Vacanțe',   icon: 'IconPlaneTilt',        sort_order: 1 },
+  // Vacante
+  { slug: 'vacation-flights',          parent_slug: 'vacation', name: 'Bilete avion',          icon: 'IconPlaneTilt',     sort_order: 1 },
+  { slug: 'vacation-airbnb',           parent_slug: 'vacation', name: 'Cazare Airbnb',         icon: 'IconHome',          sort_order: 2 },
+  { slug: 'vacation-hotel',            parent_slug: 'vacation', name: 'Cazare hotel',          icon: 'IconBuildingCommunity', sort_order: 3 },
+  { slug: 'vacation-misc',             parent_slug: 'vacation', name: 'Cheltuieli generale',   icon: 'IconReceipt',       sort_order: 4 },
+  { slug: 'vacation-car-rental',       parent_slug: 'vacation', name: 'Închiriere mașină',     icon: 'IconCar',           sort_order: 5 },
+  { slug: 'vacation-airport-transport',parent_slug: 'vacation', name: 'Transport aeroport',    icon: 'IconBusStop',       sort_order: 6 },
   // Pets
   { slug: 'pet-food',       parent_slug: 'pets',            name: 'Mâncare & Accesorii',   icon: 'IconBowl',             sort_order: 1 },
   { slug: 'pet-vet',        parent_slug: 'pets',            name: 'Veterinar',             icon: 'IconStethoscope',      sort_order: 2 },

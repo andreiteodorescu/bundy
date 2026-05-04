@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ActionIcon,
   Badge,
@@ -32,7 +32,37 @@ import type { Expense } from '@/types';
 
 export function ExpensesListPage() {
   const navigate = useNavigate();
-  const [month, setMonth] = useState<Date>(() => dayjs().startOf('month').toDate());
+  // Keep selected month in URL (?month=YYYY-MM-DD) so going to /expenses/:id/edit and
+  // back via history preserves it. Default = current month if no param.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const monthParam = searchParams.get('month');
+  const [month, setMonthState] = useState<Date>(() => {
+    if (monthParam) {
+      const parsed = dayjs(monthParam);
+      if (parsed.isValid()) return parsed.startOf('month').toDate();
+    }
+    return dayjs().startOf('month').toDate();
+  });
+
+  // Sync URL when month changes
+  function setMonth(next: Date) {
+    setMonthState(next);
+    const ym = dayjs(next).format('YYYY-MM-DD');
+    if (searchParams.get('month') !== ym) {
+      setSearchParams({ month: ym }, { replace: true });
+    }
+  }
+
+  // If URL is updated externally (e.g. user comes back from edit), sync state
+  useEffect(() => {
+    if (!monthParam) return;
+    const parsed = dayjs(monthParam);
+    if (!parsed.isValid()) return;
+    if (!parsed.isSame(month, 'month')) {
+      setMonthState(parsed.startOf('month').toDate());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthParam]);
   const cats = useCategories();
   const subs = useSubcategories();
   const expensesQ = useExpensesByMonth(dayjs(month).format('YYYY-MM-DD'));
