@@ -101,7 +101,7 @@ export function SubscriptionsListPage() {
         </Group>
 
         <Group justify="space-between" align="center">
-          <Title order={2}>Subscripții</Title>
+          <Title order={2}>Abonamente</Title>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
@@ -119,7 +119,7 @@ export function SubscriptionsListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconCreditCard size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Nicio subscripție</Text>
+              <Text c="dimmed">Niciun abonament</Text>
             </Stack>
           </Center>
         ) : (

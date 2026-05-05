@@ -69,7 +69,7 @@ export function MorePage() {
 
         <Divider label="Cheltuieli recurente" labelPosition="left" mt="sm" />
         <NavLink
-          label="Subscripții"
+          label="Abonamente"
           leftSection={<IconCreditCard size={20} />}
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/subscriptions')}

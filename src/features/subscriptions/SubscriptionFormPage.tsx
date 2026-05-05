@@ -156,7 +156,7 @@ export function SubscriptionFormPage() {
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi această subscripție?',
+      message: 'Sigur vrei să ștergi acest abonament?',
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
@@ -183,7 +183,7 @@ export function SubscriptionFormPage() {
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Subscripție nouă' : name}</Title>
+        <Title order={2}>{isNew ? 'Abonament nou' : name}</Title>
 
         <TextInput
           label="Nume"
@@ -309,7 +309,7 @@ export function SubscriptionFormPage() {
         </Group>
 
         <DatePickerInput
-          label="Activă din"
+          label="Activ din"
           value={startDate}
           onChange={(d) => d && setStartDate(dayjs(d as unknown as Date).toDate())}
           valueFormat="D MMM YYYY"
@@ -342,14 +342,14 @@ export function SubscriptionFormPage() {
         )}
 
         <Switch
-          label="Activă"
+          label="Activ"
           description="Cheltuielile se generează automat la fiecare reînnoire"
           checked={active}
           onChange={(e) => setActive(e.currentTarget.checked)}
         />
 
         <Switch
-          label="Plătită cu cardul firmei"
+          label="Plătit cu cardul firmei"
           description="ex: Claude Max. Cheltuielile generate sunt excluse din totalul personal în Analytics."
           checked={companyCard}
           onChange={(e) => {
@@ -378,7 +378,7 @@ export function SubscriptionFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge subscripția
+              Șterge abonamentul
             </Button>
           </>
         )}

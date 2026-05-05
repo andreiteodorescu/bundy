@@ -64,7 +64,7 @@ export function SettingsPage() {
     confirmDelete({
       title: 'Șterge contul',
       message:
-        'Toate datele tale (cheltuieli, bugete, subscripții, rate, șabloane, categorii) vor fi șterse PERMANENT. Contul va fi de-asemenea șters din sistem și nu te vei mai putea loga cu această adresă de email. Acțiunea NU poate fi inversată.',
+        'Toate datele tale (cheltuieli, bugete, abonamente, rate, șabloane, categorii) vor fi șterse PERMANENT. Contul va fi de-asemenea șters din sistem și nu te vei mai putea loga cu această adresă de email. Acțiunea NU poate fi inversată.',
       confirmLabel: 'Șterge definitiv',
       onConfirm: async () => {
         try {
@@ -338,7 +338,7 @@ export function SettingsPage() {
 
         <Alert color="red" icon={<IconAlertCircle size={16} />}>
           Ștergerea contului e <b>permanentă și ireversibilă</b>. Toate cheltuielile, bugetele,
-          subscripțiile, ratele și șabloanele tale vor fi șterse, iar contul va fi eliminat din
+          abonamentele, ratele și șabloanele tale vor fi șterse, iar contul va fi eliminat din
           sistem (nu te vei mai putea loga cu acest email).
         </Alert>
 

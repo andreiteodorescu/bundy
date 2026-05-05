@@ -14,16 +14,20 @@ Domain: **bundy.ro**
 | PWA | `vite-plugin-pwa` (Workbox) | Service worker + manifest, install pe iOS/Android |
 | UI | Mantine v7 | Componente, dark mode, AppShell, formulare |
 | Charts | `@mantine/charts` (Recharts) | Bar / Donut / Line |
-| Iconițe | `@tabler/icons-react` | Set curat de ~60 icons folosit în picker |
+| Iconițe Tabler | `@tabler/icons-react` | Set curat de ~70 icons folosit în picker |
+| Iconițe brand | `simple-icons` + SVG/PNG/JPEG static | 13 brand-uri din simple-icons (CC0) + 13 fișiere oficiale ale userului |
 | State server | TanStack Query | Cache + invalidare după mutații |
 | State client | Zustand | Local UI state (dacă e nevoie) |
 | Forms | React Hook Form + Zod | Validare (folosit selectiv) |
 | Routing | React Router v6 (Data Router) | Route splitting via `lazy()` |
 | Date | dayjs + ro locale + isoWeek | Săptămâni Mon-start, formatare ro-RO |
 | Fuzzy | Fuse.js | History match în autocomplete |
+| DnD | `@dnd-kit/sortable` | Reorder pe categorii + template-uri (quick/predefined/fixed) |
 | DB + Auth | **Supabase** (Postgres + RLS + Auth) | Free tier 500MB |
-| Hosting | **Vercel** Hobby | Free, custom domain, serverless `/api/*` |
-| FX rates | BNR proxy via `api/fx.ts` | EUR/USD → RON, cached în DB |
+| Hosting | **Vercel** Hobby | Free, custom domain, serverless `/api/*` + cron |
+| FX rates | BNR proxy via `api/fx.ts` | EUR/USD → RON, cached în `fx_rates` |
+| Cron server-side | Vercel Cron (daily) | Generator subs/loans pentru când userul nu deschide app-ul |
+| Captcha | hCaptcha | Anti-bot pe signup/login/forgot |
 
 ---
 
@@ -32,51 +36,69 @@ Domain: **bundy.ro**
 ```
 api/
   fx.ts                       Vercel function: parsează BNR XML și upsertează în fx_rates
+  cron/
+    generate-recurring.ts     Cron daily: materializează subs/loans pentru toți userii (SUPABASE_SERVICE_ROLE_KEY)
 src/
   app/                        main, App, providers, router (cu lazy routes)
   features/
-    auth/                     AuthProvider, LoginPage, ProtectedRoute, bootstrap (RPC)
-    expenses/                 List, AddExpense form (cu autocomplete), API hooks
+    auth/                     SignupPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, AuthProvider, bootstrap RPC
+    home/                     HomePage cu acțiuni stagger-animate + total widget (personal + cont firmă) + ActiveBudgetBanner
+    expenses/                 List, AddExpense form (cu autocomplete + FX preview live), API hooks
     categories/               List + reorder, Category/Subcategory forms
-    subscriptions/            List cu total RON, Form, generator client-pull
+    subscriptions/            List cu total RON, Form (cu BrandPicker + FX preview), generator client-pull
     loans/                    Rate (împrumuturi bancare): List, Form, generator (sursă='loan')
-    fixed-expenses/           List + reorder, Form, PrePage (quick-add înainte de Add Expense)
-    budgets/                  List, Form cu calendar custom, ProgressBar, ActiveBudgetBanner, status helper
-    analytics/                Page cu trend lunar/săptămânal, donut, top subcategorii
-    settings/                 MorePage (drawer)
-  components/                 BottomNav, Layouts, ColorPicker, IconPicker, SwUpdatePrompt
+    fixed-expenses/           List + reorder + edit pencil, Form, PrePage (quick-add înainte de Add Expense)
+    quick-expenses/           Templates preț FIX cu stepper -/+ pe zi (Metrou, Loto), reorder
+    predefined-expenses/      Templates preț VARIABIL cu tap-to-prefill (Freshful, Bolt), reorder + edit pencil
+    budgets/                  List, Form cu calendar custom, ProgressBar, ActiveBudgetBanner, ArchivePage cu filtre + paginare
+    analytics/                Page cu trend lunar/săptămânal, donut, top subcategorii, FILTRU pe categorie/subcategorie
+    settings/                 SettingsPage (avatar, parolă, PIN TTL, șterge cont) + MorePage drawer (cu "Reîncarcă aplicația" în PWA)
+    search/                   Spotlight-style search peste cheltuieli (pg_trgm GIN)
+    hidden-expenses/          PIN-gate page pentru cheltuieli ascunse
+    admin/                    Admin dashboard (vezi useri, ban, șterge, reset parolă)
+  components/
+    BottomNav                 5-slot mobile nav (Acasă · Cheltuieli · (+) FAB · Analytics · Mai mult)
+    BrandTile                 Tile-rendered logo pentru subscripție/cheltuială recurrentă
+    BrandGlyph                Componenta de randare unificată (path inline din simple-icons sau <img> static)
+    BrandPicker               Grid picker pentru selectare manuală logo brand (cu search + Auto)
+    AnimalIconPicker          Picker de animal-avatar pentru profil
+    CaptchaGate               Wrapper hCaptcha (no-op în dev fără env var)
+    ColorPicker, IconPicker, SwUpdatePrompt, AppShellLayout
   lib/
     supabase.ts               createClient + custom storage adapter (localStorage + IndexedDB)
     queryClient.ts            TanStack Query config
     fx.ts                     getFxRate (DB cache → /api/fx fallback)
+    useFxRates.ts             Hook pentru fetch în masă FX rates pentru o listă de monede (pentru list pages)
+    pwa.ts                    isStandalonePWA() — detectare display-mode + iOS navigator.standalone
     autocomplete.ts           3-layer match: user rules → seed rules → Fuse history
     money.ts                  Currency type, formatRon, round2
     dates.ts                  splitMonthIntoWeeks (regula aprilie), todayIso, ymd
+    text.ts                   diacriticsFilter, cleanExpenseName, normalize
+    pin.ts                    PIN hash + TTL helpers
+    confirm.ts                confirmDelete modal helper
   data/
     categories.seed.ts        14 categorii default
-    subcategories.seed.ts     ~47 subcategorii default
-    brandRules.seed.ts        ~80 reguli RO brand → category (Freshful, Mega Image, Uber etc.)
-    icons.registry.ts         Subset curat ~60 Tabler icons
-  styles/                     theme.ts (Mantine), globals.css (safe-area-inset)
-  types/                      TS types (Expense, Budget, Category, Subscription, ...)
-  features/
-    auth/                     SignupPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, AuthProvider, bootstrap RPC
-    home/                     HomePage cu acțiuni stagger-animate + total widget + ActiveBudgetBanner
-    quick-expenses/           Templates preț FIX cu stepper -/+ pe zi (Metrou, Loto)
-    predefined-expenses/      Templates preț VARIABIL cu tap-to-prefill (Freshful, Bolt)
-    settings/                 SettingsPage (avatar, parolă, PIN TTL, șterge cont) + MorePage drawer
-    hidden-expenses/          PIN-gate page pentru cheltuieli ascunse
-  components/
-    AnimalIconPicker          Picker de animal-avatar pentru profil
-    CaptchaGate                Wrapper hCaptcha (no-op în dev fără env var)
+    subcategories.seed.ts     ~52 subcategorii default (incl. vacation × 6, transport public × 3, work taxes/accountant)
+    brandRules.seed.ts        ~95 reguli RO brand → category (incl. cazare, avion, contabil, impozit, dividende, anaf)
+    brandLogos.ts             24 brand-uri (13 simple-icons + 13 static) cu auto-detect prin regex
+    icons.registry.ts         Subset curat ~70 Tabler icons
+    banks.ts                  ~20 bănci RO pentru autocomplete în Loan form
+  styles/                     theme.ts (Mantine), globals.css (safe-area-inset + .reorder-grip @media)
+  types/                      TS types (Expense, Budget, Category, Subscription, Loan, ...)
+public/
+  brands/                     Static brand assets pentru cele care nu există în simple-icons (linkedin, openai, disney-plus,
+                              skyshowtime, antena-play, prime-video, voyo, stepsapp, emag, freshful, zooplus, bolt, microsoft, adobe)
+  robots.txt                  Disallow: /  (no Google indexing)
+  favicon.ico, favicon-96x96.png, apple-touch-icon.png
+  icons/icon-192.png, icon-512.png, icon-512-maskable.png
 supabase/
   migrations/
-    0001_init.sql             Schemă completă + RLS + triggers
+    0001_init.sql             Schemă completă + RLS + triggers + unique idx subscription
     0002_bootstrap_policies.sql   INSERT policies pe profiles/profile_members (deprecated, vezi 0003)
     0003_bootstrap_rpc.sql    SECURITY DEFINER bootstrap_profile() — folosit la primul login
     0004_weekly_cadence.sql   Adaugă 'weekly' la cadence
     0005_translate_seeded_names.sql  Traducere RO pentru categoriile is_system existente
-    0006_loans.sql            Tabela loans (Rate) + RLS + 'loan' source pe expenses
+    0006_loans.sql            Tabela loans (Rate) + RLS + 'loan' source pe expenses + unique idx loan
     0007_add_adoption_category.sql  Categoria 'Adopție' la profile existente
     0008_quick_predefined.sql Tabele quick_expenses + predefined_expenses + 'quick' source + col `quantity`
     0009_recategorize_diacritics.sql  Re-categorizare expenses cu diacritice (Spălat mașină etc.)
@@ -84,16 +106,24 @@ supabase/
     0011_hidden_pin_settings.sql  expenses.hidden + profiles.hidden_pin_hash + profiles.settings jsonb
     0012_profile_icon.sql     profiles.icon + bootstrap_profile() acceptă profile_icon
     0013_delete_account.sql   delete_my_account() RPC pentru self-delete cu cascade
+    0014_budget_categories.sql    budgets.category_ids text[] (scope pe categorii întregi)
+    0015_budget_subcategories.sql budgets.subcategory_ids text[] (scope pe subcategorii specifice)
+    0016_search_indexes.sql   pg_trgm GIN indexes pentru ILIKE search rapid
+    0017_admin.sql            Role 'admin' + politici de management useri
+    0018_lottery_category.sql Categoria 'Loterie' la profile existente
+    0019_online_groceries.sql Subcategoria 'Băcănie online' (Freshful) sub Mâncare & Băuturi
+    0020_subscription_brand_logo.sql  subscriptions.brand_logo (override manual peste auto-detect)
+    0021_vacation_subcategories.sql   6 subcategorii sub Vacanță (Bilete avion, Cazare hotel/Airbnb, etc.)
+    0022_dedupe_vacation_subcategories.sql  Cleanup duplicări create de typo de diacritice
+    0023_transport_public_split.sql   Transport public → metrou/autobuz/tren + reasignare expenses
+    0024_accountant_to_work_business.sql  Mută Contabil din Finanțe în Work & Business + adaugă work-taxes
+    0025_company_card_tag.sql Redenumește work-reimbursable → company-card + adaugă tags col pe template tables
 scripts/
   historical-data.ts          ~180 cheltuieli Feb/Mar/Apr 2026 (input user)
   seed-historical.ts          Inserare backfill (folosește service role key)
-public/
-  robots.txt                  Disallow: /  (no Google indexing)
-  favicon.ico, favicon-96x96.png, apple-touch-icon.png
-  icons/icon-192.png, icon-512.png, icon-512-maskable.png
 .env.local                    Secrets (gitignored)
 vite.config.ts                PWA, code-splitting manualChunks, dev BNR middleware
-vercel.json                   X-Robots-Tag noindex pe toate rutele
+vercel.json                   X-Robots-Tag noindex + cron config /api/cron/generate-recurring daily
 ```
 
 ---
@@ -105,20 +135,8 @@ vercel.json                   X-Robots-Tag noindex pe toate rutele
 2. Project Settings → API → copiază:
    - **Project URL** (NU "REST API URL")
    - **anon public** key
-   - **service_role** key (secret, doar pentru `api/fx.ts` și `scripts/seed-historical.ts`)
-3. SQL Editor → New query → rulează ÎN ORDINE:
-   - `0001_init.sql`
-   - `0003_bootstrap_rpc.sql` (sare peste 0002, e deprecated)
-   - `0004_weekly_cadence.sql`
-   - `0005_translate_seeded_names.sql` *(dacă userii deja existenți au categorii în engleză)*
-   - `0006_loans.sql`
-   - `0007_add_adoption_category.sql`
-   - `0008_quick_predefined.sql`
-   - `0009_recategorize_diacritics.sql` *(opțional, doar dacă ai backfill-uit istoric)*
-   - `0010_add_debt_category.sql`
-   - `0011_hidden_pin_settings.sql`
-   - `0012_profile_icon.sql`
-   - `0013_delete_account.sql`
+   - **service_role** key (secret, doar pentru `api/fx.ts`, `api/cron/generate-recurring.ts` și `scripts/seed-historical.ts`)
+3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0025_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
 4. Authentication → Providers → Email → **Enable Sign Ups: ON** (oricine cu URL-ul `bundy.ro` poate crea cont; verificarea email e obligatorie din default).
 5. Authentication → URL Configuration:
    - **Site URL**: `https://bundy.ro` (prod) sau `http://localhost:5173` (dev)
@@ -131,6 +149,7 @@ VITE_SUPABASE_URL=https://xxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 VITE_HCAPTCHA_SITE_KEY=...   # opțional, lasă gol în dev pentru a sări captcha-ul
+CRON_SECRET=...              # doar pentru prod (Vercel); irelevant în dev
 ```
 Fără ghilimele, fără spații. Restartează `npm run dev` după modificări (Vite citește env doar la start).
 
@@ -165,8 +184,6 @@ Userul se duce singur la `https://bundy.ro/signup` și își face cont:
 
 **Self-delete**: Settings → "Zonă periculoasă" → "Șterge contul" → cascade delete pentru tot (cheltuieli, bugete etc.) + ștergerea userului din `auth.users`.
 
-> Manual delete prin Supabase Dashboard nu mai e necesar — userii își administrează singuri contul.
-
 ---
 
 ## hCaptcha (anti-bot signup/login/forgot)
@@ -186,8 +203,6 @@ Site key:    10000000-ffff-ffff-ffff-000000000001
 Secret key:  0x0000000000000000000000000000000000000000
 ```
 Pune site key în `.env.local`, secret key în Supabase → captcha-ul rulează în dev fără puzzle real.
-
-**Important**: când captcha e activat în Supabase, e cerut pe **TOATE** endpoint-urile auth: signup, login, forgot password. CaptchaGate apare pe toate cele 3 pagini.
 
 **Skip captcha în dev**: lasă `VITE_HCAPTCHA_SITE_KEY` gol → CaptchaGate randează un mesaj "captcha disabled" și submit merge fără. Dar dacă captcha e ON în Supabase, login va eșua cu "no captcha_token found" — dezactivează în Supabase Auth → Attack Protection sau folosește test keys.
 
@@ -216,12 +231,19 @@ Pune site key în `.env.local`, secret key în Supabase → captcha-ul rulează 
 ### Autocomplete smart la "Adaugă cheltuială"
 3 nivele, prima potrivire câștigă:
 1. **User rules** (DB, profile-scoped) — viitor: pagină în Settings pentru editare
-2. **Seed rules** (`src/data/brandRules.seed.ts`) — RO brand → category (Freshful → Băcănie, Uber → Ride sharing etc.)
+2. **Seed rules** (`src/data/brandRules.seed.ts`) — RO brand → category (Freshful → Băcănie online, Uber → Ride sharing, contabil → Work & Business, etc.)
 3. **History fuzzy** (Fuse.js peste ultimele 500 expenses) — pentru chestii nou notate
 
-Regula se aplică pe `name.toLowerCase().includes(pattern)`. Reguli mai lungi câștigă prin priority (ex: "bolt food" priority 10 > "bolt" priority 0).
+Regula se aplică pe `name.toLowerCase().includes(pattern)`. Reguli mai lungi câștigă prin priority (ex: "bolt food" priority 10 > "bolt" priority 0, "cazare hotel" priority 6 > "cazare" priority 0).
 
-Adaugă o regulă nouă pentru un brand: editează `src/data/brandRules.seed.ts` și redeployază.
+Adaugă o regulă nouă pentru un brand: editează `src/data/brandRules.seed.ts` și redeployează (regulile sunt client-side, active la următorul refresh).
+
+### Brand logos (subscripții)
+Două surse, unificate prin tipul `BrandLogo` (vezi `src/data/brandLogos.ts`):
+1. **simple-icons** (CC0) — 13 brand-uri tree-shaken din pachetul npm: Netflix, Claude, YouTube, Apple Music, iCloud, HBO, Plex, Instagram, Uber, Glovo, Revolut, Apple, Zoom. Randate inline ca `<svg><path/></svg>`.
+2. **Static fișiere** în `/public/brands/` — pentru brand-uri care nu există în simple-icons (deprecated la cererea trademark holder-ilor sau niciodată adăugate): LinkedIn, OpenAI/ChatGPT, Disney+, SkyShowtime, AntenaPlay, Prime Video, Voyo, StepsApp, eMAG, Freshful, Zooplus, Bolt, Microsoft, Adobe.
+
+`BrandPicker` în formul de subscripție permite selectare manuală cu opțiunea "Auto" (lasă regex-ul `test` din `BrandLogo` să detecteze din numele subscripției). `BrandTile` randează în liste folosind slug-ul explicit (din `subscriptions.brand_logo`) sau auto-detect prin nume.
 
 ### BNR FX → RON
 - `getFxRate(date, currency)` în `src/lib/fx.ts`
@@ -231,26 +253,40 @@ Adaugă o regulă nouă pentru un brand: editează `src/data/brandRules.seed.ts`
 - În dev, `/api/fx` rulează ca middleware Vite (vezi `vite.config.ts → apiDevMiddleware`).
 - Pe expense salvăm `fx_rate` și `fx_rate_date` ca să nu se schimbe rapoartele istorice când BNR re-publică.
 
-### Subscriptions: generator client-pull
-La fiecare login (gated cu un flag `bundy.subscriptions.lastRun=YYYY-MM-DD` în localStorage), `runSubscriptionGenerator()`:
+**Live FX preview pe formulare**: AddExpensePage, FixedExpenseFormPage, SubscriptionFormPage, BudgetFormPage, LoanFormPage afișează "≈ X RON la cursul BNR din Y" sub Group-ul amount+currency când currency != RON. Implementat ca `useQuery(['fx', date, currency])` cu `staleTime: 6h` — cache între forms.
+
+**Conversie în liste**: `useFxRates(currencies)` hook care fetch-uiește în masă. Folosit în SubscriptionsListPage, FixedExpensesListPage, FixedExpensesPrePage, QuickExpensesListPage, LoansListPage pentru a afișa "X EUR ≈ Y RON" pe fiecare rând cu monedă străină.
+
+### Subscriptions: generator dual (client + server)
+**Client-side** (`src/features/subscriptions/generator.ts`): la fiecare login (gated cu un flag `bundy.subscriptions.lastRun=YYYY-MM-DD` în localStorage), `runSubscriptionGenerator()`:
 - Iterează prin subscripțiile active.
 - Pentru fiecare, calculează datele de charge între `today-30d` și `today` (handle săptămânal/lunar/anual + clamping la sfârșit de lună pentru day=31).
-- Pentru fiecare dată, verifică dacă există deja expense (`source='subscription' AND source_ref_id=sub.id AND occurred_on=date`).
-- Dacă nu, fetch BNR rate (dacă currency != RON) și inserează.
+- Pentru fiecare dată, verifică dacă există deja expense și inserează dacă nu.
 
-Idempotent prin partial unique index în 0001:
-```sql
-unique (profile_id, source_ref_id, occurred_on) where source = 'subscription'
-```
+**Server-side** (`api/cron/generate-recurring.ts`, declanșat zilnic la 00:15 UTC de Vercel Cron): rulează aceeași logică pentru TOȚI userii, folosind `SUPABASE_SERVICE_ROLE_KEY` ca să bypass-eze RLS. Cele două generatoare rulează în paralel (idempotent prin partial unique index `(profile_id, source_ref_id, occurred_on) WHERE source='subscription'` în 0001), astfel:
+- Userul deschide app-ul → rândurile sunt deja inserate de cron, boot-ul devine ușor mai rapid.
+- Userul nu deschide app-ul săptămâni → rândurile apar oricum în DB → totalurile, bugetele, analytics-ul sunt corecte (scenarii cron cover).
+- Cronul eșuează (rar) → generator-ul client îl prinde din urmă la următoarea deschidere.
 
 ### Rate (împrumuturi bancare)
 Modelat ca tabelă separată de subscriptions (`loans`):
 - Câmpuri specifice: `bank`, `total_amount` (principal opțional), `monthly_payment`, `charge_day` (1-31), `start_date`, `end_date` (opțional — generator-ul oprește după), `interest_rate` (% anual opțional).
-- Generator în `src/features/loans/generator.ts` rulează la fiecare login (gated cu flag `bundy.loans.lastRun=YYYY-MM-DD`). Inserează expenses cu `source='loan'`, idempotent prin partial unique index `(profile_id, source_ref_id, occurred_on) WHERE source='loan'`.
+- Generator dual la fel ca subscriptions: client-pull la boot + Vercel Cron daily. Idempotent prin partial unique index `(profile_id, source_ref_id, occurred_on) WHERE source='loan'`.
 - Numele cheltuielii generate include banca: "Credit nevoi personale (BCR)".
 - Dropdown bancă: `src/data/banks.ts` listează ~20 bănci RO; field-ul e `Autocomplete` deci permite și text liber.
 - Categorie default la rată nouă: Finanțe > Credite (auto-precompletat).
 - Tag implicit: `loan` pe fiecare expense generată — util pentru filtre Analytics ulterioare.
+
+### "Plătit cu cardul firmei" (company-card tag)
+Cheltuielile plătite cu cardul firmei (Claude Max, taxe ANAF, contabil, Freshful pe firmă, Hanul Berarilor cu cardul firmei, etc.) sunt marcate cu tag-ul `company-card` și **excluse din totalul personal**:
+- Switch "Plătit cu cardul firmei" pe **toate** formularele de cheltuială: AddExpensePage, FixedExpenseFormPage, SubscriptionFormPage, QuickExpenseFormPage, PredefinedExpenseFormPage, LoanFormPage.
+- **Auto-default ON** când categoria selectată e Work & Business (overridable manual).
+- **Propagare automată**: template-urile (fixed/quick/predefined) au coloana `tags`; când se generează un expense din template, tag-urile se copiază. Subscription generator + loan generator propagă tag-urile la rândurile create.
+- **Badge `firmă`** vizibil în ExpensesListPage și SubscriptionsListPage.
+- **Total separat** în HomePage, ExpensesListPage și AnalyticsPage:
+  - `Total {luna} · cont personal` (suma fără company-card)
+  - `Cont firmă: X RON` (linie secundară, doar dacă există)
+- **Excludere în Analytics chart-uri** by default — dar când userul filtrează explicit pe categorie/subcategorie (ex: Work & Business), filtrul de exclusion se dezactivează automat ca să apară totuși cheltuielile drill-down.
 
 ### Fixed expenses: pre-page la (+) FAB
 - (+) FAB navighează la `/expenses/quick-add`.
@@ -265,6 +301,25 @@ Calculat în `src/features/budgets/status.ts` din: data curentă vs `period_star
 - **Aproape** (portocaliu): perioadă activă și spent ≥ 90%.
 - **Activ** (accent): perioadă activă, sub 90%.
 
+### Budgets archive (păstrare istoric curat)
+Bugetele cu `period_end` mai vechi de **7 zile** dispar din lista principală și se mută într-o pagină separată `/budgets/archive` (constanta `ARCHIVE_THRESHOLD_DAYS` în `BudgetsArchivePage.tsx`).
+- Buton-card cu count în BudgetsListPage → tap → pagina Archive
+- Filtre: search după nume, categorie, dată de început (de la), dată de sfârșit (până la)
+- Paginare 20/pagină cu Mantine `Pagination`
+- Click pe un buget → tot deschide form-ul de edit (read-write)
+
+### Analytics — filtre + drill-down
+Două Select-uri sus pe AnalyticsPage:
+- **Categorie** (single, optional)
+- **Subcategorie** (filtrată după categorie, optional)
+
+Când e activ vreun filtru:
+- Toate chart-urile (trend lunar, săptămânal, totale, listă subcategorii) reflectă scope-ul.
+- Donut-ul "Cheltuieli pe categorii" se ascunde (un slice e meaningless).
+- Lista subcategorii arată **toate** (nu top 8) — așa apar cheltuielile mici (bilete loto etc.).
+- Excluderea company-card se dezactivează (drill-down inclusiv pe Work & Business).
+- Titlul devine "Cheltuieli pe subcategorii" în loc de "Top subcategorii".
+
 ### Editare buget activ
 Comportament curent (intenționat):
 - Dacă schimbi `selected_days` (extinzi perioada), `useBudgetProgress` recalculează automat suma pe noile zile.
@@ -277,6 +332,9 @@ Comportament curent (intenționat):
 - `visibilitychange` listener → `supabase.auth.refreshSession()` la foreground.
 - Supabase config: `autoRefreshToken: true`, `persistSession: true`, `flowType: 'pkce'`.
 
+### "Reîncarcă aplicația" în PWA standalone
+PWA-ul standalone n-are URL bar deci utilizatorul nu poate face Cmd+R. Soluția: NavLink "Reîncarcă aplicația" în pagina "Mai mult", **vizibil doar când** `isStandalonePWA()` returnează `true` (vezi `src/lib/pwa.ts` — `matchMedia('(display-mode: standalone)')` + fallback iOS `navigator.standalone`). Click → toast "Se reîncarcă aplicația…" → `window.location.reload()`.
+
 ### Săptămâni grupate (regula aprilie)
 `splitMonthIntoWeeks(monthDate)` în `src/lib/dates.ts` returnează:
 - Săpt 1 = ziua 1 până la prima duminică (parțială dacă luna nu începe luni).
@@ -284,6 +342,17 @@ Comportament curent (intenționat):
 - Ultima săptămână = Mon → ultima zi a lunii (parțială).
 
 Folosit în `ExpensesListPage` pentru gruparea cheltuielilor și în `AnalyticsPage` pentru bar chart-ul săptămânal.
+
+### DnD reorder pe template-uri
+`@dnd-kit/sortable` cu `PointerSensor` (`activationConstraint: { distance: 6 }`) pe:
+- Categories (CategoriesListPage)
+- Quick expenses (QuickExpensesListPage)
+- Predefined expenses (PredefinedExpensesListPage)
+- Fixed expenses (FixedExpensesListPage)
+
+Drop → `useReorder*.mutate(idsArray)` care updatează `sort_order = index` în Supabase paralel.
+
+**Hide grip ≤ 360px**: pe ecrane foarte mici, grip handle-ul e ascuns prin `.reorder-grip { display: none }` în `globals.css` ca să facă loc la celelalte funcționalități. Reorder rămâne disponibil pe tablet/desktop.
 
 ---
 
@@ -315,9 +384,11 @@ git add -A && git commit -m "..." && git push
 3. Project Settings → Environment Variables (toate `Production, Preview` — NU Development):
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY` (fără prefix VITE_; folosit doar în `api/fx.ts`)
+   - `SUPABASE_SERVICE_ROLE_KEY` (fără prefix VITE_; folosit de `api/fx.ts` și `api/cron/generate-recurring.ts`)
    - `VITE_HCAPTCHA_SITE_KEY`
+   - `CRON_SECRET` — generează cu `openssl rand -base64 32`. Folosit ca `Bearer` token de Vercel Cron pentru a autentifica request-ul către `/api/cron/generate-recurring`.
 4. Deploy. URL preview e `bundy-xxx.vercel.app`.
+5. Settings → Cron Jobs — verifică că apare `generate-recurring` cu schedule `15 0 * * *`. Buton "Run now" pentru test manual (bypass automat la Deployment Protection).
 
 ### 3. Custom domain
 1. Project → Settings → Domains → adaugă `bundy.ro` și `www.bundy.ro`.
@@ -334,7 +405,12 @@ git add -A && git commit -m "..." && git push
 - Dashboard hCaptcha → site → adaugă `bundy.ro` la hostnames (dacă opțiunea există în UI-ul curent)
 - Vercel env vars: confirmă că `VITE_HCAPTCHA_SITE_KEY` e setată — fără ea, captcha nu apare iar login eșuează cu "no captcha_token found"
 
-### 6. Verificări post-deploy
+### 6. Deployment Protection (Vercel)
+By default, deploy-urile noi pe Hobby au Deployment Protection activată — orice request extern primește redirect la Vercel SSO. Cronul programat **funcționează oricum** (Vercel îl invocă intern, bypass automat) dar `curl` manual de test e blocat.
+
+Pentru testing extern: Settings → Deployment Protection → fie schimbă la "Only Preview Deployments" (production rămâne expus), fie generează un Protection Bypass Token și include-l ca header `x-vercel-protection-bypass: $TOKEN`.
+
+### 7. Verificări post-deploy
 ```bash
 # DNS propagat la Vercel?
 dig @1.1.1.1 bundy.ro A +short        # trebuie IP Vercel (76.76.21.x sau 64.29.17.x)
@@ -347,6 +423,10 @@ curl -I https://bundy.ro/ | grep -i robots   # trebuie x-robots-tag: noindex, no
 
 # robots.txt?
 curl https://bundy.ro/robots.txt              # trebuie User-agent: *\nDisallow: /
+
+# Cron OK? (după disable Deployment Protection sau cu bypass token)
+curl -H "Authorization: Bearer $CRON_SECRET" https://bundy.ro/api/cron/generate-recurring
+# Răspuns așteptat: {"ok":true,"ranAt":"...","subscriptions":{"created":N,...},"loans":{...}}
 ```
 
 ### iOS PWA install
@@ -354,6 +434,7 @@ curl https://bundy.ro/robots.txt              # trebuie User-agent: *\nDisallow:
 2. Share button (jos centru) → "Add to Home Screen" → "Bundy".
 3. Lansează din home screen → app standalone, fără bară Safari.
 4. Login persistent (custom storage adapter localStorage + IndexedDB) → după 7+ zile inactivitate ar trebui să fii încă logat.
+5. NavLink "Reîncarcă aplicația" disponibil în "Mai mult" pentru manual refresh (PWA n-are pull-to-refresh nativ).
 
 ### Troubleshooting deploy
 
@@ -362,14 +443,13 @@ curl https://bundy.ro/robots.txt              # trebuie User-agent: *\nDisallow:
 - Dacă apare gol de la resolverul tău local, încearcă cu DNS public: `dig @1.1.1.1 bundy.ro NS +short`
 - Cache local pe Mac: `sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder` apoi restart browser
 
-**SSL "Pending" mai mult de 30 min după DNS valid**:
-- În Vercel → Domains → click Refresh
-- Sau Settings → Domains → Remove bundy.ro → Add din nou
+**Curl la `/api/cron/generate-recurring` returnează "Redirecting..."**:
+- Vercel Deployment Protection. Vezi secțiunea 6.
 
-**Login eșuează în prod cu "no captcha_token found"**:
-- Verifică Vercel env vars: `VITE_HCAPTCHA_SITE_KEY` setat
-- Verifică că domeniul curent e permis în hCaptcha (sau hostnames goale = orice permis)
-- Re-deploy după update env vars (Vite citește env la build)
+**Cron-ul nu rulează la 00:15 UTC**:
+- Vercel Dashboard → Project → Crons tab → vezi "Last execution" și logs
+- Funcția returnează `Unauthorized` → `CRON_SECRET` lipsește din Vercel env vars
+- Funcția returnează `Missing Supabase env vars` → `SUPABASE_SERVICE_ROLE_KEY` sau `VITE_SUPABASE_URL`/`SUPABASE_URL` lipsesc
 
 **Build Vercel eșuează "ERESOLVE peer deps"**:
 - Settings → General → Install Command → `npm install --legacy-peer-deps` → Save → Redeploy
@@ -380,7 +460,7 @@ curl https://bundy.ro/robots.txt              # trebuie User-agent: *\nDisallow:
 
 ### Cum sunt organizate features
 Fiecare feature stă în `src/features/<feature>/` cu:
-- `api.ts` — TanStack Query hooks (use<X>, useUpsert<X>, useDelete<X>) folosind `supabase` client
+- `api.ts` — TanStack Query hooks (use<X>, useUpsert<X>, useDelete<X>, useReorder<X>) folosind `supabase` client
 - `*Page.tsx` — pagini routate
 - Componente specifice features
 
@@ -388,12 +468,15 @@ Hooks-urile invalidează `queryKey` la mutații pentru sync UI.
 
 ### Schimbarea/adăugarea de categorii sau brand rules
 - Categorii noi: editează `src/data/categories.seed.ts` — apar la useri NOI (la bootstrap). Pentru tine, adaugă-le manual din UI sau printr-un INSERT SQL.
+- Subcategorii noi: editează `src/data/subcategories.seed.ts` + creează o migrație care le inserează în `subcategories` pentru profilurile existente (vezi `0021_vacation_subcategories.sql` ca template).
 - Brand rules noi: editează `src/data/brandRules.seed.ts`. Pattern lowercase + `category_slug` (+ optional `subcategory_slug`, `priority`). Re-deploy = active imediat.
+- Brand logos noi: dacă există în simple-icons, adaugă o linie `fromSi(siXyz, 'slug', 'Label', /regex/)` în `src/data/brandLogos.ts`. Dacă nu, descarcă SVG/PNG din press kit oficial → `public/brands/{slug}.svg` și adaugă `staticBrand('slug', 'Label', /regex/, hex, '/brands/slug.svg')`.
 
 ### Adăugarea unei migrări DB
 1. Creează `supabase/migrations/000N_my_change.sql` cu numerotare incrementală.
-2. Rulează în Supabase SQL Editor.
-3. Documentează aici în README dacă e relevant.
+2. Idempotent: `add column if not exists`, `where not exists` pe inserts, etc.
+3. Rulează în Supabase SQL Editor.
+4. Documentează în lista din README structure.
 
 ### Modificări de schemă pe tabele cu RLS
 RLS e activă pe toate tabelele profile-scoped. Când adaugi o coloană nouă: nu te afectează policies-urile existente (sunt pe whole-row, nu pe coloane). Când adaugi un tabel nou: ENABLE RLS + adaugă policy `members all` ca în 0001 (vezi loop-ul cu `tables array`).
@@ -402,11 +485,7 @@ RLS e activă pe toate tabelele profile-scoped. Când adaugi o coloană nouă: n
 - `src/features/analytics/api.ts` are `useExpensesInRange` care fetch-uiește toate cheltuielile dintr-un interval.
 - În `AnalyticsPage.tsx` adaugă un nou `useMemo` pentru aggregarea ta + un `<BarChart>` / `<DonutChart>` / `<LineChart>` din `@mantine/charts`.
 - Pentru axe Y cu sume mari, folosește `compactRon` (ex: 1.2k, 12k) prin `yAxisProps={{ tickFormatter: compactRon }}`.
-
-### Debug "expense neclasificat corect"
-1. Verifică dacă brand rule există pentru numele introdus: `Settings → Categorii → ...` (TODO: în viitor — pagină Brand rules editor în Settings).
-2. Adaugă o intrare nouă în `src/data/brandRules.seed.ts` și redeployează.
-3. Cheltuielile vechi nu se re-categorizează automat — le poți edita manual.
+- Filtrul existing pe categorie/subcategorie e disponibil prin `filterCategory`/`filterSubcategory` state și `personalExpenses`/`companyCardExpenses` derivate.
 
 ### Reset complet pentru un user
 ```sql
@@ -414,6 +493,9 @@ DELETE FROM expenses WHERE profile_id = '<uuid>';
 DELETE FROM subscriptions WHERE profile_id = '<uuid>';
 DELETE FROM budgets WHERE profile_id = '<uuid>';
 DELETE FROM fixed_expenses WHERE profile_id = '<uuid>';
+DELETE FROM quick_expenses WHERE profile_id = '<uuid>';
+DELETE FROM predefined_expenses WHERE profile_id = '<uuid>';
+DELETE FROM loans WHERE profile_id = '<uuid>';
 -- categoriile + subcategoriile pot rămâne
 ```
 
@@ -434,9 +516,6 @@ URL Supabase greșit în `.env.local`. Verifică că nu are `/rest/v1/` la final
 ### "new row violates row-level security policy for table 'profiles'"
 Migrația `0003_bootstrap_rpc.sql` nu a fost aplicată. Rulează-o în SQL Editor.
 
-### "Invalid path specified in request URL" la login
-Același ca mai sus — URL Supabase are path în plus.
-
 ### Categoriile apar în engleză
 Migrația `0005_translate_seeded_names.sql` nu a fost aplicată sau categoriile au fost create manual (nu prin bootstrap, deci `is_system=false` și nu se traduc).
 
@@ -444,6 +523,7 @@ Migrația `0005_translate_seeded_names.sql` nu a fost aplicată sau categoriile 
 Verifică DevTools → Console pentru `[bundy] subscription generator failed`. Cele mai frecvente: 
 - `getFxRate` eșuează în dev pentru că BNR XML e mare → așteaptă 1-2 secunde după login.
 - Flag-ul `bundy.subscriptions.lastRun` în localStorage previne re-rularea în aceeași zi. Șterge-l manual ca să forțezi rerularea.
+- În prod, cronul server-side rulează oricum la 00:15 UTC — verifică Vercel Cron logs.
 
 ### PWA-ul mă deloghează după câteva zile pe iPhone
 - Verifică în DevTools (Mac) → Safari → Develop → iPhone → Storage → IndexedDB → `keyval-store` că există `bundy.auth.session`.
@@ -458,15 +538,20 @@ Trei cauze posibile:
 2. Prod: `SUPABASE_SERVICE_ROLE_KEY` lipsește din env vars Vercel.
 3. BNR site down (rar). Folosește VPN sau verifică `https://bnr.ro/nbrfxrates.xml`.
 
+### Cheltuielile cu cardul firmei n-apar în filtru Analytics
+Bug deja reparat: când e activ filtrul pe categorie/subcategorie, excluderea company-card se dezactivează automat ca să apară totuși cheltuielile drill-down. Vezi `personalExpenses` useMemo în `AnalyticsPage.tsx`.
+
 ---
 
 ## Decizii de design (de ce așa)
 
-- **Categorie primară + tags**, NU multi-category sau split allocations: analytics curate, fără double-counting. Claude Max → primary `work-business` + tag `subscription` + tag `work-reimbursable`.
-- **Client-pull subscriptions**, NU Vercel Cron: zero infra, deschidem app-ul zilnic oricum, idempotent prin unique index.
+- **Categorie primară + tags**, NU multi-category sau split allocations: analytics curate, fără double-counting. Claude Max → primary `work-business` + tag `subscription` + tag `company-card`.
+- **Generator dual subscription/loans (client + server cron)**: client-pull la boot pentru responsiveness, Vercel Cron daily pentru data correctness când userul e offline. Idempotent prin unique index.
 - **No SSR (SPA Vite)**: nu vrem indexare Google, sesiunea e per-user, SSR ar fi overhead inutil.
 - **Mantine v7** peste shadcn: `DatePicker type="multiple"` rezolvă calendarul de buget direct, AppShell + DatesProvider + Charts coerent estetic.
-- **Supabase peste Firebase**: Postgres + RLS + auth integrat = data model relațional curat, free tier suficient pentru 2-3 useri.
-- **Pre-page Add Expense**: 1-tap adăugare pentru cheltuieli recurrente non-automate (terapie, chirie când nu e exact aceeași sumă) e flow-ul cel mai folosit în practică.
+- **Supabase peste Firebase**: Postgres + RLS + auth integrat = data model relațional curat, free tier suficient pentru ~10 useri.
+- **simple-icons + static fallback** peste un singur sistem unificat: simple-icons (CC0) acoperă brand-urile mainstream cu zero efort, iar pentru cele lipsă (deprecated la cererea brand owners — Adobe, Microsoft, LinkedIn) păstrăm SVG-uri oficiale ca fișiere statice. Zero JS bundle bloat (path data tree-shaken).
+- **Pre-page Add Expense**: 1-tap adăugare pentru cheltuieli recurente non-automate (terapie, chirie când nu e exact aceeași sumă) e flow-ul cel mai folosit în practică.
 - **Săptămâni încadrate strict în lună (regula aprilie)**: simplifică totalurile lunare, nu mai trebuie reguli speciale pentru săpt extinse cross-lună.
-# bundy
+- **Company-card tag exclus din total personal default**: tracking-ul e pentru bani care ies din contul tău. Banii firmei trec prin contul tău (cardul firmei) dar nu sunt cheltuiala ta — separarea vizuală evită confuzia "Why am I 5000 RON in the red?".
+- **Budgets archive după 7 zile**: lista principală curată; bugetele expirate utile pentru context istoric, dar nu trebuie să le vezi mereu.

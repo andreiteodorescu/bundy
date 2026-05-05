@@ -115,7 +115,7 @@ export function AdminUsersPage() {
   function handleDelete(target: AdminUser) {
     confirmDelete({
       title: 'Șterge utilizatorul',
-      message: `Toate datele lui ${target.email} (cheltuieli, bugete, subscripții, rate, șabloane, categorii) vor fi șterse PERMANENT. Contul va fi eliminat din sistem. Acțiunea NU poate fi inversată.`,
+      message: `Toate datele lui ${target.email} (cheltuieli, bugete, abonamente, rate, șabloane, categorii) vor fi șterse PERMANENT. Contul va fi eliminat din sistem. Acțiunea NU poate fi inversată.`,
       confirmLabel: 'Șterge definitiv',
       onConfirm: async () => {
         try {
