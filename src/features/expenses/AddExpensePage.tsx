@@ -112,9 +112,14 @@ export function AddExpensePage() {
     if (!t) return;
     setName(t.name);
     setCurrency(t.default_currency);
-    setCategoryId(t.category_id);
-    setSubcategoryId(t.subcategory_id);
-    setOverrideCategory(true); // user picked the template, don't override their choice via auto-suggest
+    // Only override category from the template if it actually has one. Old templates
+    // (or ones the user forgot to set) have category_id=null — in that case let
+    // auto-suggest run from the name so e.g. "Comanda Zooplus" → Animale > Mâncare.
+    if (t.category_id) {
+      setCategoryId(t.category_id);
+      setSubcategoryId(t.subcategory_id);
+      setOverrideCategory(true);
+    }
     if (t.tags?.includes('company-card')) {
       setCompanyCard(true);
       setCompanyCardTouched(true);
