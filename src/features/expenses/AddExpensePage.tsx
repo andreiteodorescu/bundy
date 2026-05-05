@@ -34,7 +34,7 @@ import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
-import { cleanExpenseName, diacriticsFilter } from '@/lib/text';
+import { cleanExpenseName, diacriticsFilter, normalize } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { useDeleteExpense, useExpense, useRecentExpenses, useUpsertExpense } from './api';
 import { useAutoSuggest } from './useAutoSuggest';
@@ -197,15 +197,24 @@ export function AddExpensePage() {
   // (used by historical seed) and dedup by cleaned name. New expenses save with
   // the clean name so the dropdown stays tidy.
   const historyOptions = useMemo(() => {
+    // Dropdown is hidden when input is empty — avoids the "wall of text" of all past
+    // expense names appearing on focus. Suggestions kick in only when user types ≥1 char.
+    const trimmed = name.trim();
+    if (trimmed === '') return [];
+    // Dedup by `normalize` (lowercase + strip diacritics) so "Comandă Zooplus" and
+    // "Comanda Zooplus" don't both appear. Also exclude the current input value so
+    // the user doesn't see their own typed/pre-filled name as a redundant suggestion.
     const seen = new Map<string, string>();
+    const currentKey = normalize(trimmed);
     for (const exp of history.data ?? []) {
       const cleaned = cleanExpenseName(exp.name);
       if (!cleaned) continue;
-      const key = cleaned.toLowerCase();
+      const key = normalize(cleaned);
+      if (key === currentKey) continue;
       if (!seen.has(key)) seen.set(key, cleaned);
     }
     return Array.from(seen.values());
-  }, [history.data]);
+  }, [history.data, name]);
 
   function handleCategoryChange(id: string | null) {
     setCategoryId(id);
@@ -310,7 +319,6 @@ export function AddExpensePage() {
         <Autocomplete
           label="Nume cheltuială"
           required
-          autoFocus
           data={historyOptions}
           value={name}
           onChange={setName}
