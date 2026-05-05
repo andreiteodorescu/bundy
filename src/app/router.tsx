@@ -63,6 +63,18 @@ const LoansListPage = lazy(() =>
 const LoanFormPage = lazy(() =>
   import('@/features/loans/LoanFormPage').then((m) => ({ default: m.LoanFormPage })),
 );
+const SavingsListPage = lazy(() =>
+  import('@/features/savings/SavingsListPage').then((m) => ({ default: m.SavingsListPage })),
+);
+const SavingsFormPage = lazy(() =>
+  import('@/features/savings/SavingsFormPage').then((m) => ({ default: m.SavingsFormPage })),
+);
+const InvestmentsListPage = lazy(() =>
+  import('@/features/investments/InvestmentsListPage').then((m) => ({ default: m.InvestmentsListPage })),
+);
+const InvestmentsFormPage = lazy(() =>
+  import('@/features/investments/InvestmentsFormPage').then((m) => ({ default: m.InvestmentsFormPage })),
+);
 const QuickExpensesListPage = lazy(() =>
   import('@/features/quick-expenses/QuickExpensesListPage').then((m) => ({ default: m.QuickExpensesListPage })),
 );
@@ -148,6 +160,12 @@ const router = createBrowserRouter([
       { path: '/loans', element: lazyRoute(<LoansListPage />) },
       { path: '/loans/new', element: lazyRoute(<LoanFormPage />) },
       { path: '/loans/:id/edit', element: lazyRoute(<LoanFormPage />) },
+      { path: '/savings', element: lazyRoute(<SavingsListPage />) },
+      { path: '/savings/new', element: lazyRoute(<SavingsFormPage />) },
+      { path: '/savings/:id/edit', element: lazyRoute(<SavingsFormPage />) },
+      { path: '/investments', element: lazyRoute(<InvestmentsListPage />) },
+      { path: '/investments/new', element: lazyRoute(<InvestmentsFormPage />) },
+      { path: '/investments/:id/edit', element: lazyRoute(<InvestmentsFormPage />) },
 
       { path: '/quick-expenses', element: lazyRoute(<QuickExpensesListPage />) },
       { path: '/quick-expenses/new', element: lazyRoute(<QuickExpenseFormPage />) },

@@ -70,9 +70,9 @@ export const seedSubcategories: SeedSubcategory[] = [
   // Pets
   { slug: 'pet-food',       parent_slug: 'pets',            name: 'Mâncare & Accesorii',   icon: 'IconBowl',             sort_order: 1 },
   { slug: 'pet-vet',        parent_slug: 'pets',            name: 'Veterinar',             icon: 'IconStethoscope',      sort_order: 2 },
-  // Finance
-  { slug: 'savings',        parent_slug: 'finance',         name: 'Economii',              icon: 'IconPigMoney',         sort_order: 1 },
-  { slug: 'investments',    parent_slug: 'finance',         name: 'Investiții',            icon: 'IconChartLine',        sort_order: 2 },
+  // Finance — economii și investiții sunt în secțiunea separată "Economii & Investiții"
+  // (din meniul "Mai mult"), nu sunt cheltuieli. Vezi tabelele savings_transactions și
+  // investment_transactions + migration 0026.
   { slug: 'taxes',          parent_slug: 'finance',         name: 'Taxe & Impozite',       icon: 'IconReceiptTax',       sort_order: 3 },
   { slug: 'loans',          parent_slug: 'finance',         name: 'Credite',               icon: 'IconCreditCard',       sort_order: 4 },
   // Work

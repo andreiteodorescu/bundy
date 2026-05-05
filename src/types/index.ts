@@ -164,6 +164,54 @@ export type Budget = {
   created_at: string;
 };
 
+export type SavingsDirection = 'in' | 'out';
+
+export type SavingsTransaction = {
+  id: string;
+  profile_id: string;
+  name: string;
+  amount: number;
+  currency: Currency;
+  amount_ron: number;
+  fx_rate: number | null;
+  fx_rate_date: string | null;
+  direction: SavingsDirection;
+  account_name: string | null;
+  occurred_on: string;
+  note: string | null;
+  tags: string[];
+  created_at: string;
+};
+
+export type InvestmentDirection = 'in' | 'out';
+export type InvestmentInstrumentType =
+  | 'pension'
+  | 'etf'
+  | 'mutual_fund'
+  | 'stock'
+  | 'bonds'
+  | 'crypto'
+  | 'real_estate'
+  | 'other';
+
+export type InvestmentTransaction = {
+  id: string;
+  profile_id: string;
+  name: string;
+  amount: number;
+  currency: Currency;
+  amount_ron: number;
+  fx_rate: number | null;
+  fx_rate_date: string | null;
+  direction: InvestmentDirection;
+  instrument_type: InvestmentInstrumentType;
+  broker: string | null;
+  occurred_on: string;
+  note: string | null;
+  tags: string[];
+  created_at: string;
+};
+
 export type BrandRule = {
   id: string;
   profile_id: string | null;

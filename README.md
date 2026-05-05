@@ -47,6 +47,8 @@ src/
     categories/               List + reorder, Category/Subcategory forms
     subscriptions/            List cu total RON, Form (cu BrandPicker + FX preview), generator client-pull
     loans/                    Rate (împrumuturi bancare): List, Form, generator (sursă='loan')
+    savings/                  Economii: List cu filtre + paginare + widget total în EUR, Form cu FX preview, autocomplete cont
+    investments/              Investiții: List cu breakdown per instrument_type, Form cu FX preview, autocomplete broker
     fixed-expenses/           List + reorder + edit pencil, Form, PrePage (quick-add înainte de Add Expense)
     quick-expenses/           Templates preț FIX cu stepper -/+ pe zi (Metrou, Loto), reorder
     predefined-expenses/      Templates preț VARIABIL cu tap-to-prefill (Freshful, Bolt), reorder + edit pencil
@@ -118,6 +120,7 @@ supabase/
     0023_transport_public_split.sql   Transport public → metrou/autobuz/tren + reasignare expenses
     0024_accountant_to_work_business.sql  Mută Contabil din Finanțe în Work & Business + adaugă work-taxes
     0025_company_card_tag.sql Redenumește work-reimbursable → company-card + adaugă tags col pe template tables
+    0026_savings_investments.sql Tabele noi savings_transactions + investment_transactions cu RLS, migrare expense-urilor existente pe Finance > Savings/Investments în noile tabele, drop subcategoriile
 scripts/
   historical-data.ts          ~180 cheltuieli Feb/Mar/Apr 2026 (input user)
   seed-historical.ts          Inserare backfill (folosește service role key)
@@ -136,7 +139,7 @@ vercel.json                   X-Robots-Tag noindex + cron config /api/cron/gener
    - **Project URL** (NU "REST API URL")
    - **anon public** key
    - **service_role** key (secret, doar pentru `api/fx.ts`, `api/cron/generate-recurring.ts` și `scripts/seed-historical.ts`)
-3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0025_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
+3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0026_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
 4. Authentication → Providers → Email → **Enable Sign Ups: ON** (oricine cu URL-ul `bundy.ro` poate crea cont; verificarea email e obligatorie din default).
 5. Authentication → URL Configuration:
    - **Site URL**: `https://bundy.ro` (prod) sau `http://localhost:5173` (dev)
@@ -354,6 +357,27 @@ Drop → `useReorder*.mutate(idsArray)` care updatează `sort_order = index` în
 
 **Hide grip ≤ 360px**: pe ecrane foarte mici, grip handle-ul e ascuns prin `.reorder-grip { display: none }` în `globals.css` ca să facă loc la celelalte funcționalități. Reorder rămâne disponibil pe tablet/desktop.
 
+### Economii & Investiții (decuplate de cheltuieli)
+Banii puși deoparte într-un depozit / vault / fond de pensii / ETF nu sunt cheltuieli — sunt **transferuri între conturi sau clase de active**. Tracking-ul lor ca expense umfla totalul personal. Soluția: 2 tabele dedicate, în secțiune separată din "Mai mult".
+
+**Tabele:**
+- `savings_transactions` — depozit/retragere, cu `account_name` (ex: Revolut Vault, BCR Economii)
+- `investment_transactions` — cumpărare/vânzare, cu `instrument_type` (8 valori: pension, etf, mutual_fund, stock, bonds, crypto, real_estate, other) + `broker`
+
+Ambele au: `direction ('in'|'out')`, FX la save (`amount_ron`, `fx_rate`, `fx_rate_date`), `tags`, RLS pe profile_id.
+
+**Pagini:**
+- `/savings` și `/investments` — listing cu filtre avansate (search, direction, account/instrument/broker, dată-de la/până la), paginare 20/pagină, widget total inline
+- `/savings/new`, `/savings/:id/edit`, `/investments/new`, `/investments/:id/edit` — forms cu FX preview live
+
+**Default currency**: EUR la depozit nou de economii (cele mai comune cazuri sunt în EUR — Revolut Vault, depozite bancare). Editarea unei tranzacții existente păstrează moneda salvată.
+
+**Widget total — sumare nativă în EUR**: în loc să sumăm `amount_ron` și să împărțim la cursul de azi (lossy round-trip), însumăm direct în EUR. Pentru tranzacții EUR-native folosim `amount`, pentru RON-native împărțim la `eurRate` curent, pentru USD folosim cross-rate. Așa 1100 EUR + 1500 EUR = exact 2600 EUR în widget. RON apare ca linie secundară mai mică = `totalEur × cursul de azi` (valoarea curentă a economiilor în RON).
+
+**Migrare automată din expense-uri vechi** (vezi `0026_savings_investments.sql`): orice cheltuială linkuită la subcategoria `savings` sau `investments` se mută în noile tabele cu direction='in' și (pentru investiții) instrument_type='other'. Apoi cheltuielile se șterg din `expenses` (nu mai poluează totalul) și subcategoriile se elimină de la toate profilurile.
+
+**Pentru useri noi**: scoase din `subcategories.seed.ts`. La signup, `bootstrap_profile()` nu le mai creează — Finanțe rămâne cu doar Taxe & Impozite + Credite. Pagina /savings și /investments sunt accesibile cu empty state din primul login.
+
 ---
 
 ## Comenzi utile
@@ -555,3 +579,5 @@ Bug deja reparat: când e activ filtrul pe categorie/subcategorie, excluderea co
 - **Săptămâni încadrate strict în lună (regula aprilie)**: simplifică totalurile lunare, nu mai trebuie reguli speciale pentru săpt extinse cross-lună.
 - **Company-card tag exclus din total personal default**: tracking-ul e pentru bani care ies din contul tău. Banii firmei trec prin contul tău (cardul firmei) dar nu sunt cheltuiala ta — separarea vizuală evită confuzia "Why am I 5000 RON in the red?".
 - **Budgets archive după 7 zile**: lista principală curată; bugetele expirate utile pentru context istoric, dar nu trebuie să le vezi mereu.
+- **Economii & Investiții ca secțiune separată, nu subcategorii** de Finanțe: depozitele și investițiile sunt transferuri între active, nu consum. Le ținem în tabele dedicate (`savings_transactions`, `investment_transactions`) cu propria UX (direction in/out, breakdown per cont/instrument). Așa totalul de cheltuieli reflectă strict bani consumați, iar economiile/investițiile au tracking propriu cu vizibilitate în EUR.
+- **Sumare nativă în EUR pentru economii**, nu round-trip prin RON: `amount_ron` salvat la cursul istoric e ireconciliabil când vrei totalul curent în EUR. Sumăm direct în moneda țintă (EUR pentru savings, RON pentru investments) ca să eliminăm pierderea de precizie din conversie dublă (EUR → RON@istoric → EUR@azi).

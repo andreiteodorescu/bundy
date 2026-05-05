@@ -1,0 +1,356 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Badge,
+  Box,
+  Button,
+  Center,
+  Container,
+  Group,
+  Loader,
+  Pagination,
+  Paper,
+  SegmentedControl,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+  UnstyledButton,
+} from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
+import dayjs from 'dayjs';
+import {
+  IconArrowLeft,
+  IconArrowDownLeft,
+  IconArrowUpRight,
+  IconPigMoney,
+  IconPlus,
+  IconSearch,
+} from '@tabler/icons-react';
+import { formatMoney, formatRon } from '@/lib/money';
+import { useFxRates } from '@/lib/useFxRates';
+import { useSavings } from './api';
+import type { SavingsTransaction } from '@/types';
+
+const PAGE_SIZE = 20;
+
+export function SavingsListPage() {
+  const navigate = useNavigate();
+  const savings = useSavings();
+
+  const [search, setSearch] = useState('');
+  const [directionFilter, setDirectionFilter] = useState<'all' | 'in' | 'out'>('all');
+  const [accountFilter, setAccountFilter] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [page, setPage] = useState(1);
+
+  const all = savings.data ?? [];
+
+  const accountOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of all) if (s.account_name) set.add(s.account_name);
+    return Array.from(set).sort().map((a) => ({ value: a, label: a }));
+  }, [all]);
+
+  const filtered = useMemo(() => {
+    let arr = all;
+    const q = search.trim().toLowerCase();
+    if (q) arr = arr.filter((s) => s.name.toLowerCase().includes(q));
+    if (directionFilter !== 'all') arr = arr.filter((s) => s.direction === directionFilter);
+    if (accountFilter) arr = arr.filter((s) => s.account_name === accountFilter);
+    if (startDate) {
+      const sd = dayjs(startDate).format('YYYY-MM-DD');
+      arr = arr.filter((s) => s.occurred_on >= sd);
+    }
+    if (endDate) {
+      const ed = dayjs(endDate).format('YYYY-MM-DD');
+      arr = arr.filter((s) => s.occurred_on <= ed);
+    }
+    return arr;
+  }, [all, search, directionFilter, accountFilter, startDate, endDate]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, directionFilter, accountFilter, startDate, endDate]);
+
+  // EUR is the primary display currency for savings. Sum in EUR natively (so 1100 EUR
+   // + 1500 EUR = exactly 2600 EUR, not a round-trip via historical fx_rate). Non-EUR
+   // amounts (RON, USD) are converted to EUR via current BNR rate.
+  const fx = useFxRates(['EUR', 'USD']);
+  const eurRate = fx.rateOf('EUR');
+  const usdRate = fx.rateOf('USD');
+
+  const { totalInEur, totalOutEur } = filtered.reduce(
+    (acc, s) => {
+      const amt = Number(s.amount);
+      let inEur: number | null = null;
+      if (s.currency === 'EUR') inEur = amt;
+      else if (s.currency === 'RON' && eurRate) inEur = amt / eurRate;
+      else if (s.currency === 'USD' && usdRate && eurRate) inEur = (amt * usdRate) / eurRate;
+      if (inEur === null) return acc;
+      if (s.direction === 'in') acc.totalInEur += inEur;
+      else acc.totalOutEur += inEur;
+      return acc;
+    },
+    { totalInEur: 0, totalOutEur: 0 },
+  );
+  const netEur = totalInEur - totalOutEur;
+  // RON shown as secondary line = "what this EUR amount is worth today".
+  const netRon = eurRate ? netEur * eurRate : null;
+  const totalInRon = eurRate ? totalInEur * eurRate : null;
+  const totalOutRon = eurRate ? totalOutEur * eurRate : null;
+  // Fallback when EUR rate isn't loaded yet: show historic RON sum (amount_ron).
+  const ronFallback = filtered.reduce(
+    (acc, s) => {
+      const amt = Number(s.amount_ron);
+      if (s.direction === 'in') acc.totalIn += amt;
+      else acc.totalOut += amt;
+      return acc;
+    },
+    { totalIn: 0, totalOut: 0 },
+  );
+  const ronFallbackNet = ronFallback.totalIn - ronFallback.totalOut;
+  const showEur = eurRate !== null;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasFilters =
+    search.trim() !== '' ||
+    directionFilter !== 'all' ||
+    accountFilter !== null ||
+    startDate !== null ||
+    endDate !== null;
+
+  return (
+    <Container size="sm" py="md">
+      <Stack gap="md">
+        <Group justify="space-between" align="center">
+          <Button
+            variant="subtle"
+            color="gray"
+            size="compact-sm"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={() => navigate('/more')}
+          >
+            Înapoi
+          </Button>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            size="sm"
+            onClick={() => navigate('/savings/new')}
+          >
+            Adaugă
+          </Button>
+        </Group>
+
+        <Group gap="xs" align="center">
+          <IconPigMoney size={22} />
+          <Title order={2}>Economii</Title>
+        </Group>
+
+        <Paper withBorder radius="md" p="sm">
+          <Stack gap={4}>
+            <Group justify="space-between" wrap="nowrap" gap="sm">
+              <Text size="sm" c="dimmed">
+                Net{hasFilters ? ' (filtrat)' : ''}
+              </Text>
+              <Box ta="right" miw={0}>
+                <Text
+                  fw={700}
+                  size="xl"
+                  c={(showEur ? netEur : ronFallbackNet) >= 0 ? undefined : 'red'}
+                >
+                  {showEur ? formatMoney(netEur, 'EUR') : formatRon(ronFallbackNet)}
+                </Text>
+                {showEur && netRon !== null && (
+                  <Text size="xs" c="dimmed" lh={1.1}>
+                    {formatRon(netRon)}
+                  </Text>
+                )}
+              </Box>
+            </Group>
+            {(showEur ? totalInEur > 0 || totalOutEur > 0 : ronFallback.totalIn > 0 || ronFallback.totalOut > 0) && (
+              <Text size="xs" c="dimmed">
+                {showEur && totalInRon !== null && totalOutRon !== null
+                  ? `Depozite ${formatMoney(totalInEur, 'EUR')} · Retrageri ${formatMoney(totalOutEur, 'EUR')}`
+                  : `Depozite ${formatRon(ronFallback.totalIn)} · Retrageri ${formatRon(ronFallback.totalOut)}`}
+              </Text>
+            )}
+          </Stack>
+        </Paper>
+
+        <Stack gap="xs">
+          <TextInput
+            placeholder="Caută după nume..."
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            size="sm"
+          />
+          <SegmentedControl
+            fullWidth
+            value={directionFilter}
+            onChange={(v) => setDirectionFilter(v as typeof directionFilter)}
+            data={[
+              { label: 'Toate', value: 'all' },
+              { label: 'Depozite', value: 'in' },
+              { label: 'Retrageri', value: 'out' },
+            ]}
+            size="sm"
+          />
+          {accountOptions.length > 0 && (
+            <Select
+              placeholder="Filtrează după cont"
+              data={accountOptions}
+              value={accountFilter}
+              onChange={setAccountFilter}
+              clearable
+              searchable
+              size="sm"
+            />
+          )}
+          <Group gap="xs" grow>
+            <DatePickerInput
+              placeholder="De la"
+              value={startDate}
+              onChange={(d) => setStartDate(d ? new Date(d as unknown as string) : null)}
+              clearable
+              size="sm"
+              valueFormat="D MMM YYYY"
+            />
+            <DatePickerInput
+              placeholder="Până la"
+              value={endDate}
+              onChange={(d) => setEndDate(d ? new Date(d as unknown as string) : null)}
+              clearable
+              size="sm"
+              valueFormat="D MMM YYYY"
+            />
+          </Group>
+          {hasFilters && (
+            <Group justify="flex-end">
+              <Button
+                variant="subtle"
+                size="compact-xs"
+                color="gray"
+                onClick={() => {
+                  setSearch('');
+                  setDirectionFilter('all');
+                  setAccountFilter(null);
+                  setStartDate(null);
+                  setEndDate(null);
+                }}
+              >
+                Resetează filtrele
+              </Button>
+            </Group>
+          )}
+        </Stack>
+
+        <Text size="xs" c="dimmed">
+          {filtered.length} {filtered.length === 1 ? 'tranzacție' : 'tranzacții'}
+          {hasFilters && all.length !== filtered.length ? ` din ${all.length} totale` : ''}
+        </Text>
+
+        {savings.isLoading ? (
+          <Center py="xl">
+            <Loader />
+          </Center>
+        ) : pageItems.length === 0 ? (
+          <Center py="xl">
+            <Stack align="center" gap="xs">
+              <IconPigMoney size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
+              <Text c="dimmed">
+                {all.length === 0 ? 'Nicio tranzacție de economii' : 'Nicio potrivire'}
+              </Text>
+              {all.length === 0 && (
+                <Button
+                  size="sm"
+                  variant="light"
+                  onClick={() => navigate('/savings/new')}
+                  leftSection={<IconPlus size={16} />}
+                >
+                  Adaugă prima
+                </Button>
+              )}
+            </Stack>
+          </Center>
+        ) : (
+          <Stack gap="xs">
+            {pageItems.map((s) => (
+              <SavingsRow
+                key={s.id}
+                tx={s}
+                onClick={() => navigate(`/savings/${s.id}/edit`)}
+              />
+            ))}
+          </Stack>
+        )}
+
+        {totalPages > 1 && (
+          <Center>
+            <Pagination total={totalPages} value={page} onChange={setPage} size="sm" siblings={1} />
+          </Center>
+        )}
+      </Stack>
+    </Container>
+  );
+}
+
+function SavingsRow({ tx, onClick }: { tx: SavingsTransaction; onClick: () => void }) {
+  const isIn = tx.direction === 'in';
+  return (
+    <UnstyledButton onClick={onClick}>
+      <Paper withBorder radius="md" p="sm">
+        <Group wrap="nowrap" gap="sm" align="center">
+          <Box
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: isIn
+                ? 'var(--mantine-color-teal-light, rgba(20,184,166,0.15))'
+                : 'var(--mantine-color-orange-light, rgba(249,115,22,0.15))',
+              color: isIn
+                ? 'var(--mantine-color-teal-7, #0d9488)'
+                : 'var(--mantine-color-orange-7, #ea580c)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 auto',
+            }}
+          >
+            {isIn ? <IconArrowDownLeft size={18} /> : <IconArrowUpRight size={18} />}
+          </Box>
+          <Box flex={1} miw={0}>
+            <Group gap={6} wrap="nowrap">
+              <Text fw={500} truncate>
+                {tx.name}
+              </Text>
+              <Badge size="xs" variant="light" color={isIn ? 'teal' : 'orange'}>
+                {isIn ? 'depozit' : 'retragere'}
+              </Badge>
+            </Group>
+            <Text size="xs" c="dimmed">
+              {dayjs(tx.occurred_on).format('D MMM YYYY')}
+              {tx.account_name ? ` · ${tx.account_name}` : ''}
+            </Text>
+          </Box>
+          <Box ta="right">
+            <Text fw={700} c={isIn ? 'teal' : 'orange'}>
+              {isIn ? '+' : '−'}
+              {formatMoney(Number(tx.amount), tx.currency)}
+            </Text>
+            {tx.currency !== 'RON' && (
+              <Text size="xs" c="dimmed">
+                ≈ {formatRon(Number(tx.amount_ron))}
+              </Text>
+            )}
+          </Box>
+        </Group>
+      </Paper>
+    </UnstyledButton>
+  );
+}

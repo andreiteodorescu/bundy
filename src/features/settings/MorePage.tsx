@@ -5,11 +5,13 @@ import {
   IconBolt,
   IconBuildingBank,
   IconCategory,
+  IconChartLine,
   IconChevronRight,
   IconClipboardList,
   IconCreditCard,
   IconEyeOff,
   IconLogout,
+  IconPigMoney,
   IconPin,
   IconRefresh,
   IconSearch,
@@ -79,6 +81,22 @@ export function MorePage() {
           leftSection={<IconBuildingBank size={20} />}
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/loans')}
+        />
+
+        <Divider label="Economii & Investiții" labelPosition="left" mt="sm" />
+        <NavLink
+          label="Economii"
+          description="Depozite, vault, buffer salariu — bani puși deoparte"
+          leftSection={<IconPigMoney size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => navigate('/savings')}
+        />
+        <NavLink
+          label="Investiții"
+          description="Pensii (Pilon II/III), ETF, fonduri, acțiuni, crypto"
+          leftSection={<IconChartLine size={20} />}
+          rightSection={<IconChevronRight size={16} />}
+          onClick={() => navigate('/investments')}
         />
 
         <Divider label="Configurare" labelPosition="left" mt="sm" />
