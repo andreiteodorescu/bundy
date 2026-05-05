@@ -1,1 +1,1 @@
-{"root":["./vite.config.ts","./api/fx.ts"],"version":"5.9.3"}
+{"root":["./vite.config.ts","./api/fx.ts","./api/cron/generate-recurring.ts"],"version":"5.9.3"}
