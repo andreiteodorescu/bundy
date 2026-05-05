@@ -488,22 +488,46 @@ export function AddExpensePage() {
           allowDeselect={false}
         />
 
-        <Switch
-          label="Plătit cu cardul firmei"
-          description="Marchează că nu ai plătit din banii tăi. Exclus din totalul personal în Analytics."
-          checked={companyCard}
-          onChange={(e) => {
-            setCompanyCard(e.currentTarget.checked);
-            setCompanyCardTouched(true);
-          }}
-        />
+        {/* Switch-urile cu impact (afectează totaluri / vizibilitate) au labelul detașat
+            de input, ca să nu se activeze din greșeală la tap pe text sau scroll. Doar
+            thumb-ul switch-ului toggle-ează. aria-label păstrează accesibilitatea. */}
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Switch
+            checked={companyCard}
+            onChange={(e) => {
+              setCompanyCard(e.currentTarget.checked);
+              setCompanyCardTouched(true);
+            }}
+            aria-label="Plătit cu cardul firmei"
+            mt={2}
+          />
+          <Box flex={1} miw={0}>
+            <Text size="sm" fw={500}>
+              Plătit cu cardul firmei
+            </Text>
+            <Text size="xs" c="dimmed">
+              Marchează că nu ai plătit din banii tăi. Exclus din totalul personal în Analytics.
+            </Text>
+          </Box>
+        </Group>
 
-        <Switch
-          label="Ascunde din liste"
-          description="Nu apare în lista de cheltuieli, dar suma e inclusă în total. Vizibilă doar în pagina 'Cheltuieli ascunse' (cu PIN)."
-          checked={hidden}
-          onChange={(e) => setHidden(e.currentTarget.checked)}
-        />
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Switch
+            checked={hidden}
+            onChange={(e) => setHidden(e.currentTarget.checked)}
+            aria-label="Ascunde din liste"
+            mt={2}
+          />
+          <Box flex={1} miw={0}>
+            <Text size="sm" fw={500}>
+              Ascunde din liste
+            </Text>
+            <Text size="xs" c="dimmed">
+              Nu apare în lista de cheltuieli, dar suma e inclusă în total. Vizibilă doar în
+              pagina &apos;Cheltuieli ascunse&apos; (cu PIN).
+            </Text>
+          </Box>
+        </Group>
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
