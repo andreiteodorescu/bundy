@@ -31,6 +31,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconArrowLeft,
+  IconCheck,
   IconChevronRight,
   IconGripVertical,
   IconPencil,
@@ -51,10 +52,16 @@ export function FixedExpensesListPage() {
   const reorder = useReorderFixedExpenses();
   const fx = useFxRates((fixed.data ?? []).map((f) => f.currency));
   const [order, setOrder] = useState<string[]>([]);
+  const [reorderMode, setReorderMode] = useState(false);
 
   useEffect(() => {
     if (fixed.data) setOrder(fixed.data.map((f) => f.id));
   }, [fixed.data]);
+
+  // Auto-disable when there's nothing to reorder
+  useEffect(() => {
+    if ((fixed.data?.length ?? 0) < 2 && reorderMode) setReorderMode(false);
+  }, [fixed.data, reorderMode]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -73,6 +80,7 @@ export function FixedExpensesListPage() {
     .map((id) => byId.get(id))
     .filter((f): f is FixedExpense => f !== undefined);
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+  const canReorder = ordered.length > 1;
 
   return (
     <Container size="sm" py="md">
@@ -112,21 +120,43 @@ export function FixedExpensesListPage() {
             </Stack>
           </Center>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={order} strategy={verticalListSortingStrategy}>
-              <Stack gap="xs">
-                {ordered.map((row) => (
-                  <SortableFixedRow
-                    key={row.id}
-                    fixed={row}
-                    category={catById.get(row.category_id ?? '') ?? null}
-                    rateRon={fx.rateOf(row.currency)}
-                    onClick={() => navigate(`/fixed-expenses/${row.id}/edit`)}
-                  />
-                ))}
-              </Stack>
-            </SortableContext>
-          </DndContext>
+          <Stack gap="xs">
+            {canReorder && (
+              <Group justify="flex-start">
+                <Button
+                  variant={reorderMode ? 'filled' : 'subtle'}
+                  color={reorderMode ? 'accent' : 'gray'}
+                  size="compact-xs"
+                  leftSection={
+                    reorderMode ? <IconCheck size={14} /> : <IconGripVertical size={14} />
+                  }
+                  onClick={() => setReorderMode((v) => !v)}
+                >
+                  {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+                </Button>
+              </Group>
+            )}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={order} strategy={verticalListSortingStrategy}>
+                <Stack gap="xs">
+                  {ordered.map((row) => (
+                    <SortableFixedRow
+                      key={row.id}
+                      fixed={row}
+                      category={catById.get(row.category_id ?? '') ?? null}
+                      rateRon={fx.rateOf(row.currency)}
+                      reorderMode={reorderMode}
+                      onClick={() => navigate(`/fixed-expenses/${row.id}/edit`)}
+                    />
+                  ))}
+                </Stack>
+              </SortableContext>
+            </DndContext>
+          </Stack>
         )}
       </Stack>
     </Container>
@@ -137,15 +167,18 @@ function SortableFixedRow({
   fixed,
   category,
   rateRon,
+  reorderMode,
   onClick,
 }: {
   fixed: FixedExpense;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
+  reorderMode: boolean;
   onClick: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: fixed.id,
+    disabled: !reorderMode,
   });
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
@@ -158,25 +191,30 @@ function SortableFixedRow({
       withBorder
       radius="md"
       p="sm"
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
-        touchAction: 'none',
-      }}
+      style={
+        reorderMode
+          ? {
+              transform: CSS.Transform.toString(transform),
+              transition,
+              opacity: isDragging ? 0.6 : 1,
+              touchAction: 'none',
+            }
+          : undefined
+      }
     >
       <Group wrap="nowrap" gap="sm">
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="lg"
-          className="reorder-grip"
-          aria-label="Trage pentru reordonare"
-          {...attributes}
-          {...listeners}
-        >
-          <IconGripVertical size={18} />
-        </ActionIcon>
+        {reorderMode && (
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            aria-label="Trage pentru reordonare"
+            {...attributes}
+            {...listeners}
+          >
+            <IconGripVertical size={18} />
+          </ActionIcon>
+        )}
         <Box
           style={{
             width: 36,
@@ -192,26 +230,43 @@ function SortableFixedRow({
         >
           <Icon size={18} stroke={2} />
         </Box>
-        <UnstyledButton flex={1} miw={0} onClick={onClick}>
-          <Text fw={500} truncate>
-            {fixed.name}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {formatMoney(Number(fixed.amount), fixed.currency)}
-            {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
-            {category ? ` · ${category.name}` : ''}
-          </Text>
-        </UnstyledButton>
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="lg"
-          aria-label="Editează șablon"
-          onClick={onClick}
-        >
-          <IconPencil size={18} />
-        </ActionIcon>
-        <IconChevronRight size={18} />
+        {reorderMode ? (
+          <Box flex={1} miw={0}>
+            <Text fw={500} truncate>
+              {fixed.name}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {formatMoney(Number(fixed.amount), fixed.currency)}
+              {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
+              {category ? ` · ${category.name}` : ''}
+            </Text>
+          </Box>
+        ) : (
+          <UnstyledButton flex={1} miw={0} onClick={onClick}>
+            <Text fw={500} truncate>
+              {fixed.name}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {formatMoney(Number(fixed.amount), fixed.currency)}
+              {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
+              {category ? ` · ${category.name}` : ''}
+            </Text>
+          </UnstyledButton>
+        )}
+        {!reorderMode && (
+          <>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="lg"
+              aria-label="Editează șablon"
+              onClick={onClick}
+            >
+              <IconPencil size={18} />
+            </ActionIcon>
+            <IconChevronRight size={18} />
+          </>
+        )}
       </Group>
     </Paper>
   );

@@ -15,10 +15,24 @@ export function useBudgets() {
       const { data, error } = await supabase
         .from('budgets')
         .select('*')
+        .order('sort_order', { ascending: true })
         .order('period_start', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Budget[];
     },
+  });
+}
+
+export function useReorderBudgets() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const updates = ids.map((id, index) =>
+        supabase.from('budgets').update({ sort_order: index }).eq('id', id),
+      );
+      await Promise.all(updates);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: BUDGETS_KEY }),
   });
 }
 

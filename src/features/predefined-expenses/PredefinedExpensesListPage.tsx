@@ -30,6 +30,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconArrowLeft,
+  IconCheck,
   IconChevronRight,
   IconClipboardList,
   IconGripVertical,
@@ -51,9 +52,14 @@ export function PredefinedExpensesListPage() {
   const subById = new Map((subs.data ?? []).map((s) => [s.id, s]));
 
   const [order, setOrder] = useState<string[]>([]);
+  const [reorderMode, setReorderMode] = useState(false);
   useEffect(() => {
     if (templates.data) setOrder(templates.data.map((t) => t.id));
   }, [templates.data]);
+
+  useEffect(() => {
+    if ((templates.data?.length ?? 0) < 2 && reorderMode) setReorderMode(false);
+  }, [templates.data, reorderMode]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -126,22 +132,44 @@ export function PredefinedExpensesListPage() {
             </Stack>
           </Center>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={order} strategy={verticalListSortingStrategy}>
-              <Stack gap="xs">
-                {ordered.map((tpl) => (
-                  <SortablePredefinedRow
-                    key={tpl.id}
-                    tpl={tpl}
-                    category={catById.get(tpl.category_id ?? '') ?? null}
-                    subcategory={subById.get(tpl.subcategory_id ?? '') ?? null}
-                    onUse={() => pickTemplate(tpl)}
-                    onEdit={() => navigate(`/predefined-expenses/${tpl.id}/edit`)}
-                  />
-                ))}
-              </Stack>
-            </SortableContext>
-          </DndContext>
+          <Stack gap="xs">
+            {ordered.length > 1 && (
+              <Group justify="flex-start">
+                <Button
+                  variant={reorderMode ? 'filled' : 'subtle'}
+                  color={reorderMode ? 'accent' : 'gray'}
+                  size="compact-xs"
+                  leftSection={
+                    reorderMode ? <IconCheck size={14} /> : <IconGripVertical size={14} />
+                  }
+                  onClick={() => setReorderMode((v) => !v)}
+                >
+                  {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+                </Button>
+              </Group>
+            )}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={order} strategy={verticalListSortingStrategy}>
+                <Stack gap="xs">
+                  {ordered.map((tpl) => (
+                    <SortablePredefinedRow
+                      key={tpl.id}
+                      tpl={tpl}
+                      category={catById.get(tpl.category_id ?? '') ?? null}
+                      subcategory={subById.get(tpl.subcategory_id ?? '') ?? null}
+                      reorderMode={reorderMode}
+                      onUse={() => pickTemplate(tpl)}
+                      onEdit={() => navigate(`/predefined-expenses/${tpl.id}/edit`)}
+                    />
+                  ))}
+                </Stack>
+              </SortableContext>
+            </DndContext>
+          </Stack>
         )}
       </Stack>
     </Container>
@@ -152,17 +180,20 @@ function SortablePredefinedRow({
   tpl,
   category,
   subcategory,
+  reorderMode,
   onUse,
   onEdit,
 }: {
   tpl: PredefinedExpense;
   category: Category | null;
   subcategory: Subcategory | null;
+  reorderMode: boolean;
   onUse: () => void;
   onEdit: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tpl.id,
+    disabled: !reorderMode,
   });
   const Icon = getIcon(tpl.icon ?? category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
@@ -173,27 +204,32 @@ function SortablePredefinedRow({
       withBorder
       radius="md"
       p="sm"
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : tpl.active ? 1 : 0.5,
-        touchAction: 'none',
-      }}
+      style={
+        reorderMode
+          ? {
+              transform: CSS.Transform.toString(transform),
+              transition,
+              opacity: isDragging ? 0.6 : tpl.active ? 1 : 0.5,
+              touchAction: 'none',
+            }
+          : { opacity: tpl.active ? 1 : 0.5 }
+      }
     >
       <Group wrap="nowrap" gap="sm">
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="lg"
-          className="reorder-grip"
-          {...attributes}
-          {...listeners}
-          aria-label="Trage pentru reordonare"
-        >
-          <IconGripVertical size={18} />
-        </ActionIcon>
+        {reorderMode && (
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            {...attributes}
+            {...listeners}
+            aria-label="Trage pentru reordonare"
+          >
+            <IconGripVertical size={18} />
+          </ActionIcon>
+        )}
         <Box
-          onClick={onUse}
+          onClick={reorderMode ? undefined : onUse}
           style={{
             width: 40,
             height: 40,
@@ -204,12 +240,17 @@ function SortablePredefinedRow({
             alignItems: 'center',
             justifyContent: 'center',
             flex: '0 0 auto',
-            cursor: 'pointer',
+            cursor: reorderMode ? 'default' : 'pointer',
           }}
         >
           <Icon size={20} stroke={2} />
         </Box>
-        <Box flex={1} miw={0} onClick={onUse} style={{ cursor: 'pointer' }}>
+        <Box
+          flex={1}
+          miw={0}
+          onClick={reorderMode ? undefined : onUse}
+          style={{ cursor: reorderMode ? 'default' : 'pointer' }}
+        >
           <Text fw={600} truncate>
             {tpl.name}
           </Text>
@@ -219,16 +260,20 @@ function SortablePredefinedRow({
             {' · '}{tpl.default_currency}
           </Text>
         </Box>
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="lg"
-          aria-label="Editează șablon"
-          onClick={onEdit}
-        >
-          <IconPencil size={18} />
-        </ActionIcon>
-        <IconChevronRight size={18} />
+        {!reorderMode && (
+          <>
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              size="lg"
+              aria-label="Editează șablon"
+              onClick={onEdit}
+            >
+              <IconPencil size={18} />
+            </ActionIcon>
+            <IconChevronRight size={18} />
+          </>
+        )}
       </Group>
     </Paper>
   );

@@ -32,6 +32,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   IconArrowLeft,
   IconBolt,
+  IconCheck,
   IconGripVertical,
   IconMinus,
   IconPlus,
@@ -60,9 +61,14 @@ export function QuickExpensesListPage() {
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
 
   const [order, setOrder] = useState<string[]>([]);
+  const [reorderMode, setReorderMode] = useState(false);
   useEffect(() => {
     if (templates.data) setOrder(templates.data.map((t) => t.id));
   }, [templates.data]);
+
+  useEffect(() => {
+    if ((templates.data?.length ?? 0) < 2 && reorderMode) setReorderMode(false);
+  }, [templates.data, reorderMode]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
@@ -149,24 +155,46 @@ export function QuickExpensesListPage() {
             </Stack>
           </Center>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={order} strategy={verticalListSortingStrategy}>
-              <Stack gap="xs">
-                {ordered.map((tpl) => (
-                  <QuickRow
-                    key={tpl.id}
-                    template={tpl}
-                    qty={today.data?.get(tpl.id)?.quantity ?? 0}
-                    category={catById.get(tpl.category_id ?? '') ?? null}
-                    rateRon={fx.rateOf(tpl.currency)}
-                    onStep={(delta) => step.mutate({ template: tpl, delta })}
-                    onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
-                    disabled={step.isPending}
-                  />
-                ))}
-              </Stack>
-            </SortableContext>
-          </DndContext>
+          <Stack gap="xs">
+            {ordered.length > 1 && (
+              <Group justify="flex-start">
+                <Button
+                  variant={reorderMode ? 'filled' : 'subtle'}
+                  color={reorderMode ? 'accent' : 'gray'}
+                  size="compact-xs"
+                  leftSection={
+                    reorderMode ? <IconCheck size={14} /> : <IconGripVertical size={14} />
+                  }
+                  onClick={() => setReorderMode((v) => !v)}
+                >
+                  {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+                </Button>
+              </Group>
+            )}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={order} strategy={verticalListSortingStrategy}>
+                <Stack gap="xs">
+                  {ordered.map((tpl) => (
+                    <QuickRow
+                      key={tpl.id}
+                      template={tpl}
+                      qty={today.data?.get(tpl.id)?.quantity ?? 0}
+                      category={catById.get(tpl.category_id ?? '') ?? null}
+                      rateRon={fx.rateOf(tpl.currency)}
+                      reorderMode={reorderMode}
+                      onStep={(delta) => step.mutate({ template: tpl, delta })}
+                      onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
+                      disabled={step.isPending}
+                    />
+                  ))}
+                </Stack>
+              </SortableContext>
+            </DndContext>
+          </Stack>
         )}
       </Stack>
     </Container>
@@ -178,6 +206,7 @@ function QuickRow({
   qty,
   category,
   rateRon,
+  reorderMode,
   onStep,
   onEdit,
   disabled,
@@ -186,12 +215,14 @@ function QuickRow({
   qty: number;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
+  reorderMode: boolean;
   onStep: (delta: 1 | -1) => void;
   onEdit: () => void;
   disabled: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: template.id,
+    disabled: !reorderMode,
   });
   const Icon = getIcon(template.icon ?? category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
@@ -205,27 +236,32 @@ function QuickRow({
       withBorder
       radius="md"
       p="sm"
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.6 : 1,
-        touchAction: 'none',
-      }}
+      style={
+        reorderMode
+          ? {
+              transform: CSS.Transform.toString(transform),
+              transition,
+              opacity: isDragging ? 0.6 : 1,
+              touchAction: 'none',
+            }
+          : undefined
+      }
     >
       <Group wrap="nowrap" gap="sm" align="center">
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="lg"
-          className="reorder-grip"
-          {...attributes}
-          {...listeners}
-          aria-label="Trage pentru reordonare"
-        >
-          <IconGripVertical size={18} />
-        </ActionIcon>
+        {reorderMode && (
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            {...attributes}
+            {...listeners}
+            aria-label="Trage pentru reordonare"
+          >
+            <IconGripVertical size={18} />
+          </ActionIcon>
+        )}
         <Box
-          onClick={onEdit}
+          onClick={reorderMode ? undefined : onEdit}
           style={{
             width: 40,
             height: 40,
@@ -236,12 +272,17 @@ function QuickRow({
             alignItems: 'center',
             justifyContent: 'center',
             flex: '0 0 auto',
-            cursor: 'pointer',
+            cursor: reorderMode ? 'default' : 'pointer',
           }}
         >
           <Icon size={20} stroke={2} />
         </Box>
-        <Box flex={1} miw={0} onClick={onEdit} style={{ cursor: 'pointer' }}>
+        <Box
+          flex={1}
+          miw={0}
+          onClick={reorderMode ? undefined : onEdit}
+          style={{ cursor: reorderMode ? 'default' : 'pointer' }}
+        >
           <Text fw={500} truncate>
             {template.name}
           </Text>
@@ -251,44 +292,46 @@ function QuickRow({
             {qty > 0 ? ` · azi ${formatMoney(lineTotal, template.currency)}` : ''}
           </Text>
         </Box>
-        <Group gap={4} wrap="nowrap" align="center">
-          <ActionIcon
-            variant="default"
-            radius="xl"
-            size={32}
-            onClick={() => onStep(-1)}
-            disabled={disabled || qty === 0}
-            aria-label="Scade"
-          >
-            <IconMinus size={16} />
-          </ActionIcon>
-          <Badge
-            size="lg"
-            variant={qty > 0 ? 'filled' : 'default'}
-            radius="sm"
-            color={color.startsWith('#') ? undefined : color}
-            styles={
-              qty > 0 && color.startsWith('#')
-                ? { root: { background: color } }
-                : undefined
-            }
-            miw={32}
-            ta="center"
-          >
-            {qty}
-          </Badge>
-          <ActionIcon
-            variant="filled"
-            radius="xl"
-            size={32}
-            onClick={() => onStep(1)}
-            disabled={disabled}
-            aria-label="Adaugă"
-            styles={color.startsWith('#') ? { root: { background: color } } : undefined}
-          >
-            <IconPlus size={16} />
-          </ActionIcon>
-        </Group>
+        {!reorderMode && (
+          <Group gap={4} wrap="nowrap" align="center">
+            <ActionIcon
+              variant="default"
+              radius="xl"
+              size={32}
+              onClick={() => onStep(-1)}
+              disabled={disabled || qty === 0}
+              aria-label="Scade"
+            >
+              <IconMinus size={16} />
+            </ActionIcon>
+            <Badge
+              size="lg"
+              variant={qty > 0 ? 'filled' : 'default'}
+              radius="sm"
+              color={color.startsWith('#') ? undefined : color}
+              styles={
+                qty > 0 && color.startsWith('#')
+                  ? { root: { background: color } }
+                  : undefined
+              }
+              miw={32}
+              ta="center"
+            >
+              {qty}
+            </Badge>
+            <ActionIcon
+              variant="filled"
+              radius="xl"
+              size={32}
+              onClick={() => onStep(1)}
+              disabled={disabled}
+              aria-label="Adaugă"
+              styles={color.startsWith('#') ? { root: { background: color } } : undefined}
+            >
+              <IconPlus size={16} />
+            </ActionIcon>
+          </Group>
+        )}
       </Group>
     </Paper>
   );

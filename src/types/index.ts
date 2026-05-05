@@ -161,6 +161,7 @@ export type Budget = {
   /** Filter by subcategory_id specifically. Empty = no filter. Combined with category_ids
    *  via OR (an expense matches if its category OR subcategory is in the respective list). */
   subcategory_ids: string[];
+  sort_order: number;
   created_at: string;
 };
 
