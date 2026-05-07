@@ -95,6 +95,15 @@ export function SubscriptionFormPage() {
     setBrandLogo(sub.brand_logo ?? null);
   }, [editing.data]);
 
+  // Auto-suggest "company card" toggle when category is Work & Business — until user
+  // explicitly toggles the Switch. Must run before any early return below to keep the
+  // hook order stable across renders (Rules of Hooks).
+  const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
+  useEffect(() => {
+    if (companyCardTouched) return;
+    if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+
   if (!isNew && editing.isLoading) {
     return (
       <Center h="60vh">
@@ -104,14 +113,6 @@ export function SubscriptionFormPage() {
   }
 
   const childSubs = (subs.data ?? []).filter((s) => s.parent_category_id === categoryId);
-
-  // Auto-suggest "company card" toggle when category is Work & Business — until user
-  // explicitly toggles the Switch.
-  const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
-  useEffect(() => {
-    if (companyCardTouched) return;
-    if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   async function handleSave() {
     setError(null);
