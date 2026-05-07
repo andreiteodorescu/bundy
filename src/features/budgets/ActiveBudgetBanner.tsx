@@ -63,7 +63,11 @@ function ActiveBudgetCard({ budget }: { budget: Budget }) {
   const progress = useBudgetProgress(budget);
   const firedThresholds = useRef(new Set<number>());
 
-  // Fire threshold notifications once per session for each newly-crossed threshold
+  // Fire threshold notifications exactly once — across sessions and devices — for each
+  // crossed threshold. The `firedThresholds` ref dedups within a single mount; the
+  // `budget_notifications` row dedups across mounts/devices. We use `.select()` so the
+  // upsert returns only newly-inserted rows (with `ignoreDuplicates`, conflicts are
+  // skipped without error), and only show the toast when a row was actually inserted.
   useEffect(() => {
     if (!progress.data) return;
     const pct = progress.data.pct;
@@ -76,8 +80,9 @@ function ActiveBudgetCard({ budget }: { budget: Budget }) {
             { budget_id: budget.id, threshold_pct: t },
             { onConflict: 'budget_id,threshold_pct', ignoreDuplicates: true },
           )
-          .then(({ error }) => {
-            if (!error) {
+          .select()
+          .then(({ data, error }) => {
+            if (!error && data && data.length > 0) {
               notifications.show({
                 title: budget.name,
                 message: `Ai cheltuit ${Math.round(pct)}% din buget`,

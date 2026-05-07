@@ -149,17 +149,18 @@ export function AddExpensePage() {
     setDidLoadEditing(true);
   }, [editing.data, editingId, didLoadEditing]);
 
-  // Auto-suggest "company card" toggle when the picked category is Work & Business.
-  // Only applies until the user explicitly interacts with the Switch (companyCardTouched).
+  // Mirror the "company card" switch to the picked category: ON when category is
+  // Work & Business, OFF otherwise. Bidirectional — so if auto-suggest moves between
+  // WB (e.g. "co" → Contabil) and non-WB (e.g. "comanda zooplus" → Animale), the
+  // switch follows. The user can override by tapping the switch, which sets
+  // `companyCardTouched` and freezes their choice for the rest of the session.
   const workBusinessCategoryId = useMemo(
     () => (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null,
     [cats.data],
   );
   useEffect(() => {
     if (companyCardTouched) return;
-    if (categoryId && categoryId === workBusinessCategoryId) {
-      setCompanyCard(true);
-    }
+    setCompanyCard(categoryId !== null && categoryId === workBusinessCategoryId);
   }, [categoryId, workBusinessCategoryId, companyCardTouched]);
 
   // Auto-suggest reacts to name input (debounced via React render coalescing)

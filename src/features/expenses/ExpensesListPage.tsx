@@ -84,13 +84,16 @@ export function ExpensesListPage() {
 
   const grouped = useMemo(() => {
     return weeks.map((w) => {
-      const items = expensesVisible.filter((e) => {
-        const d = dayjs(e.occurred_on);
-        return (
-          (d.isSame(w.start, 'day') || d.isAfter(w.start, 'day')) &&
-          (d.isSame(w.end, 'day') || d.isBefore(w.end, 'day'))
-        );
-      });
+      const items = expensesVisible
+        .filter((e) => {
+          const d = dayjs(e.occurred_on);
+          return (
+            (d.isSame(w.start, 'day') || d.isAfter(w.start, 'day')) &&
+            (d.isSame(w.end, 'day') || d.isBefore(w.end, 'day'))
+          );
+        })
+        .slice()
+        .sort((a, b) => a.occurred_on.localeCompare(b.occurred_on));
       const total = items.reduce((sum, e) => sum + Number(e.amount_ron), 0);
       return { week: w, items, total };
     });
