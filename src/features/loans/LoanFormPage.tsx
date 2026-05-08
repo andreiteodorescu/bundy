@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
   Autocomplete,
+  Box,
   Button,
   Center,
   Container,
@@ -327,22 +328,44 @@ export function LoanFormPage() {
           />
         )}
 
-        <Switch
-          label="Activă"
-          description="Cheltuielile se generează automat la fiecare scadență, până la data de sfârșit"
-          checked={active}
-          onChange={(e) => setActive(e.currentTarget.checked)}
-        />
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Switch
+            checked={active}
+            onChange={(e) => setActive(e.currentTarget.checked)}
+            aria-label="Activă"
+            mt={2}
+          />
+          <Box flex={1} miw={0}>
+            <Text size="sm" fw={500}>
+              Activă
+            </Text>
+            <Text size="xs" c="dimmed">
+              Cheltuielile se generează automat la fiecare scadență, până la data de sfârșit
+            </Text>
+          </Box>
+        </Group>
 
-        <Switch
-          label="Plătită cu cardul firmei"
-          description="Cheltuielile generate vor fi excluse din totalul personal în Analytics."
-          checked={companyCard}
-          onChange={(e) => {
-            setCompanyCard(e.currentTarget.checked);
-            setCompanyCardTouched(true);
-          }}
-        />
+        {/* Label detașat: doar thumb-ul togglează. Previne activări accidentale la
+            tap pe text/scroll pe mobile. aria-label păstrează accesibilitatea. */}
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Switch
+            checked={companyCard}
+            onChange={(e) => {
+              setCompanyCard(e.currentTarget.checked);
+              setCompanyCardTouched(true);
+            }}
+            aria-label="Plătită cu cardul firmei"
+            mt={2}
+          />
+          <Box flex={1} miw={0}>
+            <Text size="sm" fw={500}>
+              Plătită cu cardul firmei
+            </Text>
+            <Text size="xs" c="dimmed">
+              Cheltuielile generate vor fi excluse din totalul personal în Analytics.
+            </Text>
+          </Box>
+        </Group>
 
         <Textarea
           label="Notă (opțional)"

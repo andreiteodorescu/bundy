@@ -260,7 +260,7 @@ function ExpenseRow({
               </Text>
               {expense.source === 'subscription' && (
                 <Badge size="xs" variant="light" leftSection={<IconSparkles size={10} />}>
-                  sub
+                  abonament
                 </Badge>
               )}
               {expense.source === 'loan' && (

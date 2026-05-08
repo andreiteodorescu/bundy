@@ -342,22 +342,44 @@ export function SubscriptionFormPage() {
           />
         )}
 
-        <Switch
-          label="Activ"
-          description="Cheltuielile se generează automat la fiecare reînnoire"
-          checked={active}
-          onChange={(e) => setActive(e.currentTarget.checked)}
-        />
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Switch
+            checked={active}
+            onChange={(e) => setActive(e.currentTarget.checked)}
+            aria-label="Activ"
+            mt={2}
+          />
+          <Box flex={1} miw={0}>
+            <Text size="sm" fw={500}>
+              Activ
+            </Text>
+            <Text size="xs" c="dimmed">
+              Cheltuielile se generează automat la fiecare reînnoire
+            </Text>
+          </Box>
+        </Group>
 
-        <Switch
-          label="Plătit cu cardul firmei"
-          description="ex: Claude Max. Cheltuielile generate sunt excluse din totalul personal în Analytics."
-          checked={companyCard}
-          onChange={(e) => {
-            setCompanyCard(e.currentTarget.checked);
-            setCompanyCardTouched(true);
-          }}
-        />
+        {/* Label detașat: doar thumb-ul togglează. Previne activări accidentale la
+            tap pe text/scroll pe mobile. aria-label păstrează accesibilitatea. */}
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Switch
+            checked={companyCard}
+            onChange={(e) => {
+              setCompanyCard(e.currentTarget.checked);
+              setCompanyCardTouched(true);
+            }}
+            aria-label="Plătit cu cardul firmei"
+            mt={2}
+          />
+          <Box flex={1} miw={0}>
+            <Text size="sm" fw={500}>
+              Plătit cu cardul firmei
+            </Text>
+            <Text size="xs" c="dimmed">
+              ex: Claude Max. Cheltuielile generate sunt excluse din totalul personal în Analytics.
+            </Text>
+          </Box>
+        </Group>
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
