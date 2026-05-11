@@ -66,8 +66,14 @@ export function BottomNav() {
     if (!itemEl || !navEl) return;
     const itemRect = itemEl.getBoundingClientRect();
     const navRect = navEl.getBoundingClientRect();
+    // The ball is `position: absolute` inside the nav, so its (0,0) is the
+    // nav's padding-box (i.e. just inside the border). getBoundingClientRect()
+    // returns the border-box though, so we subtract the left border width to
+    // align the ball's coordinate system with the items'. Otherwise the ball
+    // ends up shifted right by the border thickness.
+    const navBorderLeft = parseFloat(getComputedStyle(navEl).borderLeftWidth) || 0;
     setIndicator({
-      x: itemRect.left - navRect.left + HORIZONTAL_INSET,
+      x: itemRect.left - navRect.left - navBorderLeft + HORIZONTAL_INSET,
       w: Math.max(0, itemRect.width - HORIZONTAL_INSET * 2),
       visible: true,
     });
@@ -167,7 +173,7 @@ const NavItem = forwardRef<HTMLAnchorElement, NavItemProps>(function NavItem(
       className={`${classes.item} ${active ? classes.active : ''}`}
     >
       <Icon size={24} stroke={active ? 2.2 : 1.8} />
-      <Text size="10px" fw={active ? 600 : 500} lh={1}>
+      <Text component="span" size="10px" fw={active ? 600 : 500} lh={1}>
         {t(labelKey)}
       </Text>
     </NavLink>

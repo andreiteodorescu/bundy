@@ -45,6 +45,10 @@
   bottom: 6px;
   left: 0;
   width: 0;
+  /* Capsule (999px) on roomy screens — looks more "iOS native pill". On narrow
+     screens (<500px) the tabs get small enough that a capsule would round
+     nearly the whole tab and eat into label space, so we drop to 16px there
+     via the @media rule below. */
   border-radius: 999px;
   background: var(--mantine-primary-color-filled, #4f6cc2);
   /* Inner highlight only — no outer drop shadow so there's no perceived glow
@@ -57,8 +61,31 @@
     opacity 200ms ease;
   z-index: 0;
   pointer-events: none;
-  /* Use will-change so the browser knows to compose this on its own GPU layer. */
+  /* Hint to the browser to compose this on its own GPU layer (smooth 60fps). */
   will-change: transform, width;
+}
+
+/* Narrow screens: drop the capsule shape so labels have a flat middle region. */
+@media (max-width: 500px) {
+  .indicator {
+    border-radius: 16px;
+  }
+}
+
+/* Very narrow screens: hide the labels and keep only the icon, perfectly
+   centered in the (now capsule-shaped) ball. Source-order means this @media
+   overrides the 500px one for border-radius. */
+@media (max-width: 440px) {
+  .item {
+    padding: 0;
+    gap: 0;
+  }
+  .item span {
+    display: none;
+  }
+  .indicator {
+    border-radius: 999px;
+  }
 }
 
 .item {
