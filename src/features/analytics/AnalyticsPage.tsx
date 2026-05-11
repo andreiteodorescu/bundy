@@ -11,7 +11,6 @@ import {
   Select,
   Stack,
   Text,
-  Title,
 } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { BarChart, DonutChart } from '@mantine/charts';
@@ -181,8 +180,6 @@ export function AnalyticsPage() {
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
-        <Title order={2}>{t('analytics.title')}</Title>
-
         <Group gap="xs" wrap="nowrap">
           <Select
             placeholder={t('analytics.filterCategoryPlaceholder')}

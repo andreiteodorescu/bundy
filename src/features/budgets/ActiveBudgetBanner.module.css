@@ -23,17 +23,21 @@
   scroll-snap-align: start;
 }
 
-/* Dot indicator: small filled circle, expands when active (segment style). */
+/* Dot indicator: small filled circle, expands when active (segment style).
+   Both active and inactive dots use the bronze gradient — they're
+   distinguished by shape (active = wider pill, inactive = small dot). */
 .dot {
   display: inline-block;
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--mantine-color-default-hover, rgba(255, 255, 255, 0.12));
-  transition: width 180ms ease, background 180ms ease;
+  background: var(--bundy-accent-gradient);
+  transition: width 180ms ease;
 }
 
 .dotActive {
   width: 18px;
-  background: var(--mantine-primary-color-filled);
+  /* Same metallic bronze gradient as FAB / active bottom-nav ball — keeps
+     "selected accent" visual language consistent across the app. */
+  background: var(--bundy-accent-gradient);
 }

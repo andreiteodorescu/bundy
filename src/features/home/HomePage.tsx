@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Box, Container, Group, Paper, Stack, Text, Title, UnstyledButton } from '@mantine/core';
+import { Box, Container, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
   IconBolt,
   IconChevronRight,
@@ -27,9 +27,6 @@ export function HomePage() {
   const { personalTotal, companyCardTotal } = (expenses.data ?? []).reduce(
     (acc, e) => {
       const amt = Number(e.amount_ron);
-      // When company-card features are disabled, every expense (including those
-      // tagged 'company-card' from before) flows into the personal total. Data
-      // stays intact in the DB; this is purely a display choice.
       if (companyCardEnabled && e.tags?.includes('company-card')) {
         acc.companyCardTotal += amt;
       } else {
@@ -49,10 +46,6 @@ export function HomePage() {
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
-        <Title order={2} className={classes.title}>
-          {t('home.title')}
-        </Title>
-
         <ActiveBudgetBanner />
 
         <UnstyledButton onClick={() => navigate('/expenses')} className={classes.totalCard}>

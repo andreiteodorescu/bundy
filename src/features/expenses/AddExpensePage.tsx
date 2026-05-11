@@ -45,9 +45,6 @@ import { getIcon } from '@/data/icons.registry';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import type { Suggestion } from '@/lib/autocomplete';
 
-type RecurrenceKind = 'never' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-
-const recurrenceValues: RecurrenceKind[] = ['never', 'daily', 'weekly', 'monthly', 'yearly'];
 
 export function AddExpensePage() {
   const { t } = useTranslation();
@@ -78,7 +75,6 @@ export function AddExpensePage() {
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [autoSuggestion, setAutoSuggestion] = useState<Suggestion | null>(null);
   const [overrideCategory, setOverrideCategory] = useState(false);
-  const [recurrence, setRecurrence] = useState<RecurrenceKind>('never');
   const [hidden, setHidden] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datePickerOpen, datePickerCtl] = useDisclosure(false);
@@ -130,9 +126,6 @@ export function AddExpensePage() {
     setCategoryId(exp.category_id);
     setSubcategoryId(exp.subcategory_id);
     setOverrideCategory(true);
-    if (exp.recurrence && typeof exp.recurrence === 'object' && 'kind' in exp.recurrence) {
-      setRecurrence((exp.recurrence as { kind: RecurrenceKind }).kind);
-    }
     setHidden(exp.hidden);
     setCompanyCard(exp.tags.includes('company-card'));
     setCompanyCardTouched(true);
@@ -237,7 +230,7 @@ export function AddExpensePage() {
         category_id: categoryId,
         subcategory_id: subcategoryId,
         note: note.trim() || null,
-        recurrence: recurrence === 'never' ? null : { kind: recurrence },
+        recurrence: null,
         hidden,
         // Preserve existing 'company-card' tag when feature is OFF (don't strip
         // tags from records the user marked when the feature was on).
@@ -464,14 +457,6 @@ export function AddExpensePage() {
           minRows={2}
           maxRows={5}
           placeholder={t('expenses.add.notePlaceholderEx')}
-        />
-
-        <Select
-          label={t('expenses.add.recurrence')}
-          data={recurrenceValues.map((v) => ({ value: v, label: t(`recurrence.${v}`) }))}
-          value={recurrence}
-          onChange={(v) => setRecurrence((v as RecurrenceKind) ?? 'never')}
-          allowDeselect={false}
         />
 
         {companyCardEnabled && (

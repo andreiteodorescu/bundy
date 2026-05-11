@@ -10,11 +10,12 @@
   bottom: calc(var(--safe-bottom) + 4px);
   height: var(--bottom-nav-height);
 
-  background: rgba(26, 27, 30, 0.78);
+  background: rgba(18, 32, 36, 0.55);
   -webkit-backdrop-filter: saturate(180%) blur(28px);
   backdrop-filter: saturate(180%) blur(28px);
 
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Neutral hairline at low alpha — lets the teal bg show through cleanly. */
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 28px;
 
   box-shadow:
@@ -50,10 +51,8 @@
      nearly the whole tab and eat into label space, so we drop to 16px there
      via the @media rule below. */
   border-radius: 999px;
-  background: var(--mantine-primary-color-filled, #4f6cc2);
-  /* Inner highlight only — no outer drop shadow so there's no perceived glow
-     leaking past the ball's bottom edge. */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  /* Shared metallic bronze gradient — see --bundy-accent-gradient in globals.css. */
+  background: var(--bundy-accent-gradient);
   /* Spring physics: overshoot on x for bounce, faster width adjust. */
   transition:
     transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -146,28 +145,20 @@
 
 .fab {
   transform: translateY(-18px);
-  box-shadow:
-    0 6px 16px -3px rgba(79, 108, 194, 0.55),
-    0 12px 28px -6px rgba(0, 0, 0, 0.45),
-    0 0 0 4px rgba(26, 27, 30, 0.78);
-  transition:
-    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 200ms ease;
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-mantine-color-scheme='light'] .fab {
-    box-shadow:
-      0 6px 16px -3px rgba(79, 108, 194, 0.45),
-      0 12px 28px -6px rgba(0, 0, 0, 0.18),
-      0 0 0 4px rgba(255, 255, 255, 0.82);
-  }
+  /* Radial bronze gradient — light catching the top-left of the circle,
+     fading darker toward bottom-right. Gives the FAB a polished "real
+     metal button" feel without flashy multi-color rainbow.
+     `!important` overrides Mantine ActionIcon's filled-variant background. */
+  background: radial-gradient(
+    circle at 35% 28%,
+    #e2bf5b 0%,
+    #cc9429 55%,
+    #8f661c 100%
+  ) !important;
+  border: none !important;
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .fab:active {
   transform: translateY(-16px) scale(0.92);
-  box-shadow:
-    0 4px 10px -3px rgba(79, 108, 194, 0.65),
-    0 8px 20px -6px rgba(0, 0, 0, 0.5),
-    0 0 0 4px rgba(26, 27, 30, 0.78);
 }

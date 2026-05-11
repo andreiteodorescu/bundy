@@ -142,7 +142,7 @@ export function SettingsPage() {
       confirmDelete({
         title: t('settings.features.companyCardWarningTitle'),
         message: t('settings.features.companyCardWarning'),
-        confirmLabel: t('settings.hidden.disablePin'),
+        confirmLabel: t('settings.features.companyCardDisableConfirm'),
         onConfirm: () => applyCompanyCardChange(false),
       });
       return;

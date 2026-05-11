@@ -184,31 +184,32 @@ export function ExpensesListPage() {
             popoverProps={{ position: 'bottom' }}
             w={180}
           />
-          <Group gap={4} wrap="nowrap">
-            <ActionIcon
-              variant="subtle"
-              onClick={() => shiftMonth(1)}
-              aria-label={t('expenses.nextMonth')}
-              disabled={isCurrentMonth}
-            >
-              <IconChevronRight size={18} />
-            </ActionIcon>
-            <Menu shadow="md" position="bottom-end" withinPortal>
-              <Menu.Target>
-                <ActionIcon variant="subtle" aria-label={t('expenses.export.menuLabel')}>
-                  <IconDownload size={18} />
-                </ActionIcon>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item leftSection={<IconFileTypePdf size={14} />} onClick={() => runExport('pdf')}>
-                  {t('expenses.export.pdf')}
-                </Menu.Item>
-                <Menu.Item leftSection={<IconFileTypeCsv size={14} />} onClick={() => runExport('csv')}>
-                  {t('expenses.export.csv')}
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Group>
+          <ActionIcon
+            variant="subtle"
+            onClick={() => shiftMonth(1)}
+            aria-label={t('expenses.nextMonth')}
+            disabled={isCurrentMonth}
+          >
+            <IconChevronRight size={18} />
+          </ActionIcon>
+        </Group>
+
+        <Group justify="flex-end">
+          <Menu shadow="md" position="bottom-end" withinPortal>
+            <Menu.Target>
+              <ActionIcon variant="subtle" aria-label={t('expenses.export.menuLabel')}>
+                <IconDownload size={18} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item leftSection={<IconFileTypePdf size={14} />} onClick={() => runExport('pdf')}>
+                {t('expenses.export.pdf')}
+              </Menu.Item>
+              <Menu.Item leftSection={<IconFileTypeCsv size={14} />} onClick={() => runExport('csv')}>
+                {t('expenses.export.csv')}
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
         </Group>
 
         <Paper withBorder radius="md" p="sm">

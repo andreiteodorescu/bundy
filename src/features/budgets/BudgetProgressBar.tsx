@@ -25,7 +25,20 @@ export function BudgetProgressBar({ budget, compact = false }: { budget: Budget;
           {Math.round(pct)}%
         </Text>
       </Group>
-      <Progress value={Math.min(pct, 100)} color={color} size={compact ? 'sm' : 'md'} radius="xl" />
+      <Progress
+        value={Math.min(pct, 100)}
+        color={color}
+        size={compact ? 'sm' : 'md'}
+        radius="xl"
+        /* Use the metallic bronze gradient when the bar is in healthy/accent
+           state. Semantic colors (red exceeded, orange near-limit, green done)
+           keep their flat color so the warning still reads at a glance. */
+        styles={
+          color === 'accent'
+            ? { section: { background: 'var(--bundy-accent-gradient)' } }
+            : undefined
+        }
+      />
       <Group justify="space-between" mt={compact ? 2 : 6} gap={6} wrap="wrap">
         <Text size="xs" c="dimmed">
           {t('budgets.progress.spent', { amount: formatRon(spent) })}

@@ -1,10 +1,12 @@
 import dayjs from 'dayjs';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { TFunction } from 'i18next';
 import { formatRon } from '@/lib/money';
 import { cleanExpenseName } from '@/lib/text';
 import type { Category, Expense, Subcategory } from '@/types';
+
+// Note: jspdf and jspdf-autotable are heavy (~200KB combined). They're loaded
+// dynamically inside exportExpensesPdf() so the main ExpensesListPage chunk
+// stays small. CSV export needs neither and stays synchronous.
 
 type Maps = {
   catById: Map<string, Category>;
@@ -94,7 +96,7 @@ export function exportExpensesCsv(opts: {
   triggerDownload(blob, `bundy-expenses-${opts.monthLabel}.csv`);
 }
 
-export function exportExpensesPdf(opts: {
+export async function exportExpensesPdf(opts: {
   expenses: Expense[];
   monthLabel: string;
   monthDisplay: string;
@@ -103,6 +105,14 @@ export function exportExpensesPdf(opts: {
   maps: Maps;
   t: TFunction;
 }) {
+  // Dynamic imports keep jspdf out of the main bundle until the user actually
+  // clicks "Export PDF". The page chunk drops by ~200KB.
+  const [{ jsPDF }, autoTableModule] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const autoTable = autoTableModule.default;
+
   const rows = buildRows(opts.expenses, opts.maps);
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const margin = 40;

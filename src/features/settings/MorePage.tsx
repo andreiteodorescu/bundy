@@ -74,15 +74,16 @@ export function MorePage() {
           onClick={() => navigate('/fixed-expenses')}
         />
 
-        <Divider label={t('more.recurringDivider')} labelPosition="left" mt="sm" />
         <NavLink
           label={t('more.subscriptions')}
+          description={t('more.subscriptionsDescription')}
           leftSection={<IconCreditCard size={20} />}
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/subscriptions')}
         />
         <NavLink
           label={t('more.loans')}
+          description={t('more.loansDescription')}
           leftSection={<IconBuildingBank size={20} />}
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/loans')}

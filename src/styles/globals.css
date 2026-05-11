@@ -7,7 +7,37 @@
   /* Extra space below the bottom nav. 0 in browser, 12px in PWA standalone mode
      where the home indicator feels too close on iPhone. */
   --pwa-bottom-lift: 0px;
+
+  /* RGB triplet of theme accent (#cc9429 bronze gold). Must stay in sync with
+     theme.ts index 6. Used in rgba() across components for dynamic alpha
+     (active states, etc.) so a future palette swap requires changing only
+     this line + theme.ts. */
+  --bundy-accent-rgb: 204, 148, 41;
+
+  /* Metallic bronze gradient — single source of truth for any "filled accent"
+     surface (Button, ActionIcon, BottomNav active ball). Lighter at top,
+     darker at bottom = catches light like real metal. */
+  --bundy-accent-gradient: linear-gradient(
+    180deg,
+    #daad3f 0%,
+    #cc9429 50%,
+    #a07820 100%
+  );
+
   color-scheme: dark;
+}
+
+/* Override Mantine's dark-scheme dimmed text color (default = dark-2 = #828282,
+   too low contrast on teal-tinted dark theme). Closer to iOS secondary label.
+
+   Mantine sets this on multiple selectors at the same specificity (sometimes
+   inline on <html>), so we cover :root, html attribute, and the data-attribute
+   selector PLUS use !important on the custom property to win the cascade. */
+:root,
+html[data-mantine-color-scheme='dark'],
+[data-mantine-color-scheme='dark'] {
+  --mantine-color-dimmed: rgba(235, 240, 245, 0.7) !important;
+  --mantine-color-placeholder: rgba(235, 240, 245, 0.55) !important;
 }
 
 @media (display-mode: standalone) {
@@ -34,6 +64,46 @@ body {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+
+  /* Aurora teal — multi-layer radial glow scattered down the page over a
+     teal-tinted dark base. The glows are positioned at different vertical
+     anchors and slightly offset horizontally so the page reads as "ambient
+     teal light" rather than a single bright spot at the top. With
+     background-attachment: fixed they stay anchored to the viewport, so as
+     the user scrolls, cards naturally pass over different glow regions.
+
+       Layer 1: bright teal haze at top center
+       Layer 2: secondary glow upper-right (mid viewport)
+       Layer 3: lower-left glow near bottom of viewport
+       Layer 4: deep-teal vertical base gradient */
+  background:
+    radial-gradient(
+      ellipse 85% 50% at 50% -4%,
+      rgba(0, 200, 220, 0.38) 0%,
+      rgba(0, 121, 140, 0.16) 38%,
+      rgba(0, 121, 140, 0) 75%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 88% 45%,
+      rgba(0, 180, 210, 0.22) 0%,
+      rgba(0, 121, 140, 0.08) 45%,
+      rgba(0, 121, 140, 0) 75%
+    ),
+    radial-gradient(
+      ellipse 70% 45% at 12% 95%,
+      rgba(0, 200, 220, 0.22) 0%,
+      rgba(0, 121, 140, 0.08) 45%,
+      rgba(0, 121, 140, 0) 75%
+    ),
+    linear-gradient(
+      180deg,
+      #1f3a3f 0%,
+      #173034 35%,
+      #122529 70%,
+      #0e1d20 100%
+    );
+  background-attachment: fixed;
+  background-color: #0e1d20;
 }
 
 input,
@@ -72,4 +142,195 @@ a {
   .reorder-grip {
     display: none !important;
   }
+}
+
+/* ---- Filled CTAs use the metallic bronze gradient ----
+
+   Applies to Mantine Button and ActionIcon when variant="filled" AND the button
+   uses the default (accent) color. Buttons with explicit `color="red"` etc.
+   carry a `data-color` attribute and are excluded so destructive Delete /
+   Logout buttons keep their explicit semantic color. */
+
+/* Button: covers both explicit variant="filled" AND the Mantine default
+   (when no variant prop is set, Mantine doesn't add data-variant but the
+   visual default is "filled"). Force white text — Mantine computes
+   contrast automatically from --button-bg but doesn't know we swapped to
+   a gradient, so it might pick dark text on light gold otherwise. */
+.mantine-Button-root[data-variant='filled']:not([data-color]),
+.mantine-Button-root:not([data-variant]):not([data-color]) {
+  background: var(--bundy-accent-gradient);
+  border: none;
+  color: white !important;
+}
+
+.mantine-ActionIcon-root[data-variant='filled']:not([data-color]),
+.mantine-ActionIcon-root:not([data-variant]):not([data-color]) {
+  background: var(--bundy-accent-gradient);
+  border: none;
+  color: white !important;
+}
+
+/* Disabled subtle ActionIcon (e.g. chevron next-month button when already on
+   current month) — Mantine applies a dark gray bg by default which clashes
+   with the new theme. Force transparent + reduced opacity instead. */
+.mantine-ActionIcon-root[data-variant='subtle']:disabled,
+.mantine-ActionIcon-root[data-variant='subtle'][data-disabled] {
+  background: transparent !important;
+  border: none !important;
+  opacity: 0.35;
+}
+
+/* Switch: no border in any state (cleaner against glass cards). */
+.mantine-Switch-track {
+  border: none;
+}
+
+/* Recharts bar charts (used inside Mantine BarChart): force the bronze gradient
+   on every bar via the SVG def in <GradientDefs>. Targets only bar rectangles —
+   pie/donut sectors keep their per-slice category colors. */
+.recharts-bar-rectangle path,
+.recharts-rectangle.recharts-bar-rectangle {
+  fill: url(#bundy-bronze-vertical) !important;
+}
+
+/* ---- Form inputs ----
+
+   All Mantine input fields (TextInput, NumberInput, PasswordInput, Select,
+   MultiSelect, Autocomplete, Textarea, DatePickerInput…) share the
+   .mantine-Input-input class. Single rule restyles all of them.
+
+   Style: subtle white-tinted inset surface that contrasts the glass card it
+   sits on. Bronze accent border + soft glow on focus. */
+
+/* Restyle every Mantine input EXCEPT variant="unstyled" — those are used
+   intentionally borderless/transparent (e.g. month picker title button on
+   ExpensesListPage / AnalyticsPage) and shouldn't get the inset glass surface. */
+.mantine-Input-input:not([data-variant='unstyled']) {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+/* Mantine drives placeholder color via the --mantine-color-placeholder var.
+   Override both the var (for components that read it) AND the ::placeholder
+   pseudo with !important to win against inline / utility styles. */
+.mantine-Input-input::placeholder,
+.mantine-Input-input::-webkit-input-placeholder {
+  color: rgba(235, 240, 245, 0.55) !important;
+  opacity: 1 !important;
+}
+
+.mantine-Input-input:not([data-variant='unstyled']):hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mantine-Input-input:not([data-variant='unstyled']):focus,
+.mantine-Input-input:not([data-variant='unstyled']):focus-within,
+.mantine-Input-input:not([data-variant='unstyled'])[data-focus] {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(var(--bundy-accent-rgb), 0.7);
+  box-shadow: 0 0 0 3px rgba(var(--bundy-accent-rgb), 0.18);
+  outline: none;
+}
+
+.mantine-Input-input:not([data-variant='unstyled'])[data-error] {
+  border-color: var(--mantine-color-red-5);
+}
+
+/* Disabled state: muted. */
+.mantine-Input-input:disabled,
+.mantine-Input-input[data-disabled] {
+  opacity: 0.55;
+}
+
+/* Select / MultiSelect / Autocomplete dropdown options panel — give it the
+   same glass treatment as cards but more opaque (must be readable when it
+   pops over arbitrary content). */
+.mantine-Select-dropdown,
+.mantine-Autocomplete-dropdown,
+.mantine-MultiSelect-dropdown,
+.mantine-Combobox-dropdown {
+  background: rgba(20, 32, 38, 0.92);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+}
+
+/* Highlighted (hovered/active) option in the dropdown picks up bronze tint. */
+.mantine-Combobox-option[data-combobox-selected],
+.mantine-Combobox-option[data-combobox-active] {
+  background: rgba(var(--bundy-accent-rgb), 0.18);
+}
+
+.mantine-Combobox-option:hover:not([data-combobox-disabled]) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* SegmentedControl — make the active pill use the bronze gradient. */
+.mantine-SegmentedControl-root {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mantine-SegmentedControl-indicator {
+  background: var(--bundy-accent-gradient) !important;
+}
+
+.mantine-SegmentedControl-label[data-active] {
+  color: white;
+}
+
+/* Modal — content gets the same glass treatment as cards. Header background
+   is wiped (it inherits Mantine's default dark gray which doesn't match the
+   theme); the title + close button float over the unified surface. */
+.mantine-Modal-content,
+.mantine-Modal-inner > .mantine-Modal-content {
+  background: rgba(20, 32, 38, 0.95) !important;
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mantine-Modal-header {
+  background: transparent !important;
+}
+
+/* Switch in checked state — track picks up the bronze gradient. Keeps
+   semantic-colored switches (color="red" etc.) intact via :not([data-color]). */
+.mantine-Switch-track[data-checked]:not([data-color]),
+.mantine-Switch-input:checked + .mantine-Switch-track:not([data-color]) {
+  background: var(--bundy-accent-gradient);
+}
+
+/* ---- Glass tile cards ----
+
+   Apply globally to every Mantine Paper. Semi-transparent teal-tinted surface
+   + backdrop blur lets the body aurora bg show through subtly so cards feel
+   "floating" rather than pasted on. Border is a hairline alpha so the edge
+   reads but doesn't overpower the glass effect.
+
+   Excludes:
+     - .mantine-Menu-dropdown / Tooltip / Notification — these need opaque bg
+       to remain readable when they appear over arbitrary content.
+     - .bottom-nav — has its own glass treatment in BottomNav.module.css. */
+
+.mantine-Paper-root:not(.mantine-Menu-dropdown):not(.mantine-Tooltip-tooltip):not(.mantine-Notification-root):not(.bottom-nav) {
+  background: rgba(20, 32, 38, 0.55);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.3);
+  /* Pull radius up close to the BottomNav's 28px so cards + nav read as the
+     same family. Using 24px instead of matching exactly because cards are
+     usually narrower / shorter than the nav, and at 28px small cards start
+     looking like pills. */
+  border-radius: 24px;
+  /* Standardize horizontal padding to md (16px) regardless of what the call-site
+     sets via p="sm". Vertical padding stays whatever the call-site chose so
+     compact rows can still be shorter than full cards. */
+  padding-left: var(--mantine-spacing-md) !important;
+  padding-right: var(--mantine-spacing-md) !important;
 }

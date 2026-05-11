@@ -100,26 +100,21 @@ function ActiveBudgetCard({ budget }: { budget: Budget }) {
 
   return (
     <UnstyledButton onClick={() => navigate(`/budgets/${budget.id}/edit`)} w="100%">
-      <Paper
-        withBorder
-        radius="md"
-        p="md"
-        style={{ borderColor: 'var(--mantine-primary-color-filled)' }}
-      >
+      <Paper withBorder radius="md" p="md">
         <Group gap="sm" wrap="nowrap" mb="xs">
           <Box
             style={{
               width: 32,
               height: 32,
               borderRadius: 10,
-              background: 'var(--mantine-primary-color-light)',
-              color: 'var(--mantine-primary-color-filled)',
+              background: 'var(--bundy-accent-gradient)',
+              color: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <IconWallet size={18} stroke={2} />
+            <IconWallet size={18} stroke={2.2} />
           </Box>
           <Box flex={1} miw={0}>
             <Text fw={600} truncate>
