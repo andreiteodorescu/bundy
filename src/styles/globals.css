@@ -65,17 +65,24 @@ body {
   -webkit-user-select: none;
   user-select: none;
 
-  /* Aurora teal — multi-layer radial glow scattered down the page over a
-     teal-tinted dark base. The glows are positioned at different vertical
-     anchors and slightly offset horizontally so the page reads as "ambient
-     teal light" rather than a single bright spot at the top. With
-     background-attachment: fixed they stay anchored to the viewport, so as
-     the user scrolls, cards naturally pass over different glow regions.
+  /* Solid fallback color in case the ::before pseudo doesn't render
+     (rare, but cheap insurance). */
+  background-color: #0e1d20;
+}
 
-       Layer 1: bright teal haze at top center
-       Layer 2: secondary glow upper-right (mid viewport)
-       Layer 3: lower-left glow near bottom of viewport
-       Layer 4: deep-teal vertical base gradient */
+/* Aurora teal — multi-layer radial glow scattered over a teal-tinted dark
+   base. Rendered as a fixed-positioned pseudo-element (NOT
+   background-attachment: fixed on body), because iOS Safari has long-standing
+   rendering bugs combining background-attachment: fixed with backdrop-filter:
+   scrolling / transitions leave painting artifacts at viewport edges,
+   especially in PWA standalone mode. A fixed-positioned ::before layer
+   composes correctly because Safari treats it as a normal positioned element. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(
       ellipse 85% 50% at 50% -4%,
@@ -102,8 +109,6 @@ body {
       #122529 70%,
       #0e1d20 100%
     );
-  background-attachment: fixed;
-  background-color: #0e1d20;
 }
 
 input,
