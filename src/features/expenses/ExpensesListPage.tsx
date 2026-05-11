@@ -100,13 +100,9 @@ export function ExpensesListPage() {
         })
         .slice()
         .sort((a, b) => {
-          // Primary: by date asc (oldest day first within the week).
           const dateCmp = a.occurred_on.localeCompare(b.occurred_on);
           if (dateCmp !== 0) return dateCmp;
-          // Tie-break for same-day entries: created_at desc (most recently
-          // added shows first), so when you add an expense for today it
-          // appears on top of older same-day entries.
-          return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+          return (a.created_at ?? '').localeCompare(b.created_at ?? '');
         });
       const total = items.reduce((sum, e) => sum + Number(e.amount_ron), 0);
       return { week: w, items, total };

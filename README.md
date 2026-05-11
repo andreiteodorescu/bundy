@@ -1,6 +1,6 @@
 # Bundy
 
-Personal expense & budget tracking PWA. Mobile-first, dark mode, free hosting (Vercel + Supabase), no Google indexing.
+Personal expense & budget tracking PWA. Mobile-first, dark mode, bilingv RO/EN, free hosting (Vercel + Supabase), no Google indexing.
 
 Domain: **bundy.ro**
 
@@ -28,6 +28,9 @@ Domain: **bundy.ro**
 | FX rates | BNR proxy via `api/fx.ts` | EUR/USD → RON, cached în `fx_rates` |
 | Cron server-side | Vercel Cron (daily) | Generator subs/loans pentru când userul nu deschide app-ul |
 | Captcha | hCaptcha | Anti-bot pe signup/login/forgot |
+| i18n | `react-i18next` | RO-first cu fallback EN, switch în Settings, locale persistat în profil |
+| Export | `jsPDF` + `jspdf-autotable` (lazy) | PDF/CSV export pe ExpensesListPage, code-split (~420KB lazy chunk) |
+| DB backup | GitHub Actions + Supabase CLI | Cron daily la 02:00 UTC, schema + data dump gzipped commited în repo |
 
 ---
 
@@ -43,9 +46,10 @@ src/
   features/
     auth/                     SignupPage, LoginPage, ForgotPasswordPage, ResetPasswordPage, AuthProvider, bootstrap RPC
     home/                     HomePage cu acțiuni stagger-animate + total widget (personal + cont firmă) + ActiveBudgetBanner
-    expenses/                 List, AddExpense form (cu autocomplete + FX preview live), API hooks
+    expenses/                 List (grupate pe săptămâni, sortate cronologic în zi), AddExpense form, exportExpenses (PDF/CSV lazy), API hooks
     categories/               List + reorder, Category/Subcategory forms
-    subscriptions/            List cu total RON, Form (cu BrandPicker + FX preview), generator client-pull
+    subscriptions/            "Cheltuieli recurente": List cu total RON, Form cu 7 cadențe (daily/weekly/biweekly/monthly/quarterly/semiannual/yearly), generator client-pull
+    feedback/                 Pagina Suport — bug reports + feature requests + voting + in-app notifications la status change
     loans/                    Rate (împrumuturi bancare): List, Form, generator (sursă='loan')
     savings/                  Economii: List cu filtre + paginare + widget total în EUR, Form cu FX preview, autocomplete cont
     investments/              Investiții: List cu breakdown per instrument_type, Form cu FX preview, autocomplete broker
@@ -54,18 +58,24 @@ src/
     predefined-expenses/      Templates preț VARIABIL cu tap-to-prefill (Freshful, Bolt), reorder + edit pencil
     budgets/                  List, Form cu calendar custom, ProgressBar, ActiveBudgetBanner, ArchivePage cu filtre + paginare
     analytics/                Page cu trend lunar/săptămânal, donut, top subcategorii, FILTRU pe categorie/subcategorie
-    settings/                 SettingsPage (avatar, parolă, PIN TTL, șterge cont) + MorePage drawer (cu "Reîncarcă aplicația" în PWA)
+    settings/                 SettingsPage (avatar, parolă, PIN TTL, limbă RO/EN, toggle "Card de firmă", șterge cont) + MorePage drawer
     search/                   Spotlight-style search peste cheltuieli (pg_trgm GIN)
     hidden-expenses/          PIN-gate page pentru cheltuieli ascunse
     admin/                    Admin dashboard (vezi useri, ban, șterge, reset parolă)
   components/
-    BottomNav                 5-slot mobile nav (Acasă · Cheltuieli · (+) FAB · Analytics · Mai mult)
+    BottomNav                 5-slot mobile nav (Acasă · Cheltuieli · (+) FAB · Analytics · Mai mult) — floating pill capsule cu magnetic ball indicator gradient bronze
+    GradientDefs              SVG <linearGradient> defs (id="bundy-bronze-vertical") montat în App pentru fill-ul Recharts bars
     BrandTile                 Tile-rendered logo pentru subscripție/cheltuială recurrentă
     BrandGlyph                Componenta de randare unificată (path inline din simple-icons sau <img> static)
     BrandPicker               Grid picker pentru selectare manuală logo brand (cu search + Auto)
     AnimalIconPicker          Picker de animal-avatar pentru profil
+    LanguageSwitcher          Toggle RO/EN în Settings (persistă în profile.locale + i18n.changeLanguage)
     CaptchaGate               Wrapper hCaptcha (no-op în dev fără env var)
     ColorPicker, IconPicker, SwUpdatePrompt, AppShellLayout
+  i18n/
+    index.ts                  react-i18next setup cu RO-first fallback EN
+    locales/ro.json en.json   Toate string-urile aplicației (~400 keys), cu plural forms
+    displayName.ts            categoryDisplayName/subcategoryDisplayName (traduce is_system, păstrează custom)
   lib/
     supabase.ts               createClient + custom storage adapter (localStorage + IndexedDB)
     queryClient.ts            TanStack Query config
@@ -85,7 +95,7 @@ src/
     brandLogos.ts             24 brand-uri (13 simple-icons + 13 static) cu auto-detect prin regex
     icons.registry.ts         Subset curat ~70 Tabler icons
     banks.ts                  ~20 bănci RO pentru autocomplete în Loan form
-  styles/                     theme.ts (Mantine), globals.css (safe-area-inset + .reorder-grip @media)
+  styles/                     theme.ts (Mantine + bronze accent palette base #cc9429), globals.css (body Aurora teal bg via body::before fixed, glass cards backdrop-filter, bronze gradient pe Buttons/ActionIcons/Switch/SegmentedControl, safe-area-inset)
   types/                      TS types (Expense, Budget, Category, Subscription, Loan, ...)
 public/
   brands/                     Static brand assets pentru cele care nu există în simple-icons (linkedin, openai, disney-plus,
@@ -121,6 +131,13 @@ supabase/
     0024_accountant_to_work_business.sql  Mută Contabil din Finanțe în Work & Business + adaugă work-taxes
     0025_company_card_tag.sql Redenumește work-reimbursable → company-card + adaugă tags col pe template tables
     0026_savings_investments.sql Tabele noi savings_transactions + investment_transactions cu RLS, migrare expense-urilor existente pe Finance > Savings/Investments în noile tabele, drop subcategoriile
+    0027_budgets_sort_order.sql  budgets.sort_order + reorder hook (DnD pe BudgetsListPage)
+    0028_company_card_setting.sql profiles.company_card_enabled bool (grandfather: TRUE pentru profile cu date taggate company-card)
+    0029_feedback.sql            feedback + feedback_votes + feedback_notifications + triggers (votes_count auto, status-change notification) + RLS via is_admin()
+    0030_extended_cadences.sql   subscriptions cadence CHECK extins: daily/weekly/biweekly/monthly/quarterly/semiannual/yearly
+.github/
+  workflows/
+    db-backup.yml               Cron daily 02:00 UTC: schema + data dump via supabase CLI prin Session pooler, gzip, commit în repo (30-day retention)
 scripts/
   historical-data.ts          ~180 cheltuieli Feb/Mar/Apr 2026 (input user)
   seed-historical.ts          Inserare backfill (folosește service role key)
@@ -139,7 +156,7 @@ vercel.json                   X-Robots-Tag noindex + cron config /api/cron/gener
    - **Project URL** (NU "REST API URL")
    - **anon public** key
    - **service_role** key (secret, doar pentru `api/fx.ts`, `api/cron/generate-recurring.ts` și `scripts/seed-historical.ts`)
-3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0026_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
+3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0030_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
 4. Authentication → Providers → Email → **Enable Sign Ups: ON** (oricine cu URL-ul `bundy.ro` poate crea cont; verificarea email e obligatorie din default).
 5. Authentication → URL Configuration:
    - **Site URL**: `https://bundy.ro` (prod) sau `http://localhost:5173` (dev)
@@ -346,16 +363,89 @@ PWA-ul standalone n-are URL bar deci utilizatorul nu poate face Cmd+R. Soluția:
 
 Folosit în `ExpensesListPage` pentru gruparea cheltuielilor și în `AnalyticsPage` pentru bar chart-ul săptămânal.
 
+### i18n bilingv RO/EN
+- `react-i18next` cu RO ca limbă default + fallback EN. Toate string-urile aplicației sunt în `src/i18n/locales/{ro,en}.json` (~400 keys).
+- **Detectare la primul login**: `navigator.language.startsWith('ro')` → RO; altfel EN. Persistat în `profiles.locale` și sincronizat cu `i18n.changeLanguage()` la load.
+- **Switch la run-time**: Settings → "Limbă" → SegmentedControl RO/EN → updatează profilul + se reflectă instant fără reload (`<Trans>` și `t()` reactive prin `useTranslation`).
+- **Display name pentru categorii is_system**: `categoryDisplayName(category, t)` în `src/i18n/displayName.ts` traduce numele când `category.is_system === true`, altfel returnează `category.name` (custom user). Funcționează pentru categorii și subcategorii — folosit peste tot unde afișăm un nume seedat.
+- **Formatare RO**: dayjs cu locale `ro`, currency `ro-RO` pentru `formatMoney` indiferent de limba UI (sumele de bani arată mereu cu virgula românească).
+
+### Feedback / Suport in-app
+**Pagină**: "Mai mult" → "Suport" → `/feedback`. Userul poate:
+- Submita bug reports sau feature requests (textarea + select type).
+- Vota propunerile existente cu thumbs-up (max 1 vot/user/item).
+- Vedea statusul actual: `submitted`, `in_review`, `planned`, `in_progress`, `done`, `rejected`.
+
+**Notifications**: când admin-ul schimbă status-ul unui feedback, trigger-ul `feedback_notify_on_status_change` (migrația 0029) inserează un rând în `feedback_notifications` pentru autorul feedback-ului. Badge-ul roșu pe link-ul Suport din "Mai mult" arată count-ul de notificări necitite (`useUnreadFeedbackCount`). Click pe item în pagina Suport → marcat citit.
+
+**RLS**: pe `feedback` și `feedback_votes` policy `select using (true)` (toți userii văd toate propunerile pentru voting); insert/update doar pe owner sau admin. Admin determinat prin `is_admin()` (migrația 0017).
+
+### Export PDF / CSV pentru cheltuieli
+ExpensesListPage → Menu icon (sus-dreapta) → "Exportă PDF" sau "Exportă CSV". Filtrul curent (categorie/subcategorie/lună) se aplică automat la export.
+
+**PDF**: tabel formatat cu `jspdf-autotable`, header cu titlu/perioadă/total, una row per cheltuială (data, nume, categorie, sumă, sumă RON). Antet bronze accent #cc9429.
+
+**CSV**: 1 cheltuială per linie, cu coloane: data, nume, categorie, subcategorie, sumă, monedă, sumă RON, tags. UTF-8 BOM la început ca să se deschidă corect în Excel cu diacritice.
+
+**Code-splitting**: `jsPDF` + `jspdf-autotable` se import-uiesc dinamic (`await import('jspdf')`) doar la click pe export. Astfel chunk-ul `ExpensesListPage` rămâne la ~11.6KB (de la 432KB înainte de lazy).
+
+### Daily DB backup via GitHub Actions
+Workflow `.github/workflows/db-backup.yml` rulează zilnic la 02:00 UTC (+ manual trigger):
+1. Setup supabase CLI.
+2. **Pass 1**: `supabase db dump --schema public > schema.sql` (DDL: tables, columns, indexes, RLS policies, triggers, functions).
+3. **Pass 2**: `supabase db dump --data-only > data.sql` (INSERTs pentru toate row-urile).
+4. Concatenare `schema.sql + data.sql` → gzip → commit în `backups/YYYY-MM-DD.sql.gz` în repo.
+5. Cleanup: șterge backup-uri mai vechi de 30 zile pe push-ul commit-ului.
+
+**Secret necesar**: `SUPABASE_DB_URL` în GitHub repo secrets, format Session pooler (port 5432, host `aws-0-eu-central-1.pooler.supabase.com`). Direct connection (db.xxxxx.supabase.co) **nu funcționează** pe GitHub Actions — Supabase direct connection e IPv6-only iar GitHub runners n-au IPv6. Session pooler e IPv4.
+
+**Restore**: descarcă `.sql.gz` → `gunzip` → rulează în Supabase SQL Editor sau prin `psql`.
+
+### "Card de firmă" — toggle în Settings
+Switch în Settings → "Funcționalități" → "Card de firmă" (`profiles.company_card_enabled`):
+- **ON**: apar peste tot switch-urile "Plătit cu cardul firmei" pe forms + Total separat pe HomePage/ExpensesListPage/AnalyticsPage + badge "firmă" pe rânduri + excludere automată din total personal.
+- **OFF**: UI-ul ascunde toate aspectele company-card; cheltuielile rămân în DB cu tag-ul, dar nu mai sunt tratate separat în UI.
+- **Grandfathering**: migrația 0028 setează `company_card_enabled = true` pentru profilele care au deja date taggate company-card (subscriptions, fixed_expenses, expenses, etc.). Profiluri noi: OFF default; switch în Settings activează feature-ul.
+
+**Confirm modal la disable**: dacă userul are deja cheltuieli cu tag-ul company-card, primește o confirmare ("X cheltuieli vor fi tratate ca personale dacă dezactivezi") înainte de toggle OFF.
+
+### Cadențe extinse pe cheltuieli recurente
+Subscripția (acum "Cheltuieli recurente") suportă 7 cadențe (migrația 0030):
+- **daily** — în fiecare zi (ex: parcare birou). Charge day forțat la 1.
+- **weekly** — săptămânal pe weekday selectat (Mon-Sun).
+- **biweekly** — la 14 zile, anchored pe prima ocurență a `start_date`'s weekday.
+- **monthly** — în fiecare lună pe ziua selectată (1-31, clamp la sfârșit lună pentru 31).
+- **quarterly** — la 3 luni, anchored pe `start_date.month % 3`.
+- **semiannual** — la 6 luni, anchored pe `start_date.month % 6`.
+- **yearly** — anual pe lună+zi specifice.
+
+Form-ul afișează input-urile potrivite în funcție de cadență (daily ascunde charge_day; weekly/biweekly arată weekday picker; monthly/quarterly/semiannual arată day-of-month; yearly arată day+month).
+
+**Echivalent lunar** pentru raportare (`monthlyEquivalent` în `SubscriptionsListPage.tsx`): daily × 30.44, weekly × 4.345, biweekly × 2.17, quarterly ÷ 3, semiannual ÷ 6, yearly ÷ 12.
+
+Generator dual (client + server) updatat cu logica pentru toate 7 cadențele. Idempotent prin partial unique index.
+
+### Sortare cheltuieli pe săptămâni
+ExpensesListPage grupează pe săptămâni iso (Mon-start, regula aprilie) și sortează:
+- **Primary**: `occurred_on` ASC (ziua cea mai veche prima în săptămână).
+- **Tiebreak în aceeași zi**: `created_at` ASC (cheltuiala adăugată ultima apare jos, în ordinea introducerii).
+
+### Design system — bronze accent + glass cards + floating nav
+- **Bronze accent** ca culoare principală: `--bundy-accent-gradient: linear-gradient(180deg, #daad3f, #cc9429, #a07820)`. Aplicat peste: BottomNav magnetic ball indicator + FAB (radial-gradient cu highlight la 35%/28%), filled Buttons, filled ActionIcons (cu `color: white !important` pentru contrast), Switch track când checked, SegmentedControl indicator activ, BudgetProgressBar când `color === 'accent'`, ActiveBudgetBanner dots, bar fill în Recharts via SVG `<linearGradient id="bundy-bronze-vertical">`.
+- **Glass cards**: toate Paper-urile au `background: rgba(20, 32, 38, 0.55) + backdrop-filter: saturate(160%) blur(18px) + border 1px hairline + border-radius 24px`. Exclude Menu dropdowns, Tooltips, Notifications și BottomNav.
+- **Body Aurora gradient**: gradient teal în jurul `#00798C` aplicat prin `body::before { position: fixed; inset: 0; z-index: -1 }`. Pseudo-element fix evită bug-ul iOS Safari PWA cu `background-attachment: fixed` care creează artifacts de rendering la scroll.
+- **Floating BottomNav**: capsule pill cu `border-radius: 999px` (> 500px viewport), magnetic ball indicator calculat cu `useLayoutEffect` și animat cu spring physics cubic-bezier. Sub 440px text-ul tab-urilor se ascunde.
+- **iOS scroll fix pe sortable lists**: `touch-action: none` aplicat DOAR pe grip ActionIcon (elementul cu `{...listeners}` spread de la dnd-kit), nu pe Paper-ul rândului. Așa scroll-ul vertical pe body funcționează nativ pe iOS / mobile.
+
 ### DnD reorder pe template-uri
 `@dnd-kit/sortable` cu `PointerSensor` (`activationConstraint: { distance: 6 }`) pe:
 - Categories (CategoriesListPage)
 - Quick expenses (QuickExpensesListPage)
 - Predefined expenses (PredefinedExpensesListPage)
 - Fixed expenses (FixedExpensesListPage)
+- Budgets (BudgetsListPage)
 
 Drop → `useReorder*.mutate(idsArray)` care updatează `sort_order = index` în Supabase paralel.
-
-**Hide grip ≤ 360px**: pe ecrane foarte mici, grip handle-ul e ascuns prin `.reorder-grip { display: none }` în `globals.css` ca să facă loc la celelalte funcționalități. Reorder rămâne disponibil pe tablet/desktop.
 
 ### Economii & Investiții (decuplate de cheltuieli)
 Banii puși deoparte într-un depozit / vault / fond de pensii / ETF nu sunt cheltuieli — sunt **transferuri între conturi sau clase de active**. Tracking-ul lor ca expense umfla totalul personal. Soluția: 2 tabele dedicate, în secțiune separată din "Mai mult".
@@ -581,3 +671,7 @@ Bug deja reparat: când e activ filtrul pe categorie/subcategorie, excluderea co
 - **Budgets archive după 7 zile**: lista principală curată; bugetele expirate utile pentru context istoric, dar nu trebuie să le vezi mereu.
 - **Economii & Investiții ca secțiune separată, nu subcategorii** de Finanțe: depozitele și investițiile sunt transferuri între active, nu consum. Le ținem în tabele dedicate (`savings_transactions`, `investment_transactions`) cu propria UX (direction in/out, breakdown per cont/instrument). Așa totalul de cheltuieli reflectă strict bani consumați, iar economiile/investițiile au tracking propriu cu vizibilitate în EUR.
 - **Sumare nativă în EUR pentru economii**, nu round-trip prin RON: `amount_ron` salvat la cursul istoric e ireconciliabil când vrei totalul curent în EUR. Sumăm direct în moneda țintă (EUR pentru savings, RON pentru investments) ca să eliminăm pierderea de precizie din conversie dublă (EUR → RON@istoric → EUR@azi).
+- **i18n cu RO ca default** și fallback EN: limba primară a userului-țintă e română, dar EN deschide aplicația pentru demo / screenshots / portfolio. Categoriile is_system se traduc prin lookup pe slug (nu pe `name` direct) ca să respectăm și customizările locale ale userului (un user care a redenumit categoria în UI vede numele lui, nu traducerea).
+- **Glass blur acceptat pe carduri**: backdrop-filter saturate(160%) blur(18px) e expensive pe compositor dar visual diferențiază aplicația semnificativ. Risk-ul de sacadare a fost mitigat prin (1) fixarea body gradient într-un `body::before` pseudo-element, (2) `touch-action: none` izolat pe grip handle-uri (nu pe Paper) ca să elibereze main thread la scroll. Dacă reapare lag, se scoate.
+- **PDF/CSV export prin lazy import**: `jsPDF` + `jspdf-autotable` sunt heavy (~420KB combined). Userul folosește export poate o dată pe lună, deci nu plătim cost-ul în initial bundle — `await import('jspdf')` la click.
+- **DB backup în GitHub Actions, NU în Supabase Pro paid backups**: free tier-ul Supabase nu include backup-uri automate descărcabile. Workflow-ul cron daily oferă același rezultat (gzipped SQL în repo) cu zero cost. Session pooler pentru IPv4 connectivity din GitHub runners.
