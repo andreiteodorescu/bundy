@@ -1,9 +1,12 @@
 import dayjs from 'dayjs';
 import type { Budget } from '@/types';
 
+export type BudgetStatusKind = 'active' | 'warning' | 'exceeded' | 'achieved' | 'upcoming';
+
 export type BudgetStatus = {
-  kind: 'active' | 'warning' | 'exceeded' | 'achieved' | 'upcoming';
-  label: string;
+  kind: BudgetStatusKind;
+  /** i18n key under `budgets.status.*` for the human-readable label. */
+  labelKey: string;
   color: 'accent' | 'orange' | 'red' | 'green' | 'gray';
 };
 
@@ -28,20 +31,20 @@ export function computeBudgetStatus(budget: Budget, spent: number): BudgetStatus
   const notStarted = today < (budget.selected_days?.length ? budget.selected_days[0] : start);
 
   if (notStarted) {
-    return { kind: 'upcoming', label: 'Următor', color: 'gray' };
+    return { kind: 'upcoming', labelKey: 'budgets.status.upcoming', color: 'gray' };
   }
 
   if (spent > amount) {
-    return { kind: 'exceeded', label: 'Depășit', color: 'red' };
+    return { kind: 'exceeded', labelKey: 'budgets.status.exceeded', color: 'red' };
   }
 
   if (finished) {
-    return { kind: 'achieved', label: 'Atins', color: 'green' };
+    return { kind: 'achieved', labelKey: 'budgets.status.completed', color: 'green' };
   }
 
   if (inPeriod && amount > 0 && spent >= amount * 0.9) {
-    return { kind: 'warning', label: 'Aproape', color: 'orange' };
+    return { kind: 'warning', labelKey: 'budgets.status.near', color: 'orange' };
   }
 
-  return { kind: 'active', label: 'Activ', color: 'accent' };
+  return { kind: 'active', labelKey: 'budgets.status.active', color: 'accent' };
 }

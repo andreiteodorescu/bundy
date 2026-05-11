@@ -14,23 +14,19 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconArrowLeft, IconPin, IconPlus } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useCategories } from '@/features/categories/api';
 import { useUpsertExpense } from '@/features/expenses/api';
 import { todayIso } from '@/lib/dates';
 import { formatMoney, formatRon } from '@/lib/money';
 import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
+import { categoryDisplayName } from '@/i18n/displayName';
 import { useFixedExpenses } from './api';
 import type { FixedExpense } from '@/types';
 
-/**
- * Quick-add page for fixed-expense templates. Reachable from the "Cheltuială fixă" card
- * on the home page. Tapping a template inserts an expense for today using the template's
- * amount and category — one tap, no form.
- *
- * Empty state nudges the user to create their first template.
- */
 export function FixedExpensesPrePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const fixed = useFixedExpenses();
   const cats = useCategories();
@@ -51,11 +47,15 @@ export function FixedExpensesPrePage() {
         source_ref_id: fx.id,
         tags: fx.tags ?? [],
       });
-      notifications.show({ message: `${fx.name} adăugat`, color: 'green', autoClose: 1600 });
+      notifications.show({
+        message: t('templates.fixed.added', { name: fx.name }),
+        color: 'green',
+        autoClose: 1600,
+      });
       navigate('/expenses');
     } catch (err) {
       notifications.show({
-        message: err instanceof Error ? err.message : 'Eroare',
+        message: err instanceof Error ? err.message : t('templates.fixed.addedError'),
         color: 'red',
       });
     }
@@ -72,21 +72,21 @@ export function FixedExpensesPrePage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/home')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
           <Button
             size="compact-sm"
             leftSection={<IconPlus size={16} />}
             onClick={() => navigate('/fixed-expenses/new')}
           >
-            Șablon nou
+            {t('templates.fixed.newButton')}
           </Button>
         </Group>
 
         <Box>
-          <Title order={2}>Cheltuială fixă</Title>
+          <Title order={2}>{t('templates.fixed.preTitle')}</Title>
           <Text size="sm" c="dimmed">
-            Tap pe un șablon pentru a adăuga cheltuiala instant pe ziua de azi.
+            {t('templates.fixed.preHint')}
           </Text>
         </Box>
 
@@ -98,14 +98,14 @@ export function FixedExpensesPrePage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconPin size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun șablon fix definit</Text>
+              <Text c="dimmed">{t('templates.fixed.emptyPre')}</Text>
               <Button
                 size="sm"
                 variant="light"
                 onClick={() => navigate('/fixed-expenses/new')}
                 leftSection={<IconPlus size={16} />}
               >
-                Adaugă primul
+                {t('templates.addFirst')}
               </Button>
             </Stack>
           </Center>
@@ -118,6 +118,7 @@ export function FixedExpensesPrePage() {
               const rate = fxRates.rateOf(fx.currency);
               const showRon = fx.currency !== 'RON' && rate !== null;
               const amountRon = showRon ? Number(fx.amount) * rate : null;
+              const categoryName = category ? categoryDisplayName(category, t) : t('templates.noCategory');
               return (
                 <UnstyledButton key={fx.id} onClick={() => quickAdd(fx)} disabled={upsert.isPending}>
                   <Paper withBorder radius="md" p="md">
@@ -142,7 +143,7 @@ export function FixedExpensesPrePage() {
                           {fx.name}
                         </Text>
                         <Text size="xs" c="dimmed">
-                          {category?.name ?? 'Fără categorie'}
+                          {categoryName}
                         </Text>
                       </Box>
                       <Box ta="right">

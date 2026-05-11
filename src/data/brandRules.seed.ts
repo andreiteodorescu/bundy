@@ -195,4 +195,104 @@ export const seedBrandRules: SeedRule[] = [
   { pattern: 'impozit',      category_slug: 'work-business', subcategory_slug: 'work-taxes' },
   { pattern: 'dividende',    category_slug: 'work-business', subcategory_slug: 'work-taxes' },
   { pattern: 'anaf',         category_slug: 'work-business', subcategory_slug: 'work-taxes' },
+
+  // ---------- English patterns (alongside RO above) ----------
+  // Food & Drinks
+  { pattern: 'groceries',    category_slug: 'food-drinks', subcategory_slug: 'groceries' },
+  { pattern: 'supermarket',  category_slug: 'food-drinks', subcategory_slug: 'groceries' },
+  { pattern: 'restaurant',   category_slug: 'food-drinks', subcategory_slug: 'eating-out' },
+  { pattern: 'dining',       category_slug: 'food-drinks', subcategory_slug: 'eating-out' },
+  { pattern: 'lunch',        category_slug: 'food-drinks', subcategory_slug: 'eating-out' },
+  { pattern: 'dinner',       category_slug: 'food-drinks', subcategory_slug: 'eating-out' },
+  { pattern: 'coffee',       category_slug: 'food-drinks', subcategory_slug: 'eating-out' },
+  { pattern: 'beer',         category_slug: 'food-drinks', subcategory_slug: 'drinks' },
+  { pattern: 'wine',         category_slug: 'food-drinks', subcategory_slug: 'drinks' },
+
+  // Transport
+  { pattern: 'subway ticket', category_slug: 'transport-car', subcategory_slug: 'public-transport-metro', priority: 5 },
+  { pattern: 'subway',       category_slug: 'transport-car', subcategory_slug: 'public-transport-metro' },
+  { pattern: 'metro',        category_slug: 'transport-car', subcategory_slug: 'public-transport-metro' },
+  { pattern: 'bus ticket',   category_slug: 'transport-car', subcategory_slug: 'public-transport-bus', priority: 5 },
+  { pattern: 'bus',          category_slug: 'transport-car', subcategory_slug: 'public-transport-bus' },
+  { pattern: 'tram',         category_slug: 'transport-car', subcategory_slug: 'public-transport-bus' },
+  { pattern: 'train',        category_slug: 'transport-car', subcategory_slug: 'public-transport-train' },
+  { pattern: 'taxi',         category_slug: 'transport-car', subcategory_slug: 'ride-sharing' },
+  { pattern: 'fuel',         category_slug: 'transport-car', subcategory_slug: 'car' },
+  { pattern: 'gasoline',     category_slug: 'transport-car', subcategory_slug: 'car' },
+  { pattern: 'petrol',       category_slug: 'transport-car', subcategory_slug: 'car' },
+  { pattern: 'parking',      category_slug: 'transport-car', subcategory_slug: 'parking' },
+  { pattern: 'car wash',     category_slug: 'transport-car', subcategory_slug: 'car-wash', priority: 5 },
+  { pattern: 'insurance',    category_slug: 'transport-car', subcategory_slug: 'insurance' },
+
+  // Home & Bills
+  { pattern: 'rent',         category_slug: 'home-bills',   subcategory_slug: 'rent' },
+  { pattern: 'electricity',  category_slug: 'home-bills',   subcategory_slug: 'electricity' },
+  { pattern: 'power bill',   category_slug: 'home-bills',   subcategory_slug: 'electricity', priority: 5 },
+  { pattern: 'gas bill',     category_slug: 'home-bills',   subcategory_slug: 'gas', priority: 5 },
+  { pattern: 'water bill',   category_slug: 'home-bills',   subcategory_slug: 'water', priority: 5 },
+  { pattern: 'internet',     category_slug: 'home-bills',   subcategory_slug: 'internet-tv' },
+  { pattern: 'phone bill',   category_slug: 'home-bills',   subcategory_slug: 'internet-tv', priority: 5 },
+  { pattern: 'phone top-up', category_slug: 'home-bills',   subcategory_slug: 'internet-tv', priority: 5 },
+  { pattern: 'mobile top-up', category_slug: 'home-bills',  subcategory_slug: 'internet-tv', priority: 5 },
+  { pattern: 'maintenance fee', category_slug: 'home-bills', subcategory_slug: 'maintenance', priority: 5 },
+
+  // Health & Personal
+  { pattern: 'pharmacy',     category_slug: 'health-personal', subcategory_slug: 'pharmacy' },
+  { pattern: 'drugstore',    category_slug: 'health-personal', subcategory_slug: 'pharmacy' },
+  { pattern: 'doctor',       category_slug: 'health-personal', subcategory_slug: 'doctor' },
+  { pattern: 'dentist',      category_slug: 'health-personal', subcategory_slug: 'dentist' },
+  { pattern: 'therapy',      category_slug: 'health-personal', subcategory_slug: 'therapy' },
+  { pattern: 'therapist',    category_slug: 'health-personal', subcategory_slug: 'therapy' },
+  { pattern: 'haircut',      category_slug: 'health-personal', subcategory_slug: 'personal-care' },
+  { pattern: 'barber',       category_slug: 'health-personal', subcategory_slug: 'personal-care' },
+  { pattern: 'shampoo',      category_slug: 'health-personal', subcategory_slug: 'personal-care' },
+  { pattern: 'gym',          category_slug: 'health-personal', subcategory_slug: 'gym' },
+  { pattern: 'fitness',      category_slug: 'health-personal', subcategory_slug: 'gym' },
+
+  // Pets
+  { pattern: 'pet food',     category_slug: 'pets',         subcategory_slug: 'pet-food', priority: 5 },
+  { pattern: 'cat food',     category_slug: 'pets',         subcategory_slug: 'pet-food', priority: 5 },
+  { pattern: 'dog food',     category_slug: 'pets',         subcategory_slug: 'pet-food', priority: 5 },
+  { pattern: 'vet',          category_slug: 'pets',         subcategory_slug: 'pet-vet' },
+  { pattern: 'veterinarian', category_slug: 'pets',         subcategory_slug: 'pet-vet' },
+  { pattern: 'pet donation', category_slug: 'donations' },
+
+  // Vacation
+  { pattern: 'flight',       category_slug: 'vacation',     subcategory_slug: 'vacation-flights' },
+  { pattern: 'plane ticket', category_slug: 'vacation',     subcategory_slug: 'vacation-flights', priority: 6 },
+  { pattern: 'hotel',        category_slug: 'vacation',     subcategory_slug: 'vacation-hotel' },
+  { pattern: 'airport transfer', category_slug: 'vacation', subcategory_slug: 'vacation-airport-transport', priority: 6 },
+  { pattern: 'airport',      category_slug: 'vacation' },
+  { pattern: 'car rental',   category_slug: 'vacation',     subcategory_slug: 'vacation-car-rental', priority: 5 },
+  { pattern: 'vacation',     category_slug: 'vacation' },
+  { pattern: 'holiday',      category_slug: 'vacation' },
+
+  // Gifts
+  { pattern: 'gift',         category_slug: 'gifts' },
+  { pattern: 'flowers',      category_slug: 'gifts' },
+  { pattern: 'roses',        category_slug: 'gifts' },
+
+  // Lottery
+  { pattern: 'lottery ticket', category_slug: 'lottery', priority: 8 },
+  { pattern: 'lottery',      category_slug: 'lottery' },
+  { pattern: 'scratch card', category_slug: 'lottery', priority: 5 },
+
+  // Entertainment
+  { pattern: 'movie',        category_slug: 'entertainment', subcategory_slug: 'cinema' },
+  { pattern: 'concert',      category_slug: 'entertainment', subcategory_slug: 'events' },
+
+  // Shopping
+  { pattern: 'clothes',      category_slug: 'shopping',    subcategory_slug: 'clothes' },
+  { pattern: 'clothing',     category_slug: 'shopping',    subcategory_slug: 'clothes' },
+  { pattern: 'electronics',  category_slug: 'shopping',    subcategory_slug: 'electronics' },
+  { pattern: 'furniture',    category_slug: 'shopping',    subcategory_slug: 'furniture' },
+  { pattern: 'online order', category_slug: 'shopping',    subcategory_slug: 'online-shopping' },
+
+  // Work & Business
+  { pattern: 'accountant',   category_slug: 'work-business', subcategory_slug: 'accountant' },
+  { pattern: 'accounting',   category_slug: 'work-business', subcategory_slug: 'accountant' },
+  { pattern: 'income tax',   category_slug: 'work-business', subcategory_slug: 'work-taxes', priority: 5 },
+  { pattern: 'tax payment',  category_slug: 'work-business', subcategory_slug: 'work-taxes', priority: 5 },
+  { pattern: 'dividend',     category_slug: 'work-business', subcategory_slug: 'work-taxes' },
+  { pattern: 'course',       category_slug: 'work-business', subcategory_slug: 'courses' },
 ];

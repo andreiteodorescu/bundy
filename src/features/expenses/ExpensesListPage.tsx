@@ -8,32 +8,42 @@ import {
   Container,
   Group,
   Loader,
+  Menu,
   Paper,
   Stack,
   Text,
   UnstyledButton,
 } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
+import { notifications } from '@mantine/notifications';
 import dayjs from 'dayjs';
 import {
   IconChevronLeft,
   IconChevronRight,
+  IconDownload,
+  IconFileTypeCsv,
+  IconFileTypePdf,
   IconReceiptOff,
   IconSparkles,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { ActiveBudgetBanner } from '@/features/budgets/ActiveBudgetBanner';
+import { useCompanyCardEnabled } from '@/features/settings/api';
 import { cleanExpenseName } from '@/lib/text';
+import { exportExpensesCsv, exportExpensesPdf } from './exportExpenses';
 import { useExpensesByMonth } from './api';
 import { splitMonthIntoWeeks } from '@/lib/dates';
 import { formatRon } from '@/lib/money';
 import { getIcon } from '@/data/icons.registry';
-import type { Expense } from '@/types';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
+import type { Category, Expense, Subcategory } from '@/types';
 
 export function ExpensesListPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const navigate = useNavigate();
-  // Keep selected month in URL (?month=YYYY-MM-DD) so going to /expenses/:id/edit and
-  // back via history preserves it. Default = current month if no param.
   const [searchParams, setSearchParams] = useSearchParams();
   const monthParam = searchParams.get('month');
   const [month, setMonthState] = useState<Date>(() => {
@@ -44,7 +54,6 @@ export function ExpensesListPage() {
     return dayjs().startOf('month').toDate();
   });
 
-  // Sync URL when month changes
   function setMonth(next: Date) {
     setMonthState(next);
     const ym = dayjs(next).format('YYYY-MM-DD');
@@ -53,7 +62,6 @@ export function ExpensesListPage() {
     }
   }
 
-  // If URL is updated externally (e.g. user comes back from edit), sync state
   useEffect(() => {
     if (!monthParam) return;
     const parsed = dayjs(monthParam);
@@ -78,8 +86,6 @@ export function ExpensesListPage() {
 
   const weeks = useMemo(() => splitMonthIntoWeeks(month), [month]);
   const expensesAll = expensesQ.data ?? [];
-  // Hidden expenses don't show as items, but their amounts ARE included in the grand total
-  // (so it matches the home widget). See /hidden-expenses (PIN-gated) to view them.
   const expensesVisible = useMemo(() => expensesAll.filter((e) => !e.hidden), [expensesAll]);
 
   const grouped = useMemo(() => {
@@ -102,8 +108,11 @@ export function ExpensesListPage() {
   const { personalTotal, companyCardTotal } = expensesAll.reduce(
     (acc, e) => {
       const amt = Number(e.amount_ron);
-      if (e.tags?.includes('company-card')) acc.companyCardTotal += amt;
-      else acc.personalTotal += amt;
+      if (companyCardEnabled && e.tags?.includes('company-card')) {
+        acc.companyCardTotal += amt;
+      } else {
+        acc.personalTotal += amt;
+      }
       return acc;
     },
     { personalTotal: 0, companyCardTotal: 0 },
@@ -115,12 +124,55 @@ export function ExpensesListPage() {
     setMonth(dayjs(month).add(delta, 'month').startOf('month').toDate());
   }
 
+  function runExport(kind: 'csv' | 'pdf') {
+    if (totalCount === 0) {
+      notifications.show({
+        message: t('expenses.export.toastEmpty'),
+        color: 'gray',
+        autoClose: 1800,
+      });
+      return;
+    }
+    const monthLabel = dayjs(month).format('YYYY-MM');
+    const monthDisplay = dayjs(month).format('MMMM YYYY').replace(/^./, (c) => c.toUpperCase());
+    const maps = {
+      catById,
+      subById,
+      resolveCategoryName: (cat: typeof catById extends Map<string, infer V> ? V | null : never) =>
+        cat
+          ? cat.slug
+            ? (t(`categories.names.${cat.slug}`, { defaultValue: cat.name }) as string)
+            : cat.name
+          : '',
+      resolveSubcategoryName: (sub: typeof subById extends Map<string, infer V> ? V | null : never) =>
+        sub
+          ? sub.slug
+            ? (t(`subcategories.names.${sub.slug}`, { defaultValue: sub.name }) as string)
+            : sub.name
+          : '',
+    };
+    if (kind === 'csv') {
+      exportExpensesCsv({ expenses: expensesAll, monthLabel, maps, t });
+    } else {
+      exportExpensesPdf({
+        expenses: expensesAll,
+        monthLabel,
+        monthDisplay,
+        totals: { personalTotal, companyCardTotal },
+        companyCardEnabled,
+        maps,
+        t,
+      });
+    }
+    notifications.show({ message: t('expenses.export.toastDone'), color: 'green', autoClose: 1500 });
+  }
+
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
         <ActiveBudgetBanner />
         <Group justify="space-between" align="center">
-          <ActionIcon variant="subtle" onClick={() => shiftMonth(-1)} aria-label="Luna anterioară">
+          <ActionIcon variant="subtle" onClick={() => shiftMonth(-1)} aria-label={t('expenses.previousMonth')}>
             <IconChevronLeft size={18} />
           </ActionIcon>
           <MonthPickerInput
@@ -132,21 +184,38 @@ export function ExpensesListPage() {
             popoverProps={{ position: 'bottom' }}
             w={180}
           />
-          <ActionIcon
-            variant="subtle"
-            onClick={() => shiftMonth(1)}
-            aria-label="Luna următoare"
-            disabled={isCurrentMonth}
-          >
-            <IconChevronRight size={18} />
-          </ActionIcon>
+          <Group gap={4} wrap="nowrap">
+            <ActionIcon
+              variant="subtle"
+              onClick={() => shiftMonth(1)}
+              aria-label={t('expenses.nextMonth')}
+              disabled={isCurrentMonth}
+            >
+              <IconChevronRight size={18} />
+            </ActionIcon>
+            <Menu shadow="md" position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon variant="subtle" aria-label={t('expenses.export.menuLabel')}>
+                  <IconDownload size={18} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Item leftSection={<IconFileTypePdf size={14} />} onClick={() => runExport('pdf')}>
+                  {t('expenses.export.pdf')}
+                </Menu.Item>
+                <Menu.Item leftSection={<IconFileTypeCsv size={14} />} onClick={() => runExport('csv')}>
+                  {t('expenses.export.csv')}
+                </Menu.Item>
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
         </Group>
 
         <Paper withBorder radius="md" p="sm">
           <Stack gap={4}>
             <Group justify="space-between" wrap="nowrap" gap="sm">
               <Text size="sm" c="dimmed">
-                Total {isCurrentMonth ? 'până azi' : 'pe lună'} · cont personal
+                {isCurrentMonth ? t('expenses.totals.personalToToday') : t('expenses.totals.personalMonth')}
               </Text>
               <Text fw={700} size="xl">
                 {formatRon(personalTotal)}
@@ -155,7 +224,7 @@ export function ExpensesListPage() {
             {companyCardTotal > 0 && (
               <Group justify="space-between" wrap="nowrap" gap="sm">
                 <Text size="xs" c="dimmed">
-                  Cont firmă
+                  {t('expenses.totals.company')}
                 </Text>
                 <Text fw={600} size="sm" c="dimmed">
                   {formatRon(companyCardTotal)}
@@ -173,7 +242,7 @@ export function ExpensesListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconReceiptOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Nicio cheltuială în această lună</Text>
+              <Text c="dimmed">{t('expenses.emptyMonth')}</Text>
             </Stack>
           </Center>
         ) : (
@@ -194,8 +263,10 @@ export function ExpensesListPage() {
                       key={exp.id}
                       expense={exp}
                       category={catById.get(exp.category_id ?? '') ?? null}
-                      subcategoryName={subById.get(exp.subcategory_id ?? '')?.name ?? null}
+                      subcategory={subById.get(exp.subcategory_id ?? '') ?? null}
                       onClick={() => navigate(`/expenses/${exp.id}/edit`)}
+                      t={t}
+                      showCompanyBadge={companyCardEnabled}
                     />
                   ))}
                 </Stack>
@@ -211,16 +282,22 @@ export function ExpensesListPage() {
 function ExpenseRow({
   expense,
   category,
-  subcategoryName,
+  subcategory,
   onClick,
+  t,
+  showCompanyBadge,
 }: {
   expense: Expense;
-  category: { id: string; color: string; icon: string; name: string } | null;
-  subcategoryName: string | null;
+  category: Category | null;
+  subcategory: Subcategory | null;
   onClick: () => void;
+  t: TFunction;
+  showCompanyBadge: boolean;
 }) {
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
+  const categoryName = category ? categoryDisplayName(category, t) : null;
+  const subcategoryName = subcategory ? subcategoryDisplayName(subcategory, t) : null;
 
   return (
     <UnstyledButton onClick={onClick} w="100%">
@@ -255,27 +332,27 @@ function ExpenseRow({
             <Group gap={6}>
               <Text size="xs" c="dimmed">
                 {dayjs(expense.occurred_on).format('D MMM')}
-                {category ? ` · ${category.name}` : ''}
+                {categoryName ? ` · ${categoryName}` : ''}
                 {subcategoryName ? ` › ${subcategoryName}` : ''}
               </Text>
               {expense.source === 'subscription' && (
                 <Badge size="xs" variant="light" leftSection={<IconSparkles size={10} />}>
-                  abonament
+                  {t('expenses.badges.subscription')}
                 </Badge>
               )}
               {expense.source === 'loan' && (
                 <Badge size="xs" variant="light" color="orange">
-                  rată
+                  {t('expenses.badges.loan')}
                 </Badge>
               )}
               {expense.source === 'quick' && (
                 <Badge size="xs" variant="light" color="yellow">
-                  rapid
+                  {t('expenses.badges.quick')}
                 </Badge>
               )}
-              {expense.tags?.includes('company-card') && (
+              {showCompanyBadge && expense.tags?.includes('company-card') && (
                 <Badge size="xs" variant="light" color="gray">
-                  firmă
+                  {t('expenses.badges.company')}
                 </Badge>
               )}
             </Group>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { TextInput, UnstyledButton } from '@mantine/core';
 import { IconSearch } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { iconNames, getIcon } from '@/data/icons.registry';
 import classes from './IconPicker.module.css';
 
@@ -11,6 +12,7 @@ type Props = {
 };
 
 export function IconPicker({ value, onChange, color }: Props) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -23,7 +25,7 @@ export function IconPicker({ value, onChange, color }: Props) {
     <div>
       <TextInput
         leftSection={<IconSearch size={16} />}
-        placeholder="Caută icon..."
+        placeholder={t('icons.searchPlaceholder')}
         value={query}
         onChange={(e) => setQuery(e.currentTarget.value)}
         size="sm"

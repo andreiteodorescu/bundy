@@ -38,14 +38,19 @@ import {
   IconPin,
   IconPlus,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon } from '@/lib/money';
 import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
+import { categoryDisplayName } from '@/i18n/displayName';
+import type { Category } from '@/types';
 import { useFixedExpenses, useReorderFixedExpenses } from './api';
 import type { FixedExpense } from '@/types';
 
 export function FixedExpensesListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const fixed = useFixedExpenses();
   const cats = useCategories();
@@ -58,7 +63,6 @@ export function FixedExpensesListPage() {
     if (fixed.data) setOrder(fixed.data.map((f) => f.id));
   }, [fixed.data]);
 
-  // Auto-disable when there's nothing to reorder
   useEffect(() => {
     if ((fixed.data?.length ?? 0) < 2 && reorderMode) setReorderMode(false);
   }, [fixed.data, reorderMode]);
@@ -93,18 +97,18 @@ export function FixedExpensesListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
         </Group>
 
         <Group justify="space-between" align="center">
-          <Title order={2}>Cheltuieli fixe</Title>
+          <Title order={2}>{t('templates.fixed.title')}</Title>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
             onClick={() => navigate('/fixed-expenses/new')}
           >
-            Adaugă
+            {t('templates.addBtn')}
           </Button>
         </Group>
 
@@ -116,7 +120,7 @@ export function FixedExpensesListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconPin size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun șablon definit</Text>
+              <Text c="dimmed">{t('templates.fixed.empty')}</Text>
             </Stack>
           </Center>
         ) : (
@@ -132,7 +136,7 @@ export function FixedExpensesListPage() {
                   }
                   onClick={() => setReorderMode((v) => !v)}
                 >
-                  {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+                  {reorderMode ? t('templates.reorderDone') : t('templates.reorderStart')}
                 </Button>
               </Group>
             )}
@@ -151,6 +155,7 @@ export function FixedExpensesListPage() {
                       rateRon={fx.rateOf(row.currency)}
                       reorderMode={reorderMode}
                       onClick={() => navigate(`/fixed-expenses/${row.id}/edit`)}
+                      t={t}
                     />
                   ))}
                 </Stack>
@@ -169,12 +174,14 @@ function SortableFixedRow({
   rateRon,
   reorderMode,
   onClick,
+  t,
 }: {
   fixed: FixedExpense;
-  category: { color: string; icon: string; name: string } | null;
+  category: Category | null;
   rateRon: number | null;
   reorderMode: boolean;
   onClick: () => void;
+  t: TFunction;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: fixed.id,
@@ -184,6 +191,7 @@ function SortableFixedRow({
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const showRon = fixed.currency !== 'RON' && rateRon !== null;
   const amountRon = showRon ? Number(fixed.amount) * rateRon : null;
+  const categoryName = category ? categoryDisplayName(category, t) : null;
 
   return (
     <Paper
@@ -208,7 +216,7 @@ function SortableFixedRow({
             variant="subtle"
             color="gray"
             size="lg"
-            aria-label="Trage pentru reordonare"
+            aria-label={t('templates.gripAria')}
             {...attributes}
             {...listeners}
           >
@@ -238,7 +246,7 @@ function SortableFixedRow({
             <Text size="xs" c="dimmed">
               {formatMoney(Number(fixed.amount), fixed.currency)}
               {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
-              {category ? ` · ${category.name}` : ''}
+              {categoryName ? ` · ${categoryName}` : ''}
             </Text>
           </Box>
         ) : (
@@ -249,7 +257,7 @@ function SortableFixedRow({
             <Text size="xs" c="dimmed">
               {formatMoney(Number(fixed.amount), fixed.currency)}
               {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
-              {category ? ` · ${category.name}` : ''}
+              {categoryName ? ` · ${categoryName}` : ''}
             </Text>
           </UnstyledButton>
         )}
@@ -259,7 +267,7 @@ function SortableFixedRow({
               variant="subtle"
               color="gray"
               size="lg"
-              aria-label="Editează șablon"
+              aria-label={t('templates.editAria')}
               onClick={onClick}
             >
               <IconPencil size={18} />

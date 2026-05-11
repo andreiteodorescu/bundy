@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Group, Notification, Portal } from '@mantine/core';
 import { IconRefresh } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const DISMISS_KEY = 'bundy.sw.dismissedAt';
@@ -16,6 +17,7 @@ const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000; // check for new SW every 30 mi
  * background SW check.
  */
 export function SwUpdatePrompt() {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -71,15 +73,15 @@ export function SwUpdatePrompt() {
         <Notification
           color="accent"
           icon={<IconRefresh size={18} />}
-          title="O versiune nouă e disponibilă"
+          title={t('pwa.updateTitle')}
           onClose={dismiss}
         >
           <Group mt={6}>
             <Button size="xs" onClick={reload}>
-              Reîncarcă
+              {t('pwa.reload')}
             </Button>
             <Button size="xs" variant="subtle" onClick={dismiss}>
-              Mai târziu
+              {t('pwa.later')}
             </Button>
           </Group>
         </Notification>

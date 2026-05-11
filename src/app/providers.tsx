@@ -5,8 +5,10 @@ import { Notifications } from '@mantine/notifications';
 import { DatesProvider } from '@mantine/dates';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ro';
+import 'dayjs/locale/en';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 
@@ -16,12 +18,14 @@ import { AuthProvider } from '@/features/auth/AuthProvider';
 
 dayjs.extend(isoWeek);
 dayjs.extend(customParseFormat);
-dayjs.locale('ro');
 
 export function Providers({ children }: { children: ReactNode }) {
+  const { i18n } = useTranslation();
+  const datesLocale = i18n.language.startsWith('ro') ? 'ro' : 'en';
+
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <DatesProvider settings={{ locale: 'ro', firstDayOfWeek: 1, weekendDays: [0, 6] }}>
+      <DatesProvider settings={{ locale: datesLocale, firstDayOfWeek: 1, weekendDays: [0, 6] }}>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <ModalsProvider>

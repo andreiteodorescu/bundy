@@ -40,14 +40,18 @@ import {
   IconPlus,
   IconWalletOff,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ARCHIVE_THRESHOLD_DAYS } from './BudgetsArchivePage';
 import { formatRon } from '@/lib/money';
 import { useBudgets, useReorderBudgets } from './api';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import type { Budget, Category, Subcategory } from '@/types';
 
 export function BudgetsListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const budgets = useBudgets();
   const cats = useCategories();
@@ -79,7 +83,6 @@ export function BudgetsListPage() {
     }
   }
 
-  // Reorder mode auto-disables when there's nothing to reorder (or budgets reload empty)
   useEffect(() => {
     if (active.length < 2 && reorderMode) setReorderMode(false);
   }, [active.length, reorderMode]);
@@ -88,13 +91,13 @@ export function BudgetsListPage() {
     <Container size="sm" py="md">
       <Stack gap="md">
         <Group justify="space-between" align="center" mb={12}>
-          <Title order={2}>Bugete</Title>
+          <Title order={2}>{t('budgets.title')}</Title>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
             onClick={() => navigate('/budgets/new')}
           >
-            Adaugă
+            {t('budgets.addShort')}
           </Button>
         </Group>
 
@@ -106,7 +109,7 @@ export function BudgetsListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconWalletOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun buget</Text>
+              <Text c="dimmed">{t('budgets.empty')}</Text>
             </Stack>
           </Center>
         ) : (
@@ -119,13 +122,29 @@ export function BudgetsListPage() {
                 subById={subById}
                 reorderMode={reorderMode}
                 onToggleReorder={() => setReorderMode((v) => !v)}
+                t={t}
               />
             )}
             {upcoming.length > 0 && (
-              <Section title="Următoare" budgets={upcoming} navigate={navigate} catById={catById} subById={subById} />
+              <Section
+                title={t('budgets.upcomingSection')}
+                budgets={upcoming}
+                navigate={navigate}
+                catById={catById}
+                subById={subById}
+                t={t}
+              />
             )}
             {past.length > 0 && (
-              <Section title="Trecute" budgets={past} navigate={navigate} catById={catById} subById={subById} dim />
+              <Section
+                title={t('budgets.pastSection')}
+                budgets={past}
+                navigate={navigate}
+                catById={catById}
+                subById={subById}
+                dim
+                t={t}
+              />
             )}
             {archived.length > 0 && (
               <UnstyledButton
@@ -142,11 +161,10 @@ export function BudgetsListPage() {
                     <IconArchive size={18} />
                     <Box>
                       <Text size="sm" fw={600}>
-                        Arhivă bugete
+                        {t('budgets.archiveLink')}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        {archived.length}{' '}
-                        {archived.length === 1 ? 'buget arhivat' : 'bugete arhivate'}
+                        {t('budgets.archiveCount', { count: archived.length })}
                       </Text>
                     </Box>
                   </Group>
@@ -161,13 +179,6 @@ export function BudgetsListPage() {
   );
 }
 
-/**
- * Active budgets section. Supports manual reorder via a toggle: by default the rows
- * render normally (no grip handles, full row click → edit). When reorder mode is on,
- * each row gets a grip handle on the left and clicking the row body is disabled —
- * grip drag persists `sort_order` to DB on drop. The carousel `ActiveBudgetBanner`
- * reads from the same `useBudgets` query so the new order takes effect immediately.
- */
 function ActiveBudgetsSection({
   budgets,
   navigate,
@@ -175,6 +186,7 @@ function ActiveBudgetsSection({
   subById,
   reorderMode,
   onToggleReorder,
+  t,
 }: {
   budgets: Budget[];
   navigate: (to: string) => void;
@@ -182,6 +194,7 @@ function ActiveBudgetsSection({
   subById: Map<string, Subcategory>;
   reorderMode: boolean;
   onToggleReorder: () => void;
+  t: TFunction;
 }) {
   const reorder = useReorderBudgets();
   const [order, setOrder] = useState<string[]>([]);
@@ -208,7 +221,7 @@ function ActiveBudgetsSection({
     <Stack gap="xs">
       <Group justify="space-between" align="center" px={4} wrap="nowrap">
         <Text size="sm" fw={600} c="accent">
-          Active
+          {t('budgets.activeSection')}
         </Text>
         {canReorder && (
           <Button
@@ -220,7 +233,7 @@ function ActiveBudgetsSection({
             }
             onClick={onToggleReorder}
           >
-            {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+            {reorderMode ? t('budgets.reorderDone') : t('budgets.reorderStart')}
           </Button>
         )}
       </Group>
@@ -234,6 +247,7 @@ function ActiveBudgetsSection({
                   budget={b}
                   catById={catById}
                   subById={subById}
+                  t={t}
                 />
               ))}
             </Stack>
@@ -248,6 +262,7 @@ function ActiveBudgetsSection({
               catById={catById}
               subById={subById}
               onClick={() => navigate(`/budgets/${b.id}/edit`)}
+              t={t}
             />
           ))}
         </Stack>
@@ -260,10 +275,12 @@ function SortableBudgetRow({
   budget,
   catById,
   subById,
+  t,
 }: {
   budget: Budget;
   catById: Map<string, Category>;
   subById: Map<string, Subcategory>;
+  t: TFunction;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: budget.id,
@@ -288,13 +305,13 @@ function SortableBudgetRow({
           size="lg"
           {...attributes}
           {...listeners}
-          aria-label="Trage pentru reordonare"
+          aria-label={t('budgets.gripAria')}
           mt={2}
         >
           <IconGripVertical size={18} />
         </ActionIcon>
         <Box flex={1} miw={0}>
-          <BudgetRowBody budget={budget} catById={catById} subById={subById} />
+          <BudgetRowBody budget={budget} catById={catById} subById={subById} t={t} />
         </Box>
       </Group>
     </Paper>
@@ -307,17 +324,19 @@ function BudgetRow({
   subById,
   onClick,
   dim = false,
+  t,
 }: {
   budget: Budget;
   catById: Map<string, Category>;
   subById: Map<string, Subcategory>;
   onClick: () => void;
   dim?: boolean;
+  t: TFunction;
 }) {
   return (
     <UnstyledButton onClick={onClick}>
       <Paper withBorder radius="md" p="md" style={dim ? { opacity: 0.6 } : undefined}>
-        <BudgetRowBody budget={budget} catById={catById} subById={subById} />
+        <BudgetRowBody budget={budget} catById={catById} subById={subById} t={t} />
       </Paper>
     </UnstyledButton>
   );
@@ -327,10 +346,12 @@ function BudgetRowBody({
   budget: b,
   catById,
   subById,
+  t,
 }: {
   budget: Budget;
   catById: Map<string, Category>;
   subById: Map<string, Subcategory>;
+  t: TFunction;
 }) {
   return (
     <Box>
@@ -340,7 +361,7 @@ function BudgetRowBody({
       </Group>
       <Text size="xs" c="dimmed" mb={6}>
         {b.selected_days?.length
-          ? `${dayjs(b.period_start).format('D MMM')} – ${dayjs(b.period_end).format('D MMM YYYY')} · ${b.selected_days.length} zile`
+          ? `${dayjs(b.period_start).format('D MMM')} – ${dayjs(b.period_end).format('D MMM YYYY')} · ${t('budgets.daysSuffix', { count: b.selected_days.length })}`
           : `${dayjs(b.period_start).format('D MMM')} – ${dayjs(b.period_end).format('D MMM YYYY')}`}
       </Text>
       {(b.category_ids?.length ?? 0) + (b.subcategory_ids?.length ?? 0) > 0 && (
@@ -355,7 +376,7 @@ function BudgetRowBody({
                 variant="light"
                 styles={{ root: { background: `${c.color}22`, color: c.color } }}
               >
-                {c.name}
+                {categoryDisplayName(c, t)}
               </Badge>
             );
           })}
@@ -371,7 +392,7 @@ function BudgetRowBody({
                 variant="dot"
                 styles={{ root: { borderColor: color, color } }}
               >
-                {s.name}
+                {subcategoryDisplayName(s, t)}
               </Badge>
             );
           })}
@@ -391,6 +412,7 @@ function Section({
   highlight = false,
   dim = false,
   hideTitle = false,
+  t,
 }: {
   title: string;
   budgets: Budget[];
@@ -400,6 +422,7 @@ function Section({
   highlight?: boolean;
   dim?: boolean;
   hideTitle?: boolean;
+  t: TFunction;
 }) {
   return (
     <Stack gap="xs">
@@ -417,6 +440,7 @@ function Section({
             subById={subById}
             onClick={() => navigate(`/budgets/${b.id}/edit`)}
             dim={dim}
+            t={t}
           />
         ))}
       </Stack>
@@ -424,5 +448,4 @@ function Section({
   );
 }
 
-// Re-export so consumers can import { Progress } here if needed
 export { Progress };

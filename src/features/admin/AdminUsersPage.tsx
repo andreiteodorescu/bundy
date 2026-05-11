@@ -27,6 +27,8 @@ import {
   IconTrash,
   IconUserOff,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { confirmDelete } from '@/lib/confirm';
 import { getIcon } from '@/data/icons.registry';
@@ -40,6 +42,7 @@ import {
 } from './api';
 
 export function AdminUsersPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
@@ -68,11 +71,11 @@ export function AdminUsersPage() {
               leftSection={<IconArrowLeft size={16} />}
               onClick={() => navigate('/more')}
             >
-              Înapoi
+              {t('admin.back')}
             </Button>
           </Group>
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
-            Acces refuzat. Această pagină este disponibilă doar pentru administratori.
+            {t('admin.denied')}
           </Alert>
         </Stack>
       </Container>
@@ -89,22 +92,22 @@ export function AdminUsersPage() {
 
   function handleBan(target: AdminUser, currentlyBanned: boolean) {
     confirmDelete({
-      title: currentlyBanned ? 'Deblochează utilizatorul' : 'Blochează utilizatorul',
+      title: currentlyBanned ? t('admin.ban.titleUnban') : t('admin.ban.titleBan'),
       message: currentlyBanned
-        ? `Permite din nou ${target.email} să se logheze. Datele lui rămân intacte.`
-        : `Blochează ${target.email}. Nu se va mai putea loga, dar datele rămân intacte. Poți debloca oricând.`,
-      confirmLabel: currentlyBanned ? 'Deblochează' : 'Blochează',
+        ? t('admin.ban.messageUnban', { email: target.email })
+        : t('admin.ban.messageBan', { email: target.email }),
+      confirmLabel: currentlyBanned ? t('admin.ban.confirmUnban') : t('admin.ban.confirmBan'),
       onConfirm: async () => {
         try {
           await ban.mutateAsync({ userId: target.user_id, ban: !currentlyBanned });
           notifications.show({
-            message: currentlyBanned ? 'User deblocat' : 'User blocat',
+            message: currentlyBanned ? t('admin.ban.doneUnban') : t('admin.ban.doneBan'),
             color: 'green',
             autoClose: 1500,
           });
         } catch (err) {
           notifications.show({
-            message: err instanceof Error ? err.message : 'Eroare',
+            message: err instanceof Error ? err.message : t('admin.error'),
             color: 'red',
           });
         }
@@ -114,20 +117,20 @@ export function AdminUsersPage() {
 
   function handleDelete(target: AdminUser) {
     confirmDelete({
-      title: 'Șterge utilizatorul',
-      message: `Toate datele lui ${target.email} (cheltuieli, bugete, abonamente, rate, șabloane, categorii) vor fi șterse PERMANENT. Contul va fi eliminat din sistem. Acțiunea NU poate fi inversată.`,
-      confirmLabel: 'Șterge definitiv',
+      title: t('admin.delete.title'),
+      message: t('admin.delete.message', { email: target.email }),
+      confirmLabel: t('admin.delete.confirm'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(target.user_id);
           notifications.show({
-            message: `${target.email} șters`,
+            message: t('admin.delete.done', { email: target.email }),
             color: 'gray',
             autoClose: 2000,
           });
         } catch (err) {
           notifications.show({
-            message: err instanceof Error ? err.message : 'Eroare',
+            message: err instanceof Error ? err.message : t('admin.error'),
             color: 'red',
           });
         }
@@ -140,13 +143,13 @@ export function AdminUsersPage() {
     try {
       await resetPw.mutateAsync(target.email);
       notifications.show({
-        message: `Email de resetare trimis către ${target.email}`,
+        message: t('admin.resetPasswordSent', { email: target.email }),
         color: 'green',
         autoClose: 2500,
       });
     } catch (err) {
       notifications.show({
-        message: err instanceof Error ? err.message : 'Eroare',
+        message: err instanceof Error ? err.message : t('admin.error'),
         color: 'red',
       });
     }
@@ -163,27 +166,26 @@ export function AdminUsersPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('admin.back')}
           </Button>
         </Group>
 
         <Group gap="xs" align="center">
           <IconShieldCheck size={24} color="var(--mantine-primary-color-filled)" />
-          <Title order={2}>Admin · Utilizatori</Title>
+          <Title order={2}>{t('admin.title')}</Title>
         </Group>
 
-        {/* Stats */}
         <Group gap="xs" grow>
-          <StatCard label="Total" value={totalUsers} />
-          <StatCard label="Blocați" value={bannedUsers} color="red" />
-          <StatCard label="Noi (7 zile)" value={recentSignups} />
+          <StatCard label={t('admin.statTotal')} value={totalUsers} />
+          <StatCard label={t('admin.statBanned')} value={bannedUsers} color="red" />
+          <StatCard label={t('admin.statRecent')} value={recentSignups} />
         </Group>
         <Paper withBorder radius="md" p="sm">
           <Group justify="space-between">
             <Text size="sm" c="dimmed">
-              Total cheltuieli în sistem
+              {t('admin.totalExpenses')}
             </Text>
-            <Text fw={700}>{totalExpenses.toLocaleString('ro-RO')}</Text>
+            <Text fw={700}>{totalExpenses.toLocaleString()}</Text>
           </Group>
         </Paper>
 
@@ -195,7 +197,7 @@ export function AdminUsersPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconUserOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun utilizator</Text>
+              <Text c="dimmed">{t('admin.empty')}</Text>
             </Stack>
           </Center>
         ) : (
@@ -209,6 +211,7 @@ export function AdminUsersPage() {
                 onDelete={() => handleDelete(u)}
                 onResetPw={() => handleResetPw(u)}
                 isPending={ban.isPending || del.isPending || resetPw.isPending}
+                t={t}
               />
             ))}
           </Stack>
@@ -248,6 +251,7 @@ function UserRow({
   onDelete,
   onResetPw,
   isPending,
+  t,
 }: {
   user: AdminUser;
   isCurrent: boolean;
@@ -255,6 +259,7 @@ function UserRow({
   onDelete: () => void;
   onResetPw: () => void;
   isPending: boolean;
+  t: TFunction;
 }) {
   const banned = isBanned(user);
   const Icon = getIcon(user.profile_icon ?? 'IconCat');
@@ -280,26 +285,26 @@ function UserRow({
         <Box flex={1} miw={0}>
           <Group gap={6} wrap="nowrap">
             <Text fw={600} truncate>
-              {user.profile_name ?? '(fără profil)'}
+              {user.profile_name ?? t('admin.noProfile')}
             </Text>
             {user.is_admin_flag && (
               <Badge size="xs" color="accent" variant="light">
-                admin
+                {t('admin.badgeAdmin')}
               </Badge>
             )}
             {isCurrent && (
               <Badge size="xs" color="gray" variant="light">
-                tu
+                {t('admin.badgeYou')}
               </Badge>
             )}
             {banned && (
               <Badge size="xs" color="red" variant="light">
-                blocat
+                {t('admin.badgeBanned')}
               </Badge>
             )}
             {!user.email_confirmed_at && (
               <Badge size="xs" color="yellow" variant="light">
-                neconfirmat
+                {t('admin.badgeUnverified')}
               </Badge>
             )}
           </Group>
@@ -307,9 +312,10 @@ function UserRow({
             {user.email ?? '?'}
           </Text>
           <Text size="xs" c="dimmed">
-            {user.expense_count} cheltuieli · înregistrat {dayjs(user.user_created_at).format('D MMM YYYY')}
+            {t('admin.row.expenseCount', { count: user.expense_count })} ·{' '}
+            {t('admin.row.registeredAt', { date: dayjs(user.user_created_at).format('D MMM YYYY') })}
             {user.last_sign_in_at &&
-              ` · ultima logare ${dayjs(user.last_sign_in_at).format('D MMM HH:mm')}`}
+              ` · ${t('admin.row.lastSignIn', { date: dayjs(user.last_sign_in_at).format('D MMM HH:mm') })}`}
           </Text>
         </Box>
         {!isCurrent && (
@@ -321,18 +327,18 @@ function UserRow({
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item leftSection={<IconKey size={14} />} onClick={onResetPw}>
-                Trimite reset parolă
+                {t('admin.actions.resetPassword')}
               </Menu.Item>
               <Menu.Item
                 leftSection={<IconBan size={14} />}
                 color={banned ? 'green' : 'orange'}
                 onClick={onBan}
               >
-                {banned ? 'Deblochează' : 'Blochează'}
+                {banned ? t('admin.actions.unban') : t('admin.actions.ban')}
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={onDelete}>
-                Șterge cont + date
+                {t('admin.actions.delete')}
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>

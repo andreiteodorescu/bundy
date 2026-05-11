@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Center,
+  Group,
   Image,
   Paper,
   PasswordInput,
@@ -15,12 +16,15 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck, IconMailCheck } from '@tabler/icons-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useAuth } from './AuthProvider';
 import { AnimalIconPicker } from '@/components/AnimalIconPicker';
 import { CaptchaGate, HCAPTCHA_ENABLED, type CaptchaGateRef } from '@/components/CaptchaGate';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { DEFAULT_PROFILE_ICON } from '@/data/animalIcons';
 
 export function SignupPage() {
+  const { t } = useTranslation();
   const { status, signUp } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -45,12 +49,12 @@ export function SignupPage() {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) return setError('Te rog introdu un nume');
-    if (!email.trim()) return setError('Te rog introdu un email');
-    if (password.length < 6) return setError('Parola trebuie să aibă minim 6 caractere');
-    if (password !== confirmPassword) return setError('Parolele nu se potrivesc');
+    if (!name.trim()) return setError(t('auth.signup.nameRequired'));
+    if (!email.trim()) return setError(t('auth.login.emailRequired'));
+    if (password.length < 6) return setError(t('validation.passwordTooShort', { min: 6 }));
+    if (password !== confirmPassword) return setError(t('validation.passwordsDontMatch'));
     if (HCAPTCHA_ENABLED && !captchaToken) {
-      return setError('Te rog completează verificarea anti-bot');
+      return setError(t('validation.captchaRequired'));
     }
 
     setLoading(true);
@@ -68,7 +72,7 @@ export function SignupPage() {
         navigate('/home', { replace: true });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la înregistrare');
+      setError(err instanceof Error ? err.message : t('auth.signup.error'));
       // hCaptcha tokens are single-use; reset on error so user gets a fresh one
       captchaRef.current?.reset();
       setCaptchaToken(null);
@@ -96,13 +100,16 @@ export function SignupPage() {
             >
               <IconMailCheck size={32} stroke={2} />
             </Box>
-            <Title order={3}>Verifică email-ul</Title>
+            <Title order={3}>{t('auth.signup.checkEmailTitle')}</Title>
             <Text size="sm" c="dimmed">
-              Ți-am trimis un link de confirmare la <b>{email}</b>. Dă click pe el pentru a-ți
-              activa contul, apoi loghează-te.
+              <Trans
+                i18nKey="auth.signup.checkEmailMessage"
+                values={{ email }}
+                components={{ bold: <b /> }}
+              />
             </Text>
             <Anchor component={Link} to="/login">
-              Înapoi la login
+              {t('auth.signup.backToLogin')}
             </Anchor>
           </Stack>
         </Paper>
@@ -112,7 +119,10 @@ export function SignupPage() {
 
   return (
     <Center h="100dvh" px="md" py="md">
-      <Paper p="xl" radius="lg" withBorder w="100%" maw={460}>
+      <Paper p="xl" radius="lg" withBorder w="100%" maw={460} pos="relative">
+        <Group pos="absolute" top={12} right={12} style={{ zIndex: 2 }}>
+          <LanguageToggle />
+        </Group>
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <Stack gap="xs" align="center">
@@ -125,24 +135,24 @@ export function SignupPage() {
                 fit="contain"
               />
               <Title order={2} mt={4}>
-                Cont nou
+                {t('auth.signup.title')}
               </Title>
               <Text size="sm" c="dimmed">
-                Bundy — gestionare cheltuieli personale
+                {t('auth.subtagline')}
               </Text>
             </Stack>
 
             <TextInput
-              label="Nume profil"
-              placeholder="ex: Andrei"
+              label={t('auth.signup.name')}
+              placeholder={t('auth.signup.namePlaceholder')}
               required
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
             />
 
             <TextInput
-              label="Email"
-              placeholder="email@example.com"
+              label={t('auth.signup.email')}
+              placeholder={t('auth.signup.emailPlaceholder')}
               type="email"
               autoComplete="email"
               inputMode="email"
@@ -152,8 +162,8 @@ export function SignupPage() {
             />
 
             <PasswordInput
-              label="Parolă"
-              description="Minim 6 caractere"
+              label={t('auth.signup.password')}
+              description={t('auth.signup.passwordHint')}
               autoComplete="new-password"
               required
               value={password}
@@ -161,7 +171,7 @@ export function SignupPage() {
             />
 
             <PasswordInput
-              label="Confirmă parola"
+              label={t('auth.signup.confirmPassword')}
               autoComplete="new-password"
               required
               value={confirmPassword}
@@ -170,10 +180,10 @@ export function SignupPage() {
 
             <Box>
               <Text size="sm" fw={500} mb={6}>
-                Avatar
+                {t('auth.signup.avatar')}
               </Text>
               <Text size="xs" c="dimmed" mb="xs">
-                Alege un animal ca avatar pentru profil.
+                {t('auth.signup.avatarHint')}
               </Text>
               <AnimalIconPicker value={icon} onChange={setIcon} color="var(--mantine-primary-color-filled)" />
             </Box>
@@ -197,13 +207,13 @@ export function SignupPage() {
               leftSection={<IconCheck size={16} />}
               disabled={HCAPTCHA_ENABLED && !captchaToken}
             >
-              Creează cont
+              {t('auth.signup.submit')}
             </Button>
 
             <Text size="xs" ta="center" c="dimmed">
-              Ai deja cont?{' '}
+              {t('auth.signup.haveAccount')}{' '}
               <Anchor component={Link} to="/login">
-                Loghează-te
+                {t('auth.signup.loginLink')}
               </Anchor>
             </Text>
           </Stack>

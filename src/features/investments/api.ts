@@ -122,13 +122,18 @@ export function useDeleteInvestment() {
   });
 }
 
-export const INSTRUMENT_TYPE_LABELS: Record<InvestmentInstrumentType, string> = {
-  pension: 'Pensie (Pilon II/III)',
-  etf: 'ETF',
-  mutual_fund: 'Fond mutual',
-  stock: 'Acțiuni',
-  bonds: 'Obligațiuni',
-  crypto: 'Crypto',
-  real_estate: 'Imobiliare',
-  other: 'Altele',
-};
+/**
+ * Canonical ordering for instrument types in pickers and breakdowns.
+ * Display labels come from i18n: use `instrumentTypeDisplayName(type, t)` from
+ * `@/i18n/displayName`.
+ */
+export const INVESTMENT_TYPES: InvestmentInstrumentType[] = [
+  'pension',
+  'etf',
+  'mutual_fund',
+  'stock',
+  'bonds',
+  'crypto',
+  'real_estate',
+  'other',
+];

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Box, Button, Group, MultiSelect, Stack, Text } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { ymd } from '@/lib/dates';
 import { diacriticsFilter } from '@/lib/text';
 
@@ -11,28 +12,17 @@ type Props = {
   onChange: (next: string[]) => void;
 };
 
-/**
- * Custom calendar for budget periods.
- *
- * Shortcuts above the multi-day picker:
- *   - "Luna curentă"   → all days from today to end of current month
- *   - "Anul curent"    → all days from today to end of current year
- *   - Multi-select dropdown of months from current to N future months → unions all days
- *
- * Manual: tap individual days to toggle them. Past days are disabled (budgets only forward).
- */
 export function BudgetCalendar({ value, onChange }: Props) {
+  const { t } = useTranslation();
   const today = useMemo(() => dayjs().startOf('day'), []);
   const [pickedMonths, setPickedMonths] = useState<string[]>([]);
 
   const dates = useMemo(() => value.map((s) => new Date(s)), [value]);
 
   function selectThisMonth() {
-    // Entire current month (1st → last day), not just from today onwards.
     onChange(daysInRange(today.startOf('month'), today.endOf('month')));
   }
   function selectThisYear() {
-    // Entire current year (Jan 1 → Dec 31), not just from today onwards.
     onChange(daysInRange(today.startOf('year'), today.endOf('year')));
   }
   function selectMonths(months: string[]) {
@@ -52,7 +42,6 @@ export function BudgetCalendar({ value, onChange }: Props) {
 
   const monthOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [];
-    // Show 6 months back + current + 12 months forward = 19 total
     let cursor = today.startOf('month').subtract(6, 'month');
     for (let i = 0; i < 19; i++) {
       opts.push({
@@ -68,13 +57,13 @@ export function BudgetCalendar({ value, onChange }: Props) {
     <Stack gap="sm">
       <Group gap="xs">
         <Button variant="light" size="xs" onClick={selectThisMonth}>
-          Luna curentă
+          {t('budgets.calendar.currentMonth')}
         </Button>
         <Button variant="light" size="xs" onClick={selectThisYear}>
-          Anul curent
+          {t('budgets.calendar.currentYear')}
         </Button>
         <Button variant="subtle" size="xs" onClick={() => onChange([])} disabled={value.length === 0}>
-          Șterge
+          {t('budgets.calendar.clear')}
         </Button>
       </Group>
 
@@ -82,8 +71,8 @@ export function BudgetCalendar({ value, onChange }: Props) {
         data={monthOptions}
         value={pickedMonths}
         onChange={selectMonths}
-        label="Selectează luni multiple (înainte)"
-        placeholder="ex: aprilie, mai..."
+        label={t('budgets.calendar.selectMultipleMonths')}
+        placeholder={t('budgets.calendar.monthPickerPlaceholder')}
         clearable
         searchable
         filter={diacriticsFilter}
@@ -104,8 +93,8 @@ export function BudgetCalendar({ value, onChange }: Props) {
 
       <Text size="xs" c="dimmed">
         {value.length === 0
-          ? 'Niciun interval selectat'
-          : `${value.length} ${value.length === 1 ? 'zi selectată' : 'zile selectate'}`}
+          ? t('budgets.calendar.noneSelected')
+          : t('budgets.calendar.daysSelected', { count: value.length })}
       </Text>
     </Stack>
   );

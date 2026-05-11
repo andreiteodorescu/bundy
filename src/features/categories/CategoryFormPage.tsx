@@ -15,10 +15,12 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconPlus, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { ColorPicker } from '@/components/ColorPicker';
 import { IconPicker } from '@/components/IconPicker';
 import { categoryColors, getIcon } from '@/data/icons.registry';
 import { confirmDelete } from '@/lib/confirm';
+import { categoryDisplayName } from '@/i18n/displayName';
 import {
   useCategories,
   useDeleteCategory,
@@ -28,6 +30,7 @@ import {
 import { SubcategoryRow } from './SubcategoryRow';
 
 export function CategoryFormPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -63,7 +66,7 @@ export function CategoryFormPage() {
     return (
       <Container size="sm" py="md">
         <Alert color="red" icon={<IconAlertCircle size={16} />}>
-          Categoria nu a fost găsită.
+          {t('categories.form.notFound')}
         </Alert>
       </Container>
     );
@@ -76,7 +79,7 @@ export function CategoryFormPage() {
   async function handleSave() {
     setError(null);
     if (!name.trim()) {
-      setError('Numele e obligatoriu');
+      setError(t('categories.form.errorNameRequired'));
       return;
     }
     try {
@@ -93,27 +96,27 @@ export function CategoryFormPage() {
         navigate('/categories');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('categories.form.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!editing) return;
     confirmDelete({
-      message:
-        'Categoria și toate subcategoriile ei vor fi șterse. Cheltuielile asociate vor rămâne în listă, fără categorie. Sigur vrei să continui?',
+      message: t('categories.form.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(editing.id);
           navigate('/categories');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('categories.form.errorDelete'));
         }
       },
     });
   }
 
   const Icon = getIcon(icon);
+  const editingDisplayName = editing ? categoryDisplayName(editing, t) : '';
 
   return (
     <Container size="sm" py="md">
@@ -126,7 +129,7 @@ export function CategoryFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             size="compact-sm"
           >
-            Înapoi
+            {t('categories.back')}
           </Button>
         </Group>
         <Group gap="md" align="center">
@@ -145,28 +148,28 @@ export function CategoryFormPage() {
             <Icon size={28} stroke={2} />
           </Box>
           <Title order={2} style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {isNew ? 'Categorie nouă' : editing?.name}
+            {isNew ? t('categories.form.newTitle') : editingDisplayName}
           </Title>
         </Group>
 
         <TextInput
-          label="Nume"
+          label={t('categories.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Vacanțe"
+          placeholder={t('categories.form.namePlaceholder')}
         />
 
         <Box>
           <Text size="sm" fw={500} mb={6}>
-            Culoare
+            {t('categories.form.color')}
           </Text>
           <ColorPicker value={color} onChange={setColor} />
         </Box>
 
         <Box>
           <Text size="sm" fw={500} mb={6}>
-            Icon
+            {t('categories.form.icon')}
           </Text>
           <IconPicker value={icon} onChange={setIcon} color={color} />
         </Box>
@@ -179,17 +182,17 @@ export function CategoryFormPage() {
 
         <Group grow>
           <Button onClick={handleSave} loading={upsert.isPending} size="md">
-            {isNew ? 'Creează' : 'Salvează'}
+            {isNew ? t('categories.form.create') : t('categories.form.submit')}
           </Button>
         </Group>
 
         {!isNew && editing && (
           <>
-            <Divider label="Subcategorii" labelPosition="center" my="md" />
+            <Divider label={t('categories.subcategoriesLabel')} labelPosition="center" my="md" />
             <Stack gap="xs">
               {childSubs.length === 0 && (
                 <Text size="sm" c="dimmed" ta="center">
-                  Nu ai subcategorii. Adaugă una pentru a clasifica mai fin.
+                  {t('categories.noSubcategories')}
                 </Text>
               )}
               {childSubs.map((sub) => (
@@ -200,7 +203,7 @@ export function CategoryFormPage() {
                 leftSection={<IconPlus size={16} />}
                 onClick={() => navigate(`/subcategories/new?parent=${editing.id}`)}
               >
-                Adaugă subcategorie
+                {t('categories.addSubcategory')}
               </Button>
             </Stack>
             <Divider my="md" />
@@ -211,7 +214,7 @@ export function CategoryFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge categoria
+              {t('categories.form.delete')}
             </Button>
           </>
         )}

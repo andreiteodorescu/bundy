@@ -78,10 +78,27 @@ export function useSetHiddenPin() {
  */
 export type ProfileSettings = {
   hidden_pin_ttl_min?: number;
+  /**
+   * When true, "paid with company card" UI is enabled across the app
+   * (switch on expense forms, separate company total in widgets, badges in lists).
+   * Defaults to false for new users. Existing users with company-card expenses
+   * are migrated to true via 0028 so behavior is preserved.
+   */
+  company_card_enabled?: boolean;
 };
 
 export function readSettings(profile: Profile | null | undefined): ProfileSettings {
   return (profile?.settings as ProfileSettings | undefined) ?? {};
+}
+
+/**
+ * Hook returning whether the "company card" feature is enabled for the current
+ * profile. Returns false while loading (treat absent setting as off, except for
+ * grandfathered profiles which the migration sets to true).
+ */
+export function useCompanyCardEnabled(): boolean {
+  const profile = useProfile();
+  return readSettings(profile.data).company_card_enabled === true;
 }
 
 export function useDeleteAccount() {

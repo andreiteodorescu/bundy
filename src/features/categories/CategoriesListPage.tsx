@@ -29,11 +29,15 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { IconChevronRight, IconGripVertical, IconPlus } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories, useReorderCategories, useSubcategories } from './api';
 import { getIcon } from '@/data/icons.registry';
+import { categoryDisplayName } from '@/i18n/displayName';
 import type { Category } from '@/types';
 
 export function CategoriesListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const cats = useCategories();
   const subs = useSubcategories();
@@ -78,17 +82,17 @@ export function CategoriesListPage() {
     <Container size="sm" py="md">
       <Stack gap="md">
         <Group justify="space-between" align="center">
-          <Title order={2}>Categorii</Title>
+          <Title order={2}>{t('categories.listTitle')}</Title>
           <Button
             leftSection={<IconPlus size={16} />}
             onClick={() => navigate('/categories/new')}
             size="sm"
           >
-            Adaugă
+            {t('categories.addButton')}
           </Button>
         </Group>
         <Text size="sm" c="dimmed">
-          Trage de mâner pentru reordonare. Tap pe o categorie pentru editare și subcategorii.
+          {t('categories.reorderHint')}
         </Text>
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -100,6 +104,7 @@ export function CategoriesListPage() {
                   category={cat}
                   subcount={subsByCat.get(cat.id) ?? 0}
                   onClick={() => navigate(`/categories/${cat.id}/edit`)}
+                  t={t}
                 />
               ))}
             </Stack>
@@ -114,10 +119,12 @@ function SortableCategoryRow({
   category,
   subcount,
   onClick,
+  t,
 }: {
   category: Category;
   subcount: number;
   onClick: () => void;
+  t: TFunction;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: category.id,
@@ -144,7 +151,7 @@ function SortableCategoryRow({
           size="lg"
           {...attributes}
           {...listeners}
-          aria-label="Trage pentru reordonare"
+          aria-label={t('categories.gripAria')}
         >
           <IconGripVertical size={18} />
         </ActionIcon>
@@ -165,13 +172,13 @@ function SortableCategoryRow({
         </Box>
         <Box flex={1} onClick={onClick} style={{ cursor: 'pointer', minWidth: 0 }}>
           <Text fw={500} truncate>
-            {category.name}
+            {categoryDisplayName(category, t)}
           </Text>
           <Text size="xs" c="dimmed">
-            {subcount} {subcount === 1 ? 'subcategorie' : 'subcategorii'}
+            {t('categories.subcount', { count: subcount })}
           </Text>
         </Box>
-        <ActionIcon variant="subtle" color="gray" onClick={onClick} aria-label="Editează">
+        <ActionIcon variant="subtle" color="gray" onClick={onClick} aria-label={t('categories.editAria')}>
           <IconChevronRight size={18} />
         </ActionIcon>
       </Group>

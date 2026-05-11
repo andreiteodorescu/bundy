@@ -17,11 +17,13 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { ColorPicker } from '@/components/ColorPicker';
 import { IconPicker } from '@/components/IconPicker';
 import { categoryColors, getIcon } from '@/data/icons.registry';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useCategories,
   useDeleteSubcategory,
@@ -30,6 +32,7 @@ import {
 } from './api';
 
 export function SubcategoryFormPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const [searchParams] = useSearchParams();
   const isNew = !params.id;
@@ -70,7 +73,7 @@ export function SubcategoryFormPage() {
     return (
       <Container size="sm" py="md">
         <Alert color="red" icon={<IconAlertCircle size={16} />}>
-          Subcategoria nu a fost găsită.
+          {t('categories.subcategoryForm.notFound')}
         </Alert>
       </Container>
     );
@@ -83,11 +86,11 @@ export function SubcategoryFormPage() {
   async function handleSave() {
     setError(null);
     if (!parentId) {
-      setError('Alege o categorie părinte');
+      setError(t('categories.subcategoryForm.errorParentRequired'));
       return;
     }
     if (!name.trim()) {
-      setError('Numele e obligatoriu');
+      setError(t('categories.subcategoryForm.errorNameRequired'));
       return;
     }
     try {
@@ -101,25 +104,26 @@ export function SubcategoryFormPage() {
       });
       navigate(`/categories/${parentId}/edit`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('categories.subcategoryForm.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!editing) return;
     confirmDelete({
-      message:
-        'Subcategoria va fi ștearsă. Cheltuielile asociate vor rămâne în categoria părinte fără subcategorie.',
+      message: t('categories.subcategoryForm.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(editing.id);
           navigate(`/categories/${editing.parent_category_id}/edit`);
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('categories.subcategoryForm.errorDelete'));
         }
       },
     });
   }
+
+  const editingDisplayName = editing ? subcategoryDisplayName(editing, t) : '';
 
   return (
     <Container size="sm" py="md">
@@ -136,7 +140,7 @@ export function SubcategoryFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             size="compact-sm"
           >
-            Înapoi
+            {t('categories.back')}
           </Button>
         </Group>
 
@@ -156,31 +160,31 @@ export function SubcategoryFormPage() {
             <Icon size={24} stroke={2} />
           </Box>
           <Title order={3} style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {isNew ? 'Subcategorie nouă' : editing?.name}
+            {isNew ? t('categories.subcategoryForm.newTitle') : editingDisplayName}
           </Title>
         </Group>
 
         <Select
-          label="Categoria părinte"
+          label={t('categories.subcategoryForm.parent')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={parentId}
           onChange={(v) => setParentId(v)}
         />
 
         <TextInput
-          label="Nume"
+          label={t('categories.subcategoryForm.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Cafenele"
+          placeholder={t('categories.subcategoryForm.namePlaceholder')}
         />
 
         <Box>
           <Text size="sm" fw={500} mb={6}>
-            Icon
+            {t('categories.subcategoryForm.icon')}
           </Text>
           <IconPicker value={icon} onChange={setIcon} color={effectiveColor} />
         </Box>
@@ -188,12 +192,12 @@ export function SubcategoryFormPage() {
         <Switch
           checked={overrideColor}
           onChange={(e) => setOverrideColor(e.currentTarget.checked)}
-          label="Suprascrie culoarea categoriei părinte"
+          label={t('categories.subcategoryForm.overrideColor')}
         />
         {overrideColor && (
           <Box>
             <Text size="sm" fw={500} mb={6}>
-              Culoare
+              {t('categories.subcategoryForm.color')}
             </Text>
             <ColorPicker value={color} onChange={setColor} />
           </Box>
@@ -207,7 +211,7 @@ export function SubcategoryFormPage() {
 
         <Group grow>
           <Button onClick={handleSave} loading={upsert.isPending} size="md">
-            {isNew ? 'Creează' : 'Salvează'}
+            {isNew ? t('categories.subcategoryForm.create') : t('categories.subcategoryForm.submit')}
           </Button>
         </Group>
 
@@ -221,7 +225,7 @@ export function SubcategoryFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge subcategoria
+              {t('categories.subcategoryForm.delete')}
             </Button>
           </>
         )}

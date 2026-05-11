@@ -23,16 +23,21 @@ import { DatePickerInput } from '@mantine/dates';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import { ROMANIAN_BANKS } from '@/data/banks';
 import { useDeleteLoan, useLoan, useUpsertLoan } from './api';
 
 export function LoanFormPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -59,8 +64,6 @@ export function LoanFormPage() {
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Live RON preview for the monthly payment when the loan is in a foreign currency.
-  // Uses today's BNR rate — each generated charge will be re-converted at its own date.
   const todayIso = dayjs().format('YYYY-MM-DD');
   const fxRate = useQuery({
     queryKey: ['fx', todayIso, currency],
@@ -74,7 +77,6 @@ export function LoanFormPage() {
       ? monthlyPayment * fxRate.data.rate_to_ron
       : null;
 
-  // Pre-select Finance > Loans by default for new loans (once categories loaded)
   useEffect(() => {
     if (!isNew) return;
     if (categoryId) return;
@@ -88,7 +90,6 @@ export function LoanFormPage() {
     }
   }, [isNew, categoryId, cats.data, subs.data]);
 
-  // Hydrate when editing
   useEffect(() => {
     const l = editing.data;
     if (!l) return;
@@ -111,9 +112,10 @@ export function LoanFormPage() {
 
   const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
   useEffect(() => {
+    if (!companyCardEnabled) return;
     if (companyCardTouched) return;
     if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched, companyCardEnabled]);
 
   const childSubs = useMemo(
     () => (subs.data ?? []).filter((s) => s.parent_category_id === categoryId),
@@ -130,14 +132,14 @@ export function LoanFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
+    if (!name.trim()) return setError(t('loans.form.errorNameRequired'));
     if (typeof monthlyPayment !== 'number' || monthlyPayment <= 0)
-      return setError('Rata lunară trebuie să fie > 0');
+      return setError(t('loans.form.errorMonthlyPositive'));
     if (typeof chargeDay !== 'number' || chargeDay < 1 || chargeDay > 31)
-      return setError('Ziua scadentă trebuie între 1 și 31');
-    if (!categoryId) return setError('Alege o categorie');
+      return setError(t('loans.form.errorChargeDayRange'));
+    if (!categoryId) return setError(t('loans.form.errorCategoryRequired'));
     if (endDate && dayjs(endDate).isBefore(dayjs(startDate)))
-      return setError('Data de sfârșit nu poate fi înainte de cea de început');
+      return setError(t('loans.form.errorEndBeforeStart'));
 
     try {
       await upsert.mutateAsync({
@@ -154,25 +156,29 @@ export function LoanFormPage() {
         category_id: categoryId,
         subcategory_id: subcategoryId,
         active,
-        tags: companyCard ? ['company-card'] : [],
+        tags: companyCardEnabled
+          ? companyCard
+            ? ['company-card']
+            : []
+          : editing.data?.tags ?? [],
         note: note.trim() || null,
       });
       navigate('/loans');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('loans.form.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi această rată?',
+      message: t('loans.form.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/loans');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('loans.form.errorDelete'));
         }
       },
     });
@@ -191,33 +197,33 @@ export function LoanFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/loans')}
           >
-            Înapoi
+            {t('loans.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Rată nouă' : name}</Title>
+        <Title order={2}>{isNew ? t('loans.form.newTitle') : name}</Title>
 
         <TextInput
-          label="Nume"
+          label={t('loans.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Credit nevoi personale"
+          placeholder={t('loans.form.namePlaceholder')}
         />
 
         <Autocomplete
-          label="Bancă"
+          label={t('loans.form.bank')}
           data={ROMANIAN_BANKS}
           value={bank}
           onChange={setBank}
-          placeholder="ex: BCR"
+          placeholder={t('loans.form.bankPlaceholder')}
           limit={10}
           filter={diacriticsFilter}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Rata lunară"
+            label={t('loans.form.monthlyPayment')}
             required
             flex={1}
             value={monthlyPayment}
@@ -229,7 +235,7 @@ export function LoanFormPage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('loans.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -241,17 +247,17 @@ export function LoanFormPage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('loans.form.fxLoading')
               : monthlyRonPreview !== null
-                ? `≈ ${formatRon(monthlyRonPreview)}/lună la cursul BNR de azi (recalculat la fiecare debitare)`
+                ? t('loans.form.fxPreviewToday', { amount: formatRon(monthlyRonPreview) })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va recalcula la generarea cheltuielii.'
-                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                  ? t('loans.form.fxUnavailable')
+                  : t('loans.form.fxEnterAmount')}
           </Text>
         )}
 
         <NumberInput
-          label="Ziua scadentă (1-31)"
+          label={t('loans.form.chargeDay')}
           required
           value={chargeDay}
           onChange={(v) => setChargeDay(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
@@ -262,7 +268,7 @@ export function LoanFormPage() {
 
         <Group gap="sm" wrap="nowrap">
           <DatePickerInput
-            label="Început"
+            label={t('loans.form.startDate')}
             flex={1}
             value={startDate}
             onChange={(d) => d && setStartDate(dayjs(d as unknown as Date).toDate())}
@@ -270,29 +276,29 @@ export function LoanFormPage() {
             required
           />
           <DatePickerInput
-            label="Sfârșit (opțional)"
+            label={t('loans.form.endDate')}
             flex={1}
             value={endDate}
             onChange={(d) => setEndDate(d ? dayjs(d as unknown as Date).toDate() : null)}
             valueFormat="D MMM YYYY"
             clearable
-            description={remainingMonths !== null ? `${remainingMonths} luni` : undefined}
+            description={remainingMonths !== null ? t('loans.form.endDateMonths', { count: remainingMonths }) : undefined}
           />
         </Group>
 
         <Group gap="sm" wrap="nowrap">
           <NumberInput
-            label="Suma totală împrumutată (opțional)"
+            label={t('loans.form.totalAmount')}
             flex={1}
             value={totalAmount}
             onChange={(v) => setTotalAmount(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
             min={0}
             decimalScale={2}
             inputMode="decimal"
-            description="pentru context, nu afectează raportarea"
+            description={t('loans.form.totalAmountHint')}
           />
           <NumberInput
-            label="Dobândă anuală %"
+            label={t('loans.form.interestRate')}
             flex={1}
             value={interestRate}
             onChange={(v) => setInterestRate(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
@@ -304,11 +310,11 @@ export function LoanFormPage() {
         </Group>
 
         <Select
-          label="Categorie"
+          label={t('loans.form.category')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={categoryId}
           onChange={(v) => {
             setCategoryId(v);
@@ -318,10 +324,10 @@ export function LoanFormPage() {
 
         {childSubs.length > 0 && (
           <Select
-            label="Subcategorie (opțional)"
+            label={t('loans.form.subcategoryOptional')}
             data={[
-              { value: '', label: 'Fără subcategorie' },
-              ...childSubs.map((s) => ({ value: s.id, label: s.name })),
+              { value: '', label: t('loans.form.noSubcategory') },
+              ...childSubs.map((s) => ({ value: s.id, label: subcategoryDisplayName(s, t) })),
             ]}
             value={subcategoryId ?? ''}
             onChange={(v) => setSubcategoryId(v && v !== '' ? v : null)}
@@ -332,43 +338,43 @@ export function LoanFormPage() {
           <Switch
             checked={active}
             onChange={(e) => setActive(e.currentTarget.checked)}
-            aria-label="Activă"
+            aria-label={t('loans.form.active')}
             mt={2}
           />
           <Box flex={1} miw={0}>
             <Text size="sm" fw={500}>
-              Activă
+              {t('loans.form.active')}
             </Text>
             <Text size="xs" c="dimmed">
-              Cheltuielile se generează automat la fiecare scadență, până la data de sfârșit
+              {t('loans.form.activeHint')}
             </Text>
           </Box>
         </Group>
 
-        {/* Label detașat: doar thumb-ul togglează. Previne activări accidentale la
-            tap pe text/scroll pe mobile. aria-label păstrează accesibilitatea. */}
-        <Group wrap="nowrap" align="flex-start" gap="sm">
-          <Switch
-            checked={companyCard}
-            onChange={(e) => {
-              setCompanyCard(e.currentTarget.checked);
-              setCompanyCardTouched(true);
-            }}
-            aria-label="Plătită cu cardul firmei"
-            mt={2}
-          />
-          <Box flex={1} miw={0}>
-            <Text size="sm" fw={500}>
-              Plătită cu cardul firmei
-            </Text>
-            <Text size="xs" c="dimmed">
-              Cheltuielile generate vor fi excluse din totalul personal în Analytics.
-            </Text>
-          </Box>
-        </Group>
+        {companyCardEnabled && (
+          <Group wrap="nowrap" align="flex-start" gap="sm">
+            <Switch
+              checked={companyCard}
+              onChange={(e) => {
+                setCompanyCard(e.currentTarget.checked);
+                setCompanyCardTouched(true);
+              }}
+              aria-label={t('loans.form.company')}
+              mt={2}
+            />
+            <Box flex={1} miw={0}>
+              <Text size="sm" fw={500}>
+                {t('loans.form.company')}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t('loans.form.companyHint')}
+              </Text>
+            </Box>
+          </Group>
+        )}
 
         <Textarea
-          label="Notă (opțional)"
+          label={t('loans.form.noteOptional')}
           value={note}
           onChange={(e) => setNote(e.currentTarget.value)}
           autosize
@@ -383,7 +389,7 @@ export function LoanFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Creează' : 'Salvează'}
+          {isNew ? t('loans.form.create') : t('loans.form.submit')}
         </Button>
 
         {!isNew && (
@@ -396,7 +402,7 @@ export function LoanFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge rata
+              {t('loans.form.delete')}
             </Button>
           </>
         )}

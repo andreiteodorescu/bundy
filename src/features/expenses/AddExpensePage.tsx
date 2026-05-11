@@ -30,29 +30,28 @@ import {
   IconSparkles,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { cleanExpenseName, diacriticsFilter, normalize } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
 import { useDeleteExpense, useExpense, useRecentExpenses, useUpsertExpense } from './api';
 import { useAutoSuggest } from './useAutoSuggest';
 import { usePredefinedExpense } from '@/features/predefined-expenses/api';
 import { getIcon } from '@/data/icons.registry';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import type { Suggestion } from '@/lib/autocomplete';
 
 type RecurrenceKind = 'never' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-const recurrenceOptions: { value: RecurrenceKind; label: string }[] = [
-  { value: 'never', label: 'Niciodată' },
-  { value: 'daily', label: 'Zilnic' },
-  { value: 'weekly', label: 'Săptămânal' },
-  { value: 'monthly', label: 'Lunar' },
-  { value: 'yearly', label: 'Anual' },
-];
+const recurrenceValues: RecurrenceKind[] = ['never', 'daily', 'weekly', 'monthly', 'yearly'];
 
 export function AddExpensePage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const params = useParams();
@@ -88,9 +87,6 @@ export function AddExpensePage() {
   const [companyCard, setCompanyCard] = useState(false);
   const [companyCardTouched, setCompanyCardTouched] = useState(false);
 
-  // Live RON conversion preview for foreign-currency amounts. Uses the BNR rate for
-  // the expense's `occurred_on` date (not today) so the preview matches what will be
-  // saved on submit. RON is the base — query is disabled for RON.
   const dateIso = ymd(date);
   const fxRate = useQuery({
     queryKey: ['fx', dateIso, currency],
@@ -104,30 +100,24 @@ export function AddExpensePage() {
       ? amount * fxRate.data.rate_to_ron
       : null;
 
-  // Pre-fill form from a predefined template (?predefined=<id>) — only on first load,
-  // and only when not editing an existing expense.
   useEffect(() => {
     if (editingId || didLoadPredefined) return;
-    const t = predefined.data;
-    if (!t) return;
-    setName(t.name);
-    setCurrency(t.default_currency);
-    // Only override category from the template if it actually has one. Old templates
-    // (or ones the user forgot to set) have category_id=null — in that case let
-    // auto-suggest run from the name so e.g. "Comanda Zooplus" → Animale > Mâncare.
-    if (t.category_id) {
-      setCategoryId(t.category_id);
-      setSubcategoryId(t.subcategory_id);
+    const tpl = predefined.data;
+    if (!tpl) return;
+    setName(tpl.name);
+    setCurrency(tpl.default_currency);
+    if (tpl.category_id) {
+      setCategoryId(tpl.category_id);
+      setSubcategoryId(tpl.subcategory_id);
       setOverrideCategory(true);
     }
-    if (t.tags?.includes('company-card')) {
+    if (tpl.tags?.includes('company-card')) {
       setCompanyCard(true);
       setCompanyCardTouched(true);
     }
     setDidLoadPredefined(true);
   }, [editingId, didLoadPredefined, predefined.data]);
 
-  // Hydrate form when editing an existing expense
   useEffect(() => {
     if (!editingId || didLoadEditing) return;
     const exp = editing.data;
@@ -149,23 +139,18 @@ export function AddExpensePage() {
     setDidLoadEditing(true);
   }, [editing.data, editingId, didLoadEditing]);
 
-  // Mirror the "company card" switch to the picked category: ON when category is
-  // Work & Business, OFF otherwise. Bidirectional — so if auto-suggest moves between
-  // WB (e.g. "co" → Contabil) and non-WB (e.g. "comanda zooplus" → Animale), the
-  // switch follows. The user can override by tapping the switch, which sets
-  // `companyCardTouched` and freezes their choice for the rest of the session.
   const workBusinessCategoryId = useMemo(
     () => (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null,
     [cats.data],
   );
   useEffect(() => {
+    if (!companyCardEnabled) return;
     if (companyCardTouched) return;
     setCompanyCard(categoryId !== null && categoryId === workBusinessCategoryId);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched, companyCardEnabled]);
 
-  // Auto-suggest reacts to name input (debounced via React render coalescing)
   useEffect(() => {
-    if (editingId) return; // never auto-suggest in edit mode
+    if (editingId) return;
     if (overrideCategory) return;
     if (!auto.ready) return;
     const trimmed = name.trim();
@@ -194,17 +179,9 @@ export function AddExpensePage() {
 
   const accentColor = category?.color ?? 'var(--mantine-color-accent-5)';
 
-  // History combobox: strip cosmetic hints like "(eating out)"/"(food delivery)"
-  // (used by historical seed) and dedup by cleaned name. New expenses save with
-  // the clean name so the dropdown stays tidy.
   const historyOptions = useMemo(() => {
-    // Dropdown is hidden when input is empty — avoids the "wall of text" of all past
-    // expense names appearing on focus. Suggestions kick in only when user types ≥1 char.
     const trimmed = name.trim();
     if (trimmed === '') return [];
-    // Dedup by `normalize` (lowercase + strip diacritics) so "Comandă Zooplus" and
-    // "Comanda Zooplus" don't both appear. Also exclude the current input value so
-    // the user doesn't see their own typed/pre-filled name as a redundant suggestion.
     const seen = new Map<string, string>();
     const currentKey = normalize(trimmed);
     for (const exp of history.data ?? []) {
@@ -239,15 +216,15 @@ export function AddExpensePage() {
   async function handleSave() {
     setError(null);
     if (!name.trim()) {
-      setError('Nume e obligatoriu');
+      setError(t('expenses.add.errorNameRequired'));
       return;
     }
     if (typeof amount !== 'number' || amount <= 0) {
-      setError('Suma trebuie să fie pozitivă');
+      setError(t('expenses.add.errorAmountPositive'));
       return;
     }
     if (!categoryId) {
-      setError('Alege o categorie');
+      setError(t('expenses.add.errorCategoryRequired'));
       return;
     }
     try {
@@ -262,37 +239,42 @@ export function AddExpensePage() {
         note: note.trim() || null,
         recurrence: recurrence === 'never' ? null : { kind: recurrence },
         hidden,
-        tags: companyCard ? ['company-card'] : [],
+        // Preserve existing 'company-card' tag when feature is OFF (don't strip
+        // tags from records the user marked when the feature was on).
+        tags: companyCardEnabled
+          ? companyCard
+            ? ['company-card']
+            : []
+          : editing.data?.tags ?? [],
       });
       notifications.show({
-        message: editingId ? `${name.trim()} actualizat` : `${name.trim()} salvat`,
+        message: editingId
+          ? t('expenses.add.updatedToast', { name: name.trim() })
+          : t('expenses.add.savedToast', { name: name.trim() }),
         color: 'green',
         autoClose: 1800,
       });
-      // Edit mode: go back via history so /expenses keeps its ?month=... param.
-      // New mode: jump straight to the month of the saved expense.
       if (editingId) {
         navigate(-1);
       } else {
         navigate(`/expenses?month=${ymd(date)}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('expenses.add.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!editingId) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi această cheltuială?',
+      message: t('expenses.add.deleteConfirm'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(editingId);
-          notifications.show({ message: 'Cheltuială ștearsă', color: 'gray' });
-          // Same logic — preserve the month the user came from
+          notifications.show({ message: t('expenses.add.deletedToast'), color: 'gray' });
           navigate(-1);
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('expenses.add.errorDelete'));
         }
       },
     });
@@ -311,19 +293,19 @@ export function AddExpensePage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate(-1)}
           >
-            Înapoi
+            {t('expenses.add.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{editingId ? 'Editează cheltuiala' : 'Adaugă cheltuială'}</Title>
+        <Title order={2}>{editingId ? t('expenses.add.editTitle') : t('expenses.add.title')}</Title>
 
         <Autocomplete
-          label="Nume cheltuială"
+          label={t('expenses.add.nameLabel')}
           required
           data={historyOptions}
           value={name}
           onChange={setName}
-          placeholder="ex: Comanda Freshful"
+          placeholder={t('expenses.add.namePlaceholder')}
           maxDropdownHeight={240}
           limit={20}
           filter={diacriticsFilter}
@@ -340,7 +322,7 @@ export function AddExpensePage() {
             <Group gap={6} wrap="nowrap">
               <IconSparkles size={12} />
               <Text size="xs" component="span">
-                Auto: {category.name}
+                {t('expenses.add.autoBadge', { label: categoryDisplayName(category, t) })}
                 {autoSuggestion.matched && ` · "${autoSuggestion.matched}"`}
               </Text>
             </Group>
@@ -349,7 +331,7 @@ export function AddExpensePage() {
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Sumă"
+            label={t('expenses.add.amount')}
             required
             value={amount}
             onChange={(v) => setAmount(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
@@ -362,7 +344,7 @@ export function AddExpensePage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('expenses.add.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -374,18 +356,21 @@ export function AddExpensePage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('expenses.add.fxLoading')
               : amountRonPreview !== null
-                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR din ${dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY')}`
+                ? t('expenses.add.fxPreview', {
+                    amount: formatRon(amountRonPreview),
+                    date: dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY'),
+                  })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va încerca la salvare.'
-                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                  ? t('expenses.add.fxUnavailable')
+                  : t('expenses.add.fxEnterAmount')}
           </Text>
         )}
 
         <Box>
           <Text size="sm" fw={500} mb={4}>
-            Data
+            {t('expenses.add.date')}
           </Text>
           <Popover
             opened={datePickerOpen}
@@ -408,7 +393,7 @@ export function AddExpensePage() {
                 }}
               >
                 <IconCalendar size={16} />
-                {isToday ? 'Today' : dayjs(date).format('D MMM YYYY')}
+                {isToday ? t('expenses.add.today') : dayjs(date).format('D MMM YYYY')}
               </UnstyledButton>
             </Popover.Target>
             <Popover.Dropdown>
@@ -426,11 +411,11 @@ export function AddExpensePage() {
         </Box>
 
         <Select
-          label="Categorie"
+          label={t('expenses.add.category')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={categoryId}
           onChange={handleCategoryChange}
           renderOption={({ option }) => {
@@ -460,10 +445,10 @@ export function AddExpensePage() {
 
         {childSubs.length > 0 && (
           <Select
-            label="Subcategorie (opțional)"
+            label={t('expenses.add.subcategoryOptional')}
             data={[
-              { value: '', label: 'Fără subcategorie' },
-              ...childSubs.map((s) => ({ value: s.id, label: s.name })),
+              { value: '', label: t('expenses.add.noSubcategory') },
+              ...childSubs.map((s) => ({ value: s.id, label: subcategoryDisplayName(s, t) })),
             ]}
             value={subcategoryId ?? ''}
             onChange={(v) => handleSubcategoryChange(v && v !== '' ? v : null)}
@@ -472,60 +457,58 @@ export function AddExpensePage() {
         )}
 
         <Textarea
-          label="Notă (opțional)"
+          label={t('expenses.add.noteOptional')}
           value={note}
           onChange={(e) => setNote(e.currentTarget.value)}
           autosize
           minRows={2}
           maxRows={5}
-          placeholder="ex: petrecere onomastică"
+          placeholder={t('expenses.add.notePlaceholderEx')}
         />
 
         <Select
-          label="Recurență"
-          data={recurrenceOptions}
+          label={t('expenses.add.recurrence')}
+          data={recurrenceValues.map((v) => ({ value: v, label: t(`recurrence.${v}`) }))}
           value={recurrence}
           onChange={(v) => setRecurrence((v as RecurrenceKind) ?? 'never')}
           allowDeselect={false}
         />
 
-        {/* Switch-urile cu impact (afectează totaluri / vizibilitate) au labelul detașat
-            de input, ca să nu se activeze din greșeală la tap pe text sau scroll. Doar
-            thumb-ul switch-ului toggle-ează. aria-label păstrează accesibilitatea. */}
-        <Group wrap="nowrap" align="flex-start" gap="sm">
-          <Switch
-            checked={companyCard}
-            onChange={(e) => {
-              setCompanyCard(e.currentTarget.checked);
-              setCompanyCardTouched(true);
-            }}
-            aria-label="Plătit cu cardul firmei"
-            mt={2}
-          />
-          <Box flex={1} miw={0}>
-            <Text size="sm" fw={500}>
-              Plătit cu cardul firmei
-            </Text>
-            <Text size="xs" c="dimmed">
-              Marchează că nu ai plătit din banii tăi. Exclus din totalul personal în Analytics.
-            </Text>
-          </Box>
-        </Group>
+        {companyCardEnabled && (
+          <Group wrap="nowrap" align="flex-start" gap="sm">
+            <Switch
+              checked={companyCard}
+              onChange={(e) => {
+                setCompanyCard(e.currentTarget.checked);
+                setCompanyCardTouched(true);
+              }}
+              aria-label={t('expenses.add.company')}
+              mt={2}
+            />
+            <Box flex={1} miw={0}>
+              <Text size="sm" fw={500}>
+                {t('expenses.add.company')}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t('expenses.add.companyHint')}
+              </Text>
+            </Box>
+          </Group>
+        )}
 
         <Group wrap="nowrap" align="flex-start" gap="sm">
           <Switch
             checked={hidden}
             onChange={(e) => setHidden(e.currentTarget.checked)}
-            aria-label="Ascunde din liste"
+            aria-label={t('expenses.add.hidden')}
             mt={2}
           />
           <Box flex={1} miw={0}>
             <Text size="sm" fw={500}>
-              Ascunde din liste
+              {t('expenses.add.hidden')}
             </Text>
             <Text size="xs" c="dimmed">
-              Nu apare în lista de cheltuieli, dar suma e inclusă în total. Vizibilă doar în
-              pagina &apos;Cheltuieli ascunse&apos; (cu PIN).
+              {t('expenses.add.hiddenHint')}
             </Text>
           </Box>
         </Group>
@@ -542,15 +525,15 @@ export function AddExpensePage() {
           onClick={handleSave}
           styles={category ? { root: { background: category.color } } : undefined}
         >
-          {editingId ? 'Salvează modificările' : 'Salvează'}
+          {editingId ? t('expenses.add.saveChanges') : t('expenses.add.submit')}
         </Button>
         {editingId && (
           <Button variant="subtle" color="red" onClick={handleDelete} loading={del.isPending}>
-            Șterge cheltuiala
+            {t('expenses.add.deleteExpense')}
           </Button>
         )}
         <Anchor component="button" type="button" onClick={() => navigate(-1)} ta="center">
-          Anulează
+          {t('expenses.add.cancel')}
         </Anchor>
       </Stack>
     </Container>

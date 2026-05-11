@@ -15,10 +15,13 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeletePredefined,
   usePredefinedExpense,
@@ -26,6 +29,8 @@ import {
 } from './api';
 
 export function PredefinedExpenseFormPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -45,22 +50,23 @@ export function PredefinedExpenseFormPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = editing.data;
-    if (!t) return;
-    setName(t.name);
-    setDefaultCurrency(t.default_currency);
-    setCategoryId(t.category_id);
-    setSubcategoryId(t.subcategory_id);
-    setActive(t.active);
-    setCompanyCard(t.tags?.includes('company-card') ?? false);
+    const tpl = editing.data;
+    if (!tpl) return;
+    setName(tpl.name);
+    setDefaultCurrency(tpl.default_currency);
+    setCategoryId(tpl.category_id);
+    setSubcategoryId(tpl.subcategory_id);
+    setActive(tpl.active);
+    setCompanyCard(tpl.tags?.includes('company-card') ?? false);
     setCompanyCardTouched(true);
   }, [editing.data]);
 
   const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
   useEffect(() => {
+    if (!companyCardEnabled) return;
     if (companyCardTouched) return;
     if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched, companyCardEnabled]);
 
   if (!isNew && editing.isLoading) {
     return (
@@ -74,8 +80,8 @@ export function PredefinedExpenseFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (!categoryId) return setError('Alege o categorie');
+    if (!name.trim()) return setError(t('templates.errorNameRequired'));
+    if (!categoryId) return setError(t('templates.errorCategoryRequired'));
     try {
       await upsert.mutateAsync({
         id: params.id,
@@ -85,24 +91,28 @@ export function PredefinedExpenseFormPage() {
         subcategory_id: subcategoryId,
         icon: null,
         active,
-        tags: companyCard ? ['company-card'] : [],
+        tags: companyCardEnabled
+          ? companyCard
+            ? ['company-card']
+            : []
+          : editing.data?.tags ?? [],
       });
       navigate('/predefined-expenses');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('templates.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi acest șablon?',
+      message: t('templates.predefined.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/predefined-expenses');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('templates.errorDelete'));
         }
       },
     });
@@ -119,22 +129,22 @@ export function PredefinedExpenseFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/predefined-expenses')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Șablon predefinit nou' : name}</Title>
+        <Title order={2}>{isNew ? t('templates.predefined.newFormTitle') : name}</Title>
 
         <TextInput
-          label="Nume"
+          label={t('subscriptions.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Comandă Freshful"
+          placeholder={t('templates.predefined.namePlaceholder')}
         />
 
         <Select
-          label="Monedă implicită"
+          label={t('templates.predefined.defaultCurrency')}
           data={CURRENCIES.map((c) => ({ value: c, label: c }))}
           value={defaultCurrency}
           onChange={(v) => setDefaultCurrency((v as Currency) ?? 'RON')}
@@ -142,11 +152,11 @@ export function PredefinedExpenseFormPage() {
         />
 
         <Select
-          label="Categorie"
+          label={t('subscriptions.form.category')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={categoryId}
           onChange={(v) => {
             setCategoryId(v);
@@ -156,10 +166,10 @@ export function PredefinedExpenseFormPage() {
 
         {childSubs.length > 0 && (
           <Select
-            label="Subcategorie (opțional)"
+            label={t('templates.subcategoryOptional')}
             data={[
-              { value: '', label: 'Fără subcategorie' },
-              ...childSubs.map((s) => ({ value: s.id, label: s.name })),
+              { value: '', label: t('templates.noSubcategory') },
+              ...childSubs.map((s) => ({ value: s.id, label: subcategoryDisplayName(s, t) })),
             ]}
             value={subcategoryId ?? ''}
             onChange={(v) => setSubcategoryId(v && v !== '' ? v : null)}
@@ -167,20 +177,22 @@ export function PredefinedExpenseFormPage() {
         )}
 
         <Switch
-          label="Activ"
+          label={t('templates.switchActive')}
           checked={active}
           onChange={(e) => setActive(e.currentTarget.checked)}
         />
 
-        <Switch
-          label="Plătit cu cardul firmei"
-          description="Cheltuielile generate vor fi excluse din totalul personal în Analytics."
-          checked={companyCard}
-          onChange={(e) => {
-            setCompanyCard(e.currentTarget.checked);
-            setCompanyCardTouched(true);
-          }}
-        />
+        {companyCardEnabled && (
+          <Switch
+            label={t('templates.switchCompany')}
+            description={t('templates.switchCompanyHint')}
+            checked={companyCard}
+            onChange={(e) => {
+              setCompanyCard(e.currentTarget.checked);
+              setCompanyCardTouched(true);
+            }}
+          />
+        )}
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
@@ -189,7 +201,7 @@ export function PredefinedExpenseFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Creează' : 'Salvează'}
+          {isNew ? t('subscriptions.form.create') : t('subscriptions.form.submit')}
         </Button>
 
         {!isNew && (
@@ -202,7 +214,7 @@ export function PredefinedExpenseFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge șablonul
+              {t('subscriptions.form.delete')}
             </Button>
           </>
         )}

@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { Center, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 
 const SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY as string | undefined;
 
@@ -37,6 +38,7 @@ export const CaptchaGate = forwardRef<CaptchaGateRef, Props>(function CaptchaGat
   ref,
 ) {
   const widgetRef = useRef<HCaptcha>(null);
+  const { t } = useTranslation();
 
   useImperativeHandle(ref, () => ({
     reset: () => widgetRef.current?.resetCaptcha(),
@@ -45,7 +47,7 @@ export const CaptchaGate = forwardRef<CaptchaGateRef, Props>(function CaptchaGat
   if (!SITE_KEY) {
     return (
       <Text size="xs" c="dimmed" ta="center">
-        (captcha disabled — VITE_HCAPTCHA_SITE_KEY missing)
+        {t('auth.captcha.disabled')}
       </Text>
     );
   }

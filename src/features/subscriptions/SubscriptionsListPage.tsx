@@ -16,7 +16,10 @@ import {
 } from '@mantine/core';
 import dayjs from 'dayjs';
 import { IconArrowLeft, IconCreditCard, IconPlus } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
 import { formatMoney, formatRon, round2 } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { useFxRates } from '@/lib/useFxRates';
@@ -24,12 +27,6 @@ import { BrandTile } from '@/components/BrandTile';
 import { useSubscriptions, useToggleSubscription } from './api';
 import type { Subscription } from '@/types';
 
-/**
- * Convert a subscription's amount to its monthly RON equivalent.
- * - weekly  → amount * (365.25/7) / 12  (≈ amount * 4.345)
- * - monthly → amount
- * - yearly  → amount / 12
- */
 function monthlyEquivalent(amount: number, cadence: Subscription['cadence']): number {
   if (cadence === 'weekly') return amount * (365.25 / 7) / 12;
   if (cadence === 'yearly') return amount / 12;
@@ -37,6 +34,8 @@ function monthlyEquivalent(amount: number, cadence: Subscription['cadence']): nu
 }
 
 export function SubscriptionsListPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const navigate = useNavigate();
   const subs = useSubscriptions();
   const cats = useCategories();
@@ -47,7 +46,6 @@ export function SubscriptionsListPage() {
   const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
   const [totalCurrencies, setTotalCurrencies] = useState<Set<string>>(new Set());
 
-  // Compute total monthly equivalent in RON across all *active* subs, fetching FX rates as needed
   useEffect(() => {
     const active = (subs.data ?? []).filter((s) => s.active);
     if (active.length === 0) {
@@ -70,8 +68,7 @@ export function SubscriptionsListPage() {
             const rate = await getFxRate(today, sub.currency);
             total += monthly * rate.rate_to_ron;
           } catch {
-            // FX unavailable in dev/offline — fallback to a rough manual estimate
-            // (skip this sub from the total rather than misrepresent)
+            // FX unavailable in dev/offline — skip
           }
         }
       }
@@ -96,18 +93,18 @@ export function SubscriptionsListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('subscriptions.back')}
           </Button>
         </Group>
 
         <Group justify="space-between" align="center">
-          <Title order={2}>Abonamente</Title>
+          <Title order={2}>{t('subscriptions.title')}</Title>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
             onClick={() => navigate('/subscriptions/new')}
           >
-            Adaugă
+            {t('subscriptions.addShort')}
           </Button>
         </Group>
 
@@ -119,7 +116,7 @@ export function SubscriptionsListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconCreditCard size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun abonament</Text>
+              <Text c="dimmed">{t('subscriptions.empty')}</Text>
             </Stack>
           </Center>
         ) : (
@@ -133,6 +130,8 @@ export function SubscriptionsListPage() {
                   rateRon={fx.rateOf(sub.currency)}
                   onToggle={(active) => toggle.mutate({ id: sub.id, active })}
                   onClick={() => navigate(`/subscriptions/${sub.id}/edit`)}
+                  t={t}
+                  showCompanyBadge={companyCardEnabled}
                 />
               ))}
             </Stack>
@@ -141,11 +140,11 @@ export function SubscriptionsListPage() {
               <Group justify="space-between" align="flex-start">
                 <Box>
                   <Text size="xs" c="dimmed">
-                    Total estimat lunar (active)
+                    {t('subscriptions.totalLabel')}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    Saptămânal × 4.345 · Anual ÷ 12{' '}
-                    {totalCurrencies.size > 1 && '· EUR/USD convertite la cursul BNR'}
+                    {t('subscriptions.totalHint')}
+                    {totalCurrencies.size > 1 && ` · ${t('subscriptions.totalHintFx')}`}
                   </Text>
                 </Box>
                 <Text fw={800} size="xl">
@@ -166,15 +165,19 @@ function SubscriptionRow({
   rateRon,
   onToggle,
   onClick,
+  t,
+  showCompanyBadge,
 }: {
   subscription: Subscription;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
   onToggle: (active: boolean) => void;
   onClick: () => void;
+  t: TFunction;
+  showCompanyBadge: boolean;
 }) {
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
-  const cadenceLabel = formatCadence(subscription);
+  const cadenceLabel = formatCadence(subscription, t);
   const showRon = subscription.currency !== 'RON' && rateRon !== null;
   const amountRon = showRon ? Number(subscription.amount) * rateRon : null;
 
@@ -196,9 +199,9 @@ function SubscriptionRow({
             <Text fw={500} truncate>
               {subscription.name}
             </Text>
-            {subscription.tags.includes('company-card') && (
+            {showCompanyBadge && subscription.tags.includes('company-card') && (
               <Badge size="xs" variant="light" color="gray">
-                firmă
+                {t('expenses.badges.company')}
               </Badge>
             )}
           </Group>
@@ -218,18 +221,20 @@ function SubscriptionRow({
   );
 }
 
-const WEEKDAY_RO = ['Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă', 'Duminică'];
-const MONTH_RO = [
-  'ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'nov', 'dec',
-];
-
-function formatCadence(s: Subscription): string {
+function formatCadence(s: Subscription, t: TFunction): string {
   if (s.cadence === 'weekly') {
-    return `săptămânal, ${WEEKDAY_RO[(s.charge_day - 1) % 7]}`;
+    // dayjs week starts Sunday by default — index 0 = Sunday. Bias by charge_day=1 = Monday
+    // by adding 1 mod 7 so Monday lookup gives "Monday" in the current locale.
+    const weekday = dayjs().day((s.charge_day) % 7).format('dddd');
+    return t('subscriptions.cadenceWeekly', {
+      weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
+    });
   }
   if (s.cadence === 'yearly') {
-    const m = s.charge_month ? MONTH_RO[(s.charge_month - 1) % 12] : '?';
-    return `anual, ${s.charge_day} ${m}`;
+    const month = s.charge_month
+      ? dayjs().month(s.charge_month - 1).format('MMM')
+      : '?';
+    return t('subscriptions.cadenceYearly', { day: s.charge_day, month });
   }
-  return `lunar, ziua ${s.charge_day}`;
+  return t('subscriptions.cadenceMonthly', { day: s.charge_day });
 }

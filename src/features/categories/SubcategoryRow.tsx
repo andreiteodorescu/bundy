@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { ActionIcon, Box, Group, Paper, Text } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { getIcon } from '@/data/icons.registry';
+import { subcategoryDisplayName } from '@/i18n/displayName';
 import type { Subcategory } from '@/types';
 
 type Props = {
@@ -10,6 +12,7 @@ type Props = {
 };
 
 export function SubcategoryRow({ subcategory, parentColor }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const Icon = getIcon(subcategory.icon);
   const color = subcategory.color ?? parentColor;
@@ -37,7 +40,7 @@ export function SubcategoryRow({ subcategory, parentColor }: Props) {
           <Icon size={18} stroke={2} />
         </Box>
         <Text flex={1} truncate fw={500} size="sm">
-          {subcategory.name}
+          {subcategoryDisplayName(subcategory, t)}
         </Text>
         <ActionIcon variant="subtle" color="gray" size="sm">
           <IconChevronRight size={16} />

@@ -37,6 +37,8 @@ import {
   IconMinus,
   IconPlus,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon } from '@/lib/money';
 import { useFxRates } from '@/lib/useFxRates';
@@ -50,6 +52,7 @@ import {
 import type { QuickExpense } from '@/types';
 
 export function QuickExpensesListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const templates = useQuickExpenses();
   const today = useQuickTodayAggregates();
@@ -103,22 +106,21 @@ export function QuickExpensesListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/home')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
           <Button
             size="compact-sm"
             leftSection={<IconPlus size={16} />}
             onClick={() => navigate('/quick-expenses/new')}
           >
-            Șablon nou
+            {t('templates.quick.newButton')}
           </Button>
         </Group>
 
         <Box>
-          <Title order={2}>Cheltuială rapidă</Title>
+          <Title order={2}>{t('templates.quick.title')}</Title>
           <Text size="sm" c="dimmed">
-            Tap pe + pentru a adăuga o intrare. Mai multe pe aceeași zi se agregă într-o singură
-            cheltuială (ex: "Metrou ×4 — 20,00 RON").
+            {t('templates.quick.intro')}
           </Text>
         </Box>
 
@@ -126,7 +128,7 @@ export function QuickExpensesListPage() {
           <Paper withBorder radius="md" p="sm">
             <Group justify="space-between">
               <Text size="sm" c="dimmed">
-                Total adăugat azi
+                {t('templates.quick.todayTotal')}
               </Text>
               <Text fw={700} size="lg">
                 {formatMoney(todayTotal, 'RON')}
@@ -143,14 +145,14 @@ export function QuickExpensesListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconBolt size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun șablon rapid</Text>
+              <Text c="dimmed">{t('templates.quick.empty')}</Text>
               <Button
                 size="sm"
                 variant="light"
                 onClick={() => navigate('/quick-expenses/new')}
                 leftSection={<IconPlus size={16} />}
               >
-                Adaugă primul
+                {t('templates.addFirst')}
               </Button>
             </Stack>
           </Center>
@@ -167,7 +169,7 @@ export function QuickExpensesListPage() {
                   }
                   onClick={() => setReorderMode((v) => !v)}
                 >
-                  {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+                  {reorderMode ? t('templates.reorderDone') : t('templates.reorderStart')}
                 </Button>
               </Group>
             )}
@@ -189,6 +191,7 @@ export function QuickExpensesListPage() {
                       onStep={(delta) => step.mutate({ template: tpl, delta })}
                       onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
                       disabled={step.isPending}
+                      t={t}
                     />
                   ))}
                 </Stack>
@@ -210,6 +213,7 @@ function QuickRow({
   onStep,
   onEdit,
   disabled,
+  t,
 }: {
   template: QuickExpense;
   qty: number;
@@ -219,6 +223,7 @@ function QuickRow({
   onStep: (delta: 1 | -1) => void;
   onEdit: () => void;
   disabled: boolean;
+  t: TFunction;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: template.id,
@@ -255,7 +260,7 @@ function QuickRow({
             size="lg"
             {...attributes}
             {...listeners}
-            aria-label="Trage pentru reordonare"
+            aria-label={t('templates.gripAria')}
           >
             <IconGripVertical size={18} />
           </ActionIcon>
@@ -289,7 +294,7 @@ function QuickRow({
           <Text size="xs" c="dimmed">
             {formatMoney(Number(template.amount), template.currency)}
             {showRon && unitRon !== null && ` ≈ ${formatRon(unitRon)}`}
-            {qty > 0 ? ` · azi ${formatMoney(lineTotal, template.currency)}` : ''}
+            {qty > 0 ? ` · ${t('templates.quick.todayInline', { value: formatMoney(lineTotal, template.currency) })}` : ''}
           </Text>
         </Box>
         {!reorderMode && (
@@ -300,7 +305,7 @@ function QuickRow({
               size={32}
               onClick={() => onStep(-1)}
               disabled={disabled || qty === 0}
-              aria-label="Scade"
+              aria-label={t('templates.quick.decreaseAria')}
             >
               <IconMinus size={16} />
             </ActionIcon>
@@ -325,7 +330,7 @@ function QuickRow({
               size={32}
               onClick={() => onStep(1)}
               disabled={disabled}
-              aria-label="Adaugă"
+              aria-label={t('templates.quick.increaseAria')}
               styles={color.startsWith('#') ? { root: { background: color } } : undefined}
             >
               <IconPlus size={16} />

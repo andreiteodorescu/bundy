@@ -13,10 +13,12 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconMailCheck } from '@tabler/icons-react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useAuth } from './AuthProvider';
 import { CaptchaGate, HCAPTCHA_ENABLED, type CaptchaGateRef } from '@/components/CaptchaGate';
 
 export function ForgotPasswordPage() {
+  const { t } = useTranslation();
   const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,16 +30,16 @@ export function ForgotPasswordPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!email.trim()) return setError('Introdu un email');
+    if (!email.trim()) return setError(t('auth.forgot.emailRequired'));
     if (HCAPTCHA_ENABLED && !captchaToken) {
-      return setError('Te rog completează verificarea anti-bot');
+      return setError(t('validation.captchaRequired'));
     }
     setLoading(true);
     try {
       await requestPasswordReset(email.trim(), captchaToken ?? undefined);
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare');
+      setError(err instanceof Error ? err.message : t('auth.forgot.error'));
       captchaRef.current?.reset();
       setCaptchaToken(null);
     } finally {
@@ -64,13 +66,16 @@ export function ForgotPasswordPage() {
             >
               <IconMailCheck size={32} stroke={2} />
             </Box>
-            <Title order={3}>Verifică email-ul</Title>
+            <Title order={3}>{t('auth.forgot.sentTitle')}</Title>
             <Text size="sm" c="dimmed">
-              Dacă există un cont cu adresa <b>{email}</b>, ți-am trimis un link pentru resetarea
-              parolei. Click-ul pe link te aduce direct înapoi în aplicație.
+              <Trans
+                i18nKey="auth.forgot.sentMessage"
+                values={{ email }}
+                components={{ bold: <b /> }}
+              />
             </Text>
             <Anchor component={Link} to="/login">
-              Înapoi la login
+              {t('auth.forgot.backToLogin')}
             </Anchor>
           </Stack>
         </Paper>
@@ -84,13 +89,13 @@ export function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <Stack gap={2}>
-              <Title order={2}>Resetare parolă</Title>
+              <Title order={2}>{t('auth.forgot.title')}</Title>
               <Text size="sm" c="dimmed">
-                Introdu email-ul contului tău. Îți trimitem un link de resetare.
+                {t('auth.forgot.description')}
               </Text>
             </Stack>
             <TextInput
-              label="Email"
+              label={t('auth.forgot.email')}
               type="email"
               autoComplete="email"
               inputMode="email"
@@ -114,11 +119,11 @@ export function ForgotPasswordPage() {
               fullWidth
               disabled={HCAPTCHA_ENABLED && !captchaToken}
             >
-              Trimite link
+              {t('auth.forgot.submit')}
             </Button>
             <Text size="xs" ta="center" c="dimmed">
               <Anchor component={Link} to="/login">
-                Înapoi la login
+                {t('auth.forgot.backToLogin')}
               </Anchor>
             </Text>
           </Stack>

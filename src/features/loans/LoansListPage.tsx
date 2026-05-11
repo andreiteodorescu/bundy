@@ -16,6 +16,8 @@ import {
 } from '@mantine/core';
 import dayjs from 'dayjs';
 import { IconArrowLeft, IconBuildingBank, IconPlus } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon, round2 } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
@@ -25,6 +27,7 @@ import { useLoans, useToggleLoan } from './api';
 import type { Loan } from '@/types';
 
 export function LoansListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const loans = useLoans();
   const cats = useCategories();
@@ -34,7 +37,6 @@ export function LoansListPage() {
 
   const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
 
-  // Sum monthly payment for all *active* loans, converted to RON
   useEffect(() => {
     const active = (loans.data ?? []).filter((l) => l.active);
     if (active.length === 0) {
@@ -76,18 +78,18 @@ export function LoansListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('loans.back')}
           </Button>
         </Group>
 
         <Group justify="space-between" align="center">
-          <Title order={2}>Rate</Title>
+          <Title order={2}>{t('loans.title')}</Title>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
             onClick={() => navigate('/loans/new')}
           >
-            Adaugă
+            {t('loans.addShort')}
           </Button>
         </Group>
 
@@ -99,7 +101,7 @@ export function LoansListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconBuildingBank size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Nicio rată definită</Text>
+              <Text c="dimmed">{t('loans.empty')}</Text>
             </Stack>
           </Center>
         ) : (
@@ -113,6 +115,7 @@ export function LoansListPage() {
                   rateRon={fx.rateOf(loan.currency)}
                   onToggle={(active) => toggle.mutate({ id: loan.id, active })}
                   onClick={() => navigate(`/loans/${loan.id}/edit`)}
+                  t={t}
                 />
               ))}
             </Stack>
@@ -121,7 +124,7 @@ export function LoansListPage() {
               <Group justify="space-between" align="flex-start">
                 <Box>
                   <Text size="xs" c="dimmed">
-                    Total lunar (rate active)
+                    {t('loans.monthlyTotal')}
                   </Text>
                 </Box>
                 <Text fw={800} size="xl">
@@ -142,12 +145,14 @@ function LoanRow({
   rateRon,
   onToggle,
   onClick,
+  t,
 }: {
   loan: Loan;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
   onToggle: (active: boolean) => void;
   onClick: () => void;
+  t: TFunction;
 }) {
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
@@ -192,8 +197,8 @@ function LoanRow({
           <Text size="xs" c="dimmed">
             {formatMoney(Number(loan.monthly_payment), loan.currency)}
             {showRon && monthlyRon !== null && ` ≈ ${formatRon(monthlyRon)}`}
-            {' · ziua '}{loan.charge_day}
-            {remaining !== null && ` · ${remaining} ${remaining === 1 ? 'lună rămasă' : 'luni rămase'}`}
+            {' · '}{t('loans.chargeDay', { day: loan.charge_day })}
+            {remaining !== null && ` · ${t('loans.monthsRemaining', { count: remaining })}`}
           </Text>
         </Box>
         <Switch

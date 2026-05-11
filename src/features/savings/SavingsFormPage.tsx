@@ -22,6 +22,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { ymd } from '@/lib/dates';
@@ -35,6 +36,7 @@ import {
 import type { SavingsDirection } from '@/types';
 
 export function SavingsFormPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -45,8 +47,6 @@ export function SavingsFormPage() {
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  // Economiile sunt cel mai des în EUR (depozite, vault Revolut etc.) — default EUR
-  // pentru tranzacții noi. Pe edit, useEffect-ul de mai jos hidratează moneda reală.
   const [currency, setCurrency] = useState<Currency>('EUR');
   const [direction, setDirection] = useState<SavingsDirection>('in');
   const [accountName, setAccountName] = useState('');
@@ -55,18 +55,17 @@ export function SavingsFormPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = editing.data;
-    if (!t) return;
-    setName(t.name);
-    setAmount(Number(t.amount));
-    setCurrency(t.currency);
-    setDirection(t.direction);
-    setAccountName(t.account_name ?? '');
-    setDate(new Date(t.occurred_on));
-    setNote(t.note ?? '');
+    const tx = editing.data;
+    if (!tx) return;
+    setName(tx.name);
+    setAmount(Number(tx.amount));
+    setCurrency(tx.currency);
+    setDirection(tx.direction);
+    setAccountName(tx.account_name ?? '');
+    setDate(new Date(tx.occurred_on));
+    setNote(tx.note ?? '');
   }, [editing.data]);
 
-  // Live RON preview using BNR rate for the picked date
   const dateIso = ymd(date);
   const fxRate = useQuery({
     queryKey: ['fx', dateIso, currency],
@@ -80,7 +79,6 @@ export function SavingsFormPage() {
       ? amount * fxRate.data.rate_to_ron
       : null;
 
-  // Account name autocomplete from existing transactions (suggest the user's saved accounts)
   const accountSuggestions = useMemo(() => {
     const set = new Set<string>();
     for (const s of all.data ?? []) if (s.account_name) set.add(s.account_name);
@@ -97,8 +95,8 @@ export function SavingsFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (typeof amount !== 'number' || amount <= 0) return setError('Sumă invalidă');
+    if (!name.trim()) return setError(t('savings.form.errorNameRequired'));
+    if (typeof amount !== 'number' || amount <= 0) return setError(t('savings.form.errorAmountInvalid'));
     try {
       await upsert.mutateAsync({
         id: params.id,
@@ -112,20 +110,20 @@ export function SavingsFormPage() {
       });
       navigate('/savings');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('savings.form.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi această tranzacție?',
+      message: t('savings.form.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/savings');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('savings.form.errorDelete'));
         }
       },
     });
@@ -142,33 +140,33 @@ export function SavingsFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/savings')}
           >
-            Înapoi
+            {t('savings.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Tranzacție nouă' : name}</Title>
+        <Title order={2}>{isNew ? t('savings.form.newTitle') : name}</Title>
 
         <SegmentedControl
           fullWidth
           value={direction}
           onChange={(v) => setDirection(v as SavingsDirection)}
           data={[
-            { label: 'Depozit', value: 'in' },
-            { label: 'Retragere', value: 'out' },
+            { label: t('savings.form.directionIn'), value: 'in' },
+            { label: t('savings.form.directionOut'), value: 'out' },
           ]}
         />
 
         <TextInput
-          label="Nume"
+          label={t('savings.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Depozit BCR, Vault Revolut, Buffer salariu"
+          placeholder={t('savings.form.namePlaceholder')}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Sumă"
+            label={t('savings.form.amount')}
             required
             flex={1}
             value={amount}
@@ -181,7 +179,7 @@ export function SavingsFormPage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('savings.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -193,26 +191,29 @@ export function SavingsFormPage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('savings.form.fxLoading')
               : amountRonPreview !== null
-                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR din ${dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY')}`
+                ? t('savings.form.fxPreview', {
+                    amount: formatRon(amountRonPreview),
+                    date: dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY'),
+                  })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va încerca la salvare.'
-                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                  ? t('savings.form.fxUnavailable')
+                  : t('savings.form.fxEnterAmount')}
           </Text>
         )}
 
         <Autocomplete
-          label="Cont (opțional)"
-          placeholder="ex: Revolut, BCR Economii, ING Bazar"
+          label={t('savings.form.account')}
+          placeholder={t('savings.form.accountPlaceholder')}
           value={accountName}
           onChange={setAccountName}
           data={accountSuggestions}
-          description="Util pentru a grupa tranzacțiile în pagina de listare."
+          description={t('savings.form.accountHint')}
         />
 
         <DatePickerInput
-          label="Data"
+          label={t('savings.form.date')}
           required
           value={date}
           onChange={(d) => d && setDate(new Date(d as unknown as string))}
@@ -220,7 +221,7 @@ export function SavingsFormPage() {
         />
 
         <Textarea
-          label="Notă (opțional)"
+          label={t('savings.form.noteOptional')}
           value={note}
           onChange={(e) => setNote(e.currentTarget.value)}
           autosize
@@ -235,7 +236,7 @@ export function SavingsFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Adaugă' : 'Salvează'}
+          {isNew ? t('savings.form.create') : t('savings.form.submit')}
         </Button>
 
         {!isNew && (
@@ -248,7 +249,7 @@ export function SavingsFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge tranzacția
+              {t('savings.form.delete')}
             </Button>
           </>
         )}

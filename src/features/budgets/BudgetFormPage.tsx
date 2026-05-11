@@ -19,6 +19,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
@@ -26,8 +27,10 @@ import { BudgetCalendar } from './BudgetCalendar';
 import { useBudget, useDeleteBudget, useUpsertBudget } from './api';
 import { getFxRate } from '@/lib/fx';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 
 export function BudgetFormPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -56,16 +59,15 @@ export function BudgetFormPage() {
     setSubcategoryIds(b.subcategory_ids ?? []);
   }, [editing.data]);
 
-  // Subcategorii grupate pe categoria părinte, etichetă "Parent › Sub"
   const subcategoryOptions = useMemo(() => {
-    const catName = new Map((cats.data ?? []).map((c) => [c.id, c.name]));
+    const catNameById = new Map((cats.data ?? []).map((c) => [c.id, categoryDisplayName(c, t)]));
     return (subs.data ?? [])
       .map((s) => ({
         value: s.id,
-        label: `${catName.get(s.parent_category_id) ?? '?'} › ${s.name}`,
+        label: `${catNameById.get(s.parent_category_id) ?? '?'} › ${subcategoryDisplayName(s, t)}`,
       }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'ro'));
-  }, [cats.data, subs.data]);
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [cats.data, subs.data, t]);
 
   const periodInfo = useMemo(() => {
     if (selectedDays.length === 0) return null;
@@ -73,8 +75,6 @@ export function BudgetFormPage() {
     return { start: sorted[0], end: sorted[sorted.length - 1], count: sorted.length };
   }, [selectedDays]);
 
-  // Live RON preview using the rate from the budget's first day (matches save logic);
-  // falls back to today if no days are picked yet.
   const fxDate = periodInfo?.start ?? dayjs().format('YYYY-MM-DD');
   const fxRate = useQuery({
     queryKey: ['fx', fxDate, currency],
@@ -98,9 +98,9 @@ export function BudgetFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (typeof amount !== 'number' || amount <= 0) return setError('Sumă invalidă');
-    if (selectedDays.length === 0) return setError('Selectează cel puțin o zi');
+    if (!name.trim()) return setError(t('budgets.form.errorNameRequired'));
+    if (typeof amount !== 'number' || amount <= 0) return setError(t('budgets.form.errorAmountInvalid'));
+    if (selectedDays.length === 0) return setError(t('budgets.form.errorDaysRequired'));
 
     try {
       let amountRon = amount;
@@ -121,20 +121,20 @@ export function BudgetFormPage() {
       });
       navigate('/budgets');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('budgets.form.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi acest buget?',
+      message: t('budgets.form.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/budgets');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('budgets.form.errorDelete'));
         }
       },
     });
@@ -151,23 +151,23 @@ export function BudgetFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/budgets')}
           >
-            Înapoi
+            {t('budgets.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Buget nou' : name}</Title>
+        <Title order={2}>{isNew ? t('budgets.form.newTitle') : name}</Title>
 
         <TextInput
-          label="Nume buget"
+          label={t('budgets.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Vacanță Italia"
+          placeholder={t('budgets.form.namePlaceholder')}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Sumă"
+            label={t('budgets.form.amount')}
             required
             flex={1}
             value={amount}
@@ -177,7 +177,7 @@ export function BudgetFormPage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('budgets.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -189,28 +189,28 @@ export function BudgetFormPage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('budgets.form.fxLoading')
               : amountRonPreview !== null
-                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR din ${dayjs(fxRate.data?.date ?? fxDate).format('D MMM YYYY')}`
+                ? t('budgets.form.fxPreview', {
+                    amount: formatRon(amountRonPreview),
+                    date: dayjs(fxRate.data?.date ?? fxDate).format('D MMM YYYY'),
+                  })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va încerca la salvare.'
+                  ? t('budgets.form.fxUnavailable')
                   : periodInfo === null
-                    ? 'Alege perioada și introdu o sumă pentru a vedea echivalentul în RON.'
-                    : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                    ? t('budgets.form.fxNoPeriod')
+                    : t('budgets.form.fxEnterAmount')}
           </Text>
         )}
 
         <BudgetCalendar value={selectedDays} onChange={setSelectedDays} />
 
-        {/* Mutually exclusive scoping: a budget is scoped EITHER on whole categories
-            OR on specific subcategories, never both. Picking a parent category already
-            includes all its subcategories, so showing both would be confusing. */}
         {subcategoryIds.length === 0 && (
           <MultiSelect
-            label="Categorii întregi (opțional)"
-            description="Însumează TOT din categoria aleasă, inclusiv subcategoriile (ex: 'Vacanță' → toată categoria Vacanță)."
-            placeholder="ex: Vacanță, Mâncare & Băuturi"
-            data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            label={t('budgets.form.scopeCategoriesLabel')}
+            description={t('budgets.form.scopeCategoriesDescription')}
+            placeholder={t('budgets.form.scopeCategoriesPlaceholder')}
+            data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
             value={categoryIds}
             onChange={setCategoryIds}
             searchable
@@ -221,9 +221,9 @@ export function BudgetFormPage() {
 
         {categoryIds.length === 0 && (
           <MultiSelect
-            label="Subcategorii specifice (opțional)"
-            description="Însumează DOAR subcategoriile alese (ex: 'În oraș' singur, fără Băcănie / Food Delivery / Băuturi)."
-            placeholder="ex: Mâncare & Băuturi › În oraș"
+            label={t('budgets.form.scopeSubcategoriesLabel')}
+            description={t('budgets.form.scopeSubcategoriesDescription')}
+            placeholder={t('budgets.form.scopeSubcategoriesPlaceholder')}
             data={subcategoryOptions}
             value={subcategoryIds}
             onChange={setSubcategoryIds}
@@ -236,7 +236,7 @@ export function BudgetFormPage() {
         {categoryIds.length > 0 && (
           <Group gap="xs" mt={-8}>
             <Text size="xs" c="dimmed" flex={1}>
-              ℹ Bugetul scopat pe categorii întregi. Pentru a alege subcategorii specifice, șterge categoriile.
+              {t('budgets.form.scopedCategoriesInfo')}
             </Text>
             <Button
               variant="subtle"
@@ -244,7 +244,7 @@ export function BudgetFormPage() {
               color="gray"
               onClick={() => setCategoryIds([])}
             >
-              Șterge categoriile
+              {t('budgets.form.clearCategories')}
             </Button>
           </Group>
         )}
@@ -252,7 +252,7 @@ export function BudgetFormPage() {
         {subcategoryIds.length > 0 && (
           <Group gap="xs" mt={-8}>
             <Text size="xs" c="dimmed" flex={1}>
-              ℹ Bugetul scopat pe subcategorii specifice. Pentru a alege categorii întregi, șterge subcategoriile.
+              {t('budgets.form.scopedSubcategoriesInfo')}
             </Text>
             <Button
               variant="subtle"
@@ -260,14 +260,14 @@ export function BudgetFormPage() {
               color="gray"
               onClick={() => setSubcategoryIds([])}
             >
-              Șterge subcategoriile
+              {t('budgets.form.clearSubcategories')}
             </Button>
           </Group>
         )}
 
         {categoryIds.length === 0 && subcategoryIds.length === 0 && (
           <Text size="xs" c="dimmed" mt={-8}>
-            ⚠ Fără categorii sau subcategorii alese, bugetul însumează tot ce cheltui în perioada respectivă.
+            {t('budgets.form.scopedAllInfo')}
           </Text>
         )}
 
@@ -278,7 +278,7 @@ export function BudgetFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Creează buget' : 'Salvează'}
+          {isNew ? t('budgets.form.create') : t('budgets.form.submit')}
         </Button>
 
         {!isNew && (
@@ -291,7 +291,7 @@ export function BudgetFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge bugetul
+              {t('budgets.form.delete')}
             </Button>
           </>
         )}

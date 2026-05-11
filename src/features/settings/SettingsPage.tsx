@@ -23,12 +23,16 @@ import { modals } from '@mantine/modals';
 import {
   IconAlertCircle,
   IconArrowLeft,
+  IconBriefcase,
   IconCheck,
   IconKey,
   IconLock,
   IconLockOff,
   IconTrash,
 } from '@tabler/icons-react';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/i18n';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   DEFAULT_HIDDEN_PIN_TTL_MIN,
@@ -59,27 +63,31 @@ export function SettingsPage() {
   const updateSettings = useUpdateProfileSettings();
   const deleteAccount = useDeleteAccount();
   const { updatePassword } = useAuth();
+  const { t, i18n } = useTranslation();
+  const currentLang: SupportedLanguage = (SUPPORTED_LANGUAGES as readonly string[]).includes(
+    i18n.language,
+  )
+    ? (i18n.language as SupportedLanguage)
+    : 'en';
 
   function openDeleteAccount() {
     confirmDelete({
-      title: 'Șterge contul',
-      message:
-        'Toate datele tale (cheltuieli, bugete, abonamente, rate, șabloane, categorii) vor fi șterse PERMANENT. Contul va fi de-asemenea șters din sistem și nu te vei mai putea loga cu această adresă de email. Acțiunea NU poate fi inversată.',
-      confirmLabel: 'Șterge definitiv',
+      title: t('settings.danger.modalTitle'),
+      message: t('settings.danger.modalMessage'),
+      confirmLabel: t('settings.danger.modalConfirm'),
       onConfirm: async () => {
         try {
           await deleteAccount.mutateAsync();
           notifications.show({
-            message: 'Cont șters. La revedere!',
+            message: t('settings.danger.deleted'),
             color: 'gray',
             autoClose: 2500,
           });
-          // Force a clean state regardless of what auth returns
           await supabase.auth.signOut().catch(() => {});
           window.location.href = '/login';
         } catch (err) {
           notifications.show({
-            message: err instanceof Error ? err.message : 'Eroare la ștergere',
+            message: err instanceof Error ? err.message : t('settings.danger.deleteError'),
             color: 'red',
           });
         }
@@ -103,19 +111,57 @@ export function SettingsPage() {
   const hasPin = Boolean(profile.data?.hidden_pin_hash);
   const settings = readSettings(profile.data);
   const ttl = settings.hidden_pin_ttl_min ?? DEFAULT_HIDDEN_PIN_TTL_MIN;
+  const companyCardEnabled = settings.company_card_enabled === true;
+
+  function applyCompanyCardChange(next: boolean) {
+    updateSettings.mutate(
+      { company_card_enabled: next },
+      {
+        onSuccess: () => {
+          notifications.show({
+            message: next
+              ? t('settings.features.companyCardEnabled')
+              : t('settings.features.companyCardDisabled'),
+            color: next ? 'green' : 'gray',
+            autoClose: 1500,
+          });
+        },
+        onError: (err) => {
+          notifications.show({
+            message: err instanceof Error ? err.message : t('common.error'),
+            color: 'red',
+          });
+        },
+      },
+    );
+  }
+
+  function handleCompanyCardToggle(next: boolean) {
+    if (!next && companyCardEnabled) {
+      // Confirm before disabling — datele rămân, dar UI-ul le ascunde.
+      confirmDelete({
+        title: t('settings.features.companyCardWarningTitle'),
+        message: t('settings.features.companyCardWarning'),
+        confirmLabel: t('settings.hidden.disablePin'),
+        onConfirm: () => applyCompanyCardChange(false),
+      });
+      return;
+    }
+    applyCompanyCardChange(next);
+  }
 
   async function handleTtlChange(value: string) {
     const next = Number(value);
     try {
       await updateSettings.mutateAsync({ hidden_pin_ttl_min: next });
       notifications.show({
-        message: `Timpul de relogare setat la ${ttlLabel(next)}`,
+        message: t('settings.hidden.ttlUpdated', { value: ttlLabel(next, t) }),
         color: 'green',
         autoClose: 1500,
       });
     } catch (err) {
       notifications.show({
-        message: err instanceof Error ? err.message : 'Eroare',
+        message: err instanceof Error ? err.message : t('common.error'),
         color: 'red',
       });
     }
@@ -123,7 +169,7 @@ export function SettingsPage() {
 
   function openSetPin() {
     modals.open({
-      title: hasPin ? 'Schimbă PIN' : 'Setează PIN',
+      title: hasPin ? t('settings.hidden.pinModalChange') : t('settings.hidden.pinModalSet'),
       centered: true,
       children: <PinSetupForm onClose={() => modals.closeAll()} />,
     });
@@ -131,17 +177,16 @@ export function SettingsPage() {
 
   function openDisablePin() {
     confirmDelete({
-      title: 'Dezactivează PIN',
-      message:
-        'Cheltuielile ascunse vor rămâne ascunse din liste, dar pagina de gestionare nu va mai cere PIN. Sigur?',
-      confirmLabel: 'Dezactivează',
+      title: t('settings.hidden.disablePinTitle'),
+      message: t('settings.hidden.disablePinMessage'),
+      confirmLabel: t('settings.hidden.disablePinConfirm'),
       onConfirm: async () => {
         try {
           await setPin.mutateAsync(null);
-          notifications.show({ message: 'PIN dezactivat', color: 'gray', autoClose: 1800 });
+          notifications.show({ message: t('settings.hidden.pinDisabled'), color: 'gray', autoClose: 1800 });
         } catch (err) {
           notifications.show({
-            message: err instanceof Error ? err.message : 'Eroare',
+            message: err instanceof Error ? err.message : t('common.error'),
             color: 'red',
           });
         }
@@ -152,10 +197,10 @@ export function SettingsPage() {
   async function handleSaveName() {
     try {
       await updateName.mutateAsync(name);
-      notifications.show({ message: 'Nume actualizat', color: 'green', autoClose: 1500 });
+      notifications.show({ message: t('settings.profile.nameUpdated'), color: 'green', autoClose: 1500 });
     } catch (err) {
       notifications.show({
-        message: err instanceof Error ? err.message : 'Eroare',
+        message: err instanceof Error ? err.message : t('common.error'),
         color: 'red',
       });
     }
@@ -172,13 +217,13 @@ export function SettingsPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('settings.back')}
           </Button>
         </Group>
 
-        <Title order={2}>Setări</Title>
+        <Title order={2}>{t('settings.title')}</Title>
 
-        <Divider label="Profil" labelPosition="left" />
+        <Divider label={t('settings.profile.divider')} labelPosition="left" />
 
         <Stack gap="xs">
           <Group gap="md" align="center">
@@ -211,7 +256,7 @@ export function SettingsPage() {
           </Group>
 
           <TextInput
-            label="Nume profil"
+            label={t('settings.profile.nameLabel')}
             value={name}
             onChange={(e) => setName(e.currentTarget.value)}
           />
@@ -221,22 +266,22 @@ export function SettingsPage() {
             disabled={!name.trim() || name === profile.data?.name}
             size="sm"
           >
-            Salvează nume
+            {t('settings.profile.saveName')}
           </Button>
 
           <Box mt="sm">
             <Text size="sm" fw={500} mb={6}>
-              Avatar
+              {t('settings.profile.avatar')}
             </Text>
             <AnimalIconPicker
               value={profile.data?.icon ?? 'IconCat'}
               onChange={async (icon) => {
                 try {
                   await updateIcon.mutateAsync(icon);
-                  notifications.show({ message: 'Avatar actualizat', color: 'green', autoClose: 1200 });
+                  notifications.show({ message: t('settings.profile.avatarUpdated'), color: 'green', autoClose: 1200 });
                 } catch (err) {
                   notifications.show({
-                    message: err instanceof Error ? err.message : 'Eroare',
+                    message: err instanceof Error ? err.message : t('common.error'),
                     color: 'red',
                   });
                 }
@@ -246,49 +291,93 @@ export function SettingsPage() {
           </Box>
         </Stack>
 
-        <Divider label="Securitate" labelPosition="left" mt="md" />
+        <Divider label={t('settings.language.label')} labelPosition="left" mt="md" />
+
+        <Stack gap={6}>
+          <Text size="xs" c="dimmed">
+            {t('settings.language.description')}
+          </Text>
+          <SegmentedControl
+            fullWidth
+            value={currentLang}
+            onChange={(value) => {
+              void i18n.changeLanguage(value);
+            }}
+            data={SUPPORTED_LANGUAGES.map((lng) => ({
+              value: lng,
+              label: t(`language.${lng}`),
+            }))}
+          />
+        </Stack>
+
+        <Divider label={t('settings.features.divider')} labelPosition="left" mt="md" />
+
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Box pt={2}>
+            <IconBriefcase size={20} color="var(--mantine-color-dimmed)" />
+          </Box>
+          <Box flex={1} miw={0}>
+            <Group justify="space-between" wrap="nowrap" align="center" gap="sm">
+              <Text size="sm" fw={500}>
+                {t('settings.features.companyCardLabel')}
+              </Text>
+              <SegmentedControl
+                value={companyCardEnabled ? 'on' : 'off'}
+                onChange={(v) => handleCompanyCardToggle(v === 'on')}
+                size="xs"
+                data={[
+                  { value: 'off', label: t('common.no') },
+                  { value: 'on', label: t('common.yes') },
+                ]}
+                disabled={updateSettings.isPending}
+              />
+            </Group>
+            <Text size="xs" c="dimmed" mt={4}>
+              {t('settings.features.companyCardDescription')}
+            </Text>
+          </Box>
+        </Group>
+
+        <Divider label={t('settings.security.divider')} labelPosition="left" mt="md" />
 
         <Button
           variant="light"
           leftSection={<IconKey size={16} />}
           onClick={() =>
             modals.open({
-              title: 'Schimbă parola',
+              title: t('settings.security.passwordModalTitle'),
               centered: true,
               children: <ChangePasswordForm onClose={() => modals.closeAll()} updatePassword={updatePassword} />,
             })
           }
         >
-          Schimbă parola
+          {t('settings.security.changePassword')}
         </Button>
 
-        <Divider label="Cheltuieli ascunse" labelPosition="left" mt="md" />
+        <Divider label={t('settings.hidden.divider')} labelPosition="left" mt="md" />
 
         <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
-          PIN-ul de 4 cifre e doar pentru privacy <b>din priviri rapide</b>. Nu protejează datele
-          de un atacator determinat care are acces la baza de date.
+          <Trans i18nKey="settings.hidden.warning" components={{ strong: <b /> }} />
         </Alert>
 
         <Group gap="sm" wrap="nowrap" align="center">
           {hasPin ? (
             <Badge color="green" leftSection={<IconLock size={12} />}>
-              PIN setat
+              {t('settings.hidden.pinSet')}
             </Badge>
           ) : (
             <Badge color="gray" leftSection={<IconLockOff size={12} />}>
-              Niciun PIN
+              {t('settings.hidden.noPin')}
             </Badge>
           )}
           <Text size="sm" c="dimmed">
-            {hasPin
-              ? 'Pagina "Cheltuieli ascunse" cere PIN.'
-              : 'Setează un PIN pentru a accesa cheltuielile ascunse.'}
+            {hasPin ? t('settings.hidden.hasPinHint') : t('settings.hidden.noPinHint')}
           </Text>
         </Group>
 
         <Group gap="xs">
           <Button variant="light" onClick={openSetPin} loading={setPin.isPending} size="sm">
-            {hasPin ? 'Schimbă PIN' : 'Setează PIN'}
+            {hasPin ? t('settings.hidden.changePin') : t('settings.hidden.setPin')}
           </Button>
           {hasPin && (
             <Button
@@ -298,7 +387,7 @@ export function SettingsPage() {
               loading={setPin.isPending}
               size="sm"
             >
-              Dezactivează PIN
+              {t('settings.hidden.disablePin')}
             </Button>
           )}
         </Group>
@@ -306,11 +395,10 @@ export function SettingsPage() {
         {hasPin && (
           <Stack gap={6} mt="sm">
             <Text size="sm" fw={500}>
-              Timp re-prompt PIN
+              {t('settings.hidden.ttlLabel')}
             </Text>
             <Text size="xs" c="dimmed">
-              După cât timp de inactivitate (sau revenire din background) se cere PIN-ul din nou.
-              Fereastra se reînnoiește la fiecare interacțiune cu pagina ascunsă.
+              {t('settings.hidden.ttlDescription')}
             </Text>
             <SegmentedControl
               fullWidth
@@ -318,7 +406,7 @@ export function SettingsPage() {
               onChange={handleTtlChange}
               data={HIDDEN_PIN_TTL_OPTIONS.map((m) => ({
                 value: String(m),
-                label: ttlLabel(m),
+                label: ttlLabel(m, t),
               }))}
               disabled={updateSettings.isPending}
             />
@@ -331,15 +419,13 @@ export function SettingsPage() {
           onClick={() => navigate('/hidden-expenses')}
           disabled={!hasPin}
         >
-          Deschide pagina cu cheltuielile ascunse →
+          {t('settings.hidden.openHiddenPage')}
         </Button>
 
-        <Divider label="Zonă periculoasă" labelPosition="left" mt="xl" color="red" />
+        <Divider label={t('settings.danger.divider')} labelPosition="left" mt="xl" color="red" />
 
         <Alert color="red" icon={<IconAlertCircle size={16} />}>
-          Ștergerea contului e <b>permanentă și ireversibilă</b>. Toate cheltuielile, bugetele,
-          abonamentele, ratele și șabloanele tale vor fi șterse, iar contul va fi eliminat din
-          sistem (nu te vei mai putea loga cu acest email).
+          <Trans i18nKey="settings.danger.warning" components={{ strong: <b /> }} />
         </Alert>
 
         <Button
@@ -349,7 +435,7 @@ export function SettingsPage() {
           onClick={openDeleteAccount}
           loading={deleteAccount.isPending}
         >
-          Șterge contul
+          {t('settings.danger.deleteButton')}
         </Button>
       </Stack>
     </Container>
@@ -363,6 +449,7 @@ function ChangePasswordForm({
   updatePassword: (newPassword: string) => Promise<void>;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -370,20 +457,20 @@ function ChangePasswordForm({
 
   async function handleSubmit() {
     setError(null);
-    if (next.length < 6) return setError('Parola trebuie să aibă minim 6 caractere');
-    if (next !== confirm) return setError('Parolele nu se potrivesc');
+    if (next.length < 6) return setError(t('validation.passwordTooShort', { min: 6 }));
+    if (next !== confirm) return setError(t('validation.passwordsDontMatch'));
     setLoading(true);
     try {
       await updatePassword(next);
       notifications.show({
-        message: 'Parolă schimbată',
+        message: t('settings.security.passwordChanged'),
         color: 'green',
         autoClose: 1500,
         icon: <IconCheck size={14} />,
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -392,15 +479,15 @@ function ChangePasswordForm({
   return (
     <Stack gap="sm">
       <PasswordInput
-        label="Parolă nouă"
-        description="Minim 6 caractere"
+        label={t('settings.security.newPassword')}
+        description={t('settings.security.newPasswordHint')}
         autoComplete="new-password"
         required
         value={next}
         onChange={(e) => setNext(e.currentTarget.value)}
       />
       <PasswordInput
-        label="Confirmă parola nouă"
+        label={t('settings.security.confirmNewPassword')}
         autoComplete="new-password"
         required
         value={confirm}
@@ -413,22 +500,26 @@ function ChangePasswordForm({
       )}
       <Group justify="flex-end" mt="sm">
         <Button variant="subtle" onClick={onClose}>
-          Anulează
+          {t('common.cancel')}
         </Button>
         <Button onClick={handleSubmit} loading={loading}>
-          Salvează
+          {t('common.save')}
         </Button>
       </Group>
     </Stack>
   );
 }
 
-function ttlLabel(min: number): string {
-  if (min >= 60) return `${Math.round(min / 60)} ${min === 60 ? 'oră' : 'ore'}`;
-  return `${min} min`;
+function ttlLabel(min: number, t: TFunction): string {
+  if (min >= 60) {
+    const hours = Math.round(min / 60);
+    return t('time.hour', { count: hours });
+  }
+  return t('time.minutes', { count: min });
 }
 
 function PinSetupForm({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const setPin = useSetHiddenPin();
   const [pin1, setPin1] = useState('');
   const [pin2, setPin2] = useState('');
@@ -436,30 +527,30 @@ function PinSetupForm({ onClose }: { onClose: () => void }) {
 
   async function handleSubmit() {
     setError(null);
-    if (!isValidPin(pin1)) return setError('PIN-ul trebuie să aibă exact 4 cifre');
-    if (pin1 !== pin2) return setError('Cele două PIN-uri nu se potrivesc');
+    if (!isValidPin(pin1)) return setError(t('settings.hidden.pinRequired'));
+    if (pin1 !== pin2) return setError(t('settings.hidden.pinsMismatch'));
     try {
       await setPin.mutateAsync(pin1);
       notifications.show({
-        message: 'PIN setat',
+        message: t('settings.hidden.pinEnabled'),
         color: 'green',
         autoClose: 1500,
         icon: <IconCheck size={14} />,
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare');
+      setError(err instanceof Error ? err.message : t('common.error'));
     }
   }
 
   return (
     <Stack gap="sm">
-      <Text size="sm">Introdu un PIN de 4 cifre:</Text>
+      <Text size="sm">{t('settings.hidden.enterPin')}</Text>
       <Center>
         <PinInput length={4} type="number" value={pin1} onChange={setPin1} mask />
       </Center>
       <Text size="sm" mt="xs">
-        Confirmă PIN-ul:
+        {t('settings.hidden.confirmPin')}
       </Text>
       <Center>
         <PinInput length={4} type="number" value={pin2} onChange={setPin2} mask />
@@ -470,7 +561,7 @@ function PinSetupForm({ onClose }: { onClose: () => void }) {
         </Alert>
       )}
       <Button onClick={handleSubmit} loading={setPin.isPending} disabled={pin1.length !== 4 || pin2.length !== 4}>
-        Salvează
+        {t('common.save')}
       </Button>
     </Stack>
   );

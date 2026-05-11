@@ -53,16 +53,15 @@ a {
   padding-top: calc(var(--safe-top));
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + var(--pwa-bottom-lift) + 16px);
+  /* Extra 32px because the bottom nav is now floating with a 12px gap below it
+     (so total occupied = nav-height + safe + lift + 12, plus a 20px content buffer). */
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + var(--pwa-bottom-lift) + 32px);
   min-height: 100dvh;
 }
 
+/* The .bottom-nav class only marks the element for global scripts (e.g. SwUpdatePrompt
+   anchors above it). Visual styling lives in BottomNav.module.css now. */
 .bottom-nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding-bottom: calc(var(--safe-bottom) + var(--pwa-bottom-lift));
   z-index: 100;
 }
 

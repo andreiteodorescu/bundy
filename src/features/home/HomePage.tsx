@@ -8,30 +8,39 @@ import {
   IconPlus,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { useExpensesByMonth } from '@/features/expenses/api';
 import { useQuickTodayAggregates } from '@/features/quick-expenses/api';
 import { ActiveBudgetBanner } from '@/features/budgets/ActiveBudgetBanner';
+import { useCompanyCardEnabled } from '@/features/settings/api';
 import { formatRon } from '@/lib/money';
 import classes from './HomePage.module.css';
 
 export function HomePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const month = dayjs().format('YYYY-MM-DD');
   const expenses = useExpensesByMonth(month);
   const quickToday = useQuickTodayAggregates();
 
+  const companyCardEnabled = useCompanyCardEnabled();
   const { personalTotal, companyCardTotal } = (expenses.data ?? []).reduce(
     (acc, e) => {
       const amt = Number(e.amount_ron);
-      if (e.tags?.includes('company-card')) acc.companyCardTotal += amt;
-      else acc.personalTotal += amt;
+      // When company-card features are disabled, every expense (including those
+      // tagged 'company-card' from before) flows into the personal total. Data
+      // stays intact in the DB; this is purely a display choice.
+      if (companyCardEnabled && e.tags?.includes('company-card')) {
+        acc.companyCardTotal += amt;
+      } else {
+        acc.personalTotal += amt;
+      }
       return acc;
     },
     { personalTotal: 0, companyCardTotal: 0 },
   );
   const monthLabel = dayjs().format('MMMM YYYY').replace(/^./, (c) => c.toUpperCase());
 
-  // Today's quick count (sum of quantities) — surfaced as a small hint on the Quick card
   const quickQtyToday = Array.from((quickToday.data ?? new Map()).values()).reduce(
     (s, e) => s + (e.quantity ?? 1),
     0,
@@ -41,7 +50,7 @@ export function HomePage() {
     <Container size="sm" py="md">
       <Stack gap="md">
         <Title order={2} className={classes.title}>
-          Acasă
+          {t('home.title')}
         </Title>
 
         <ActiveBudgetBanner />
@@ -51,7 +60,7 @@ export function HomePage() {
             <Group justify="space-between" align="flex-start" wrap="nowrap">
               <Box miw={0} flex={1}>
                 <Text size="xs" c="dimmed">
-                  Total {monthLabel} · cont personal
+                  {t('home.totalPersonal', { month: monthLabel })}
                 </Text>
                 <Text fw={800} size="2rem" lh={1.1}>
                   {formatRon(personalTotal)}
@@ -59,7 +68,7 @@ export function HomePage() {
                 {companyCardTotal > 0 && (
                   <>
                     <Text size="xs" c="dimmed" mt={6}>
-                      Cont firmă
+                      {t('home.totalCompany')}
                     </Text>
                     <Text fw={600} size="md" lh={1.2}>
                       {formatRon(companyCardTotal)}
@@ -73,18 +82,18 @@ export function HomePage() {
         </UnstyledButton>
 
         <Text size="sm" fw={600} c="dimmed" className={classes.section}>
-          Adaugă cheltuială
+          {t('home.addExpense')}
         </Text>
 
         <ActionCard
           delay={1}
           accentColor="#eab308"
           icon={<IconBolt size={22} stroke={2} />}
-          title="Cheltuială rapidă"
+          title={t('home.quickTitle')}
           description={
             quickQtyToday > 0
-              ? `Metrou, loto, alte preț-fix · ${quickQtyToday} azi`
-              : 'Metrou, loto, alte chestii cu preț fix'
+              ? t('home.quickDescriptionWithCount', { count: quickQtyToday })
+              : t('home.quickDescription')
           }
           onClick={() => navigate('/quick-expenses')}
         />
@@ -93,8 +102,8 @@ export function HomePage() {
           delay={2}
           accentColor="#06b6d4"
           icon={<IconClipboardList size={22} stroke={2} />}
-          title="Cheltuială predefinită"
-          description="Comandă Freshful, cursă Bolt — doar suma se schimbă"
+          title={t('home.predefinedTitle')}
+          description={t('home.predefinedDescription')}
           onClick={() => navigate('/predefined-expenses')}
         />
 
@@ -102,8 +111,8 @@ export function HomePage() {
           delay={3}
           accentColor="#22c55e"
           icon={<IconPin size={22} stroke={2} />}
-          title="Cheltuială fixă"
-          description="Chirie sau alte plăți cu sumă fixă"
+          title={t('home.fixedTitle')}
+          description={t('home.fixedDescription')}
           onClick={() => navigate('/fixed-expenses/quick-add')}
         />
 
@@ -111,8 +120,8 @@ export function HomePage() {
           delay={4}
           accentColor="#f97316"
           icon={<IconPlus size={22} stroke={2.4} />}
-          title="Cheltuială nouă"
-          description="Sumă, dată, categorie — completate manual"
+          title={t('home.manualTitle')}
+          description={t('home.manualDescription')}
           onClick={() => navigate('/expenses/add')}
         />
       </Stack>

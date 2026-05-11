@@ -16,10 +16,13 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeleteQuickExpense,
   useQuickExpense,
@@ -27,6 +30,8 @@ import {
 } from './api';
 
 export function QuickExpenseFormPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -47,23 +52,24 @@ export function QuickExpenseFormPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = editing.data;
-    if (!t) return;
-    setName(t.name);
-    setAmount(Number(t.amount));
-    setCurrency(t.currency);
-    setCategoryId(t.category_id);
-    setSubcategoryId(t.subcategory_id);
-    setActive(t.active);
-    setCompanyCard(t.tags?.includes('company-card') ?? false);
+    const tpl = editing.data;
+    if (!tpl) return;
+    setName(tpl.name);
+    setAmount(Number(tpl.amount));
+    setCurrency(tpl.currency);
+    setCategoryId(tpl.category_id);
+    setSubcategoryId(tpl.subcategory_id);
+    setActive(tpl.active);
+    setCompanyCard(tpl.tags?.includes('company-card') ?? false);
     setCompanyCardTouched(true);
   }, [editing.data]);
 
   const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
   useEffect(() => {
+    if (!companyCardEnabled) return;
     if (companyCardTouched) return;
     if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched, companyCardEnabled]);
 
   if (!isNew && editing.isLoading) {
     return (
@@ -77,13 +83,11 @@ export function QuickExpenseFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (typeof amount !== 'number' || amount <= 0) return setError('Sumă invalidă');
-    if (!categoryId) return setError('Alege o categorie');
+    if (!name.trim()) return setError(t('templates.errorNameRequired'));
+    if (typeof amount !== 'number' || amount <= 0) return setError(t('templates.errorAmountInvalid'));
+    if (!categoryId) return setError(t('templates.errorCategoryRequired'));
     if (currency !== 'RON') {
-      return setError(
-        'V1: șabloanele rapide funcționează doar în RON (metrou, loto sunt în lei). Pentru alte monede folosește cheltuiala normală.',
-      );
+      return setError(t('templates.quick.errorOnlyRon'));
     }
     try {
       await upsert.mutateAsync({
@@ -95,24 +99,28 @@ export function QuickExpenseFormPage() {
         subcategory_id: subcategoryId,
         icon: null,
         active,
-        tags: companyCard ? ['company-card'] : [],
+        tags: companyCardEnabled
+          ? companyCard
+            ? ['company-card']
+            : []
+          : editing.data?.tags ?? [],
       });
       navigate('/quick-expenses');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('templates.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi acest șablon? Cheltuielile generate de el rămân în istoric.',
+      message: t('templates.quick.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/quick-expenses');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('templates.errorDelete'));
         }
       },
     });
@@ -129,23 +137,23 @@ export function QuickExpenseFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/quick-expenses')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Șablon rapid nou' : name}</Title>
+        <Title order={2}>{isNew ? t('templates.quick.newFormTitle') : name}</Title>
 
         <TextInput
-          label="Nume"
+          label={t('subscriptions.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Călătorie metrou"
+          placeholder={t('templates.quick.namePlaceholder')}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Preț unitar"
+            label={t('templates.quick.unitPriceLabel')}
             required
             flex={1}
             value={amount}
@@ -153,10 +161,10 @@ export function QuickExpenseFormPage() {
             min={0}
             decimalScale={2}
             inputMode="decimal"
-            description="ex: 5 RON pentru o călătorie metrou"
+            description={t('templates.quick.unitPriceHint')}
           />
           <Select
-            label="Monedă"
+            label={t('subscriptions.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -166,11 +174,11 @@ export function QuickExpenseFormPage() {
         </Group>
 
         <Select
-          label="Categorie"
+          label={t('subscriptions.form.category')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={categoryId}
           onChange={(v) => {
             setCategoryId(v);
@@ -180,10 +188,10 @@ export function QuickExpenseFormPage() {
 
         {childSubs.length > 0 && (
           <Select
-            label="Subcategorie (opțional)"
+            label={t('templates.subcategoryOptional')}
             data={[
-              { value: '', label: 'Fără subcategorie' },
-              ...childSubs.map((s) => ({ value: s.id, label: s.name })),
+              { value: '', label: t('templates.noSubcategory') },
+              ...childSubs.map((s) => ({ value: s.id, label: subcategoryDisplayName(s, t) })),
             ]}
             value={subcategoryId ?? ''}
             onChange={(v) => setSubcategoryId(v && v !== '' ? v : null)}
@@ -191,21 +199,23 @@ export function QuickExpenseFormPage() {
         )}
 
         <Switch
-          label="Activ"
-          description="Apare în lista de quick-add. Inactiv = ascuns dar șablonul se păstrează."
+          label={t('templates.switchActive')}
+          description={t('templates.switchActiveHintQuick')}
           checked={active}
           onChange={(e) => setActive(e.currentTarget.checked)}
         />
 
-        <Switch
-          label="Plătit cu cardul firmei"
-          description="Cheltuielile generate vor fi excluse din totalul personal în Analytics."
-          checked={companyCard}
-          onChange={(e) => {
-            setCompanyCard(e.currentTarget.checked);
-            setCompanyCardTouched(true);
-          }}
-        />
+        {companyCardEnabled && (
+          <Switch
+            label={t('templates.switchCompany')}
+            description={t('templates.switchCompanyHint')}
+            checked={companyCard}
+            onChange={(e) => {
+              setCompanyCard(e.currentTarget.checked);
+              setCompanyCardTouched(true);
+            }}
+          />
+        )}
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
@@ -214,7 +224,7 @@ export function QuickExpenseFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Creează' : 'Salvează'}
+          {isNew ? t('subscriptions.form.create') : t('subscriptions.form.submit')}
         </Button>
 
         {!isNew && (
@@ -227,7 +237,7 @@ export function QuickExpenseFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge șablonul
+              {t('subscriptions.form.delete')}
             </Button>
           </>
         )}

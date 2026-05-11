@@ -20,17 +20,20 @@ import {
 import { DatePickerInput } from '@mantine/dates';
 import dayjs from 'dayjs';
 import { IconArchive, IconArrowLeft, IconSearch } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatRon } from '@/lib/money';
 import { useBudgets } from './api';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import type { Budget, Category, Subcategory } from '@/types';
 
-/** Budgets older than this many days past their period_end are considered archived. */
 export const ARCHIVE_THRESHOLD_DAYS = 7;
 const PAGE_SIZE = 20;
 
 export function BudgetsArchivePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const budgets = useBudgets();
   const cats = useCategories();
@@ -97,26 +100,26 @@ export function BudgetsArchivePage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/budgets')}
           >
-            Înapoi
+            {t('budgets.archive.back')}
           </Button>
         </Group>
 
         <Group gap="xs" align="center">
           <IconArchive size={22} />
-          <Title order={2}>Arhivă bugete</Title>
+          <Title order={2}>{t('budgets.archive.title')}</Title>
         </Group>
 
         <Stack gap="xs">
           <TextInput
-            placeholder="Caută după nume..."
+            placeholder={t('budgets.archive.searchPlaceholder')}
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             size="sm"
           />
           <Select
-            placeholder="Filtrează după categorie"
-            data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            placeholder={t('budgets.archive.categoryFilterPlaceholder')}
+            data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
             value={categoryFilter}
             onChange={setCategoryFilter}
             clearable
@@ -125,7 +128,7 @@ export function BudgetsArchivePage() {
           />
           <Group gap="xs" grow>
             <DatePickerInput
-              placeholder="Sfârșit de la"
+              placeholder={t('budgets.archive.fromPlaceholder')}
               value={startDate}
               onChange={(d) => setStartDate(d ? new Date(d as unknown as string) : null)}
               clearable
@@ -133,7 +136,7 @@ export function BudgetsArchivePage() {
               valueFormat="D MMM YYYY"
             />
             <DatePickerInput
-              placeholder="Început până la"
+              placeholder={t('budgets.archive.toPlaceholder')}
               value={endDate}
               onChange={(d) => setEndDate(d ? new Date(d as unknown as string) : null)}
               clearable
@@ -154,16 +157,16 @@ export function BudgetsArchivePage() {
                   setEndDate(null);
                 }}
               >
-                Resetează filtrele
+                {t('budgets.archive.resetFilters')}
               </Button>
             </Group>
           )}
         </Stack>
 
         <Text size="xs" c="dimmed">
-          {filtered.length} {filtered.length === 1 ? 'buget arhivat' : 'bugete arhivate'}
+          {t('budgets.archive.count', { count: filtered.length })}
           {hasFilters && archived.length !== filtered.length
-            ? ` din ${archived.length} totale`
+            ? t('budgets.archive.outOfTotal', { total: archived.length })
             : ''}
         </Text>
 
@@ -176,7 +179,7 @@ export function BudgetsArchivePage() {
             <Stack align="center" gap="xs">
               <IconArchive size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
               <Text c="dimmed">
-                {archived.length === 0 ? 'Niciun buget arhivat încă' : 'Nicio potrivire'}
+                {archived.length === 0 ? t('budgets.archive.empty') : t('budgets.archive.noMatch')}
               </Text>
             </Stack>
           </Center>
@@ -189,6 +192,7 @@ export function BudgetsArchivePage() {
                 catById={catById}
                 subById={subById}
                 onOpen={() => navigate(`/budgets/${b.id}/edit`)}
+                t={t}
               />
             ))}
           </Stack>
@@ -215,11 +219,13 @@ function ArchivedBudgetRow({
   catById,
   subById,
   onOpen,
+  t,
 }: {
   budget: Budget;
   catById: Map<string, Category>;
   subById: Map<string, Subcategory>;
   onOpen: () => void;
+  t: TFunction;
 }) {
   const b = budget;
   return (
@@ -233,7 +239,7 @@ function ArchivedBudgetRow({
           <Text size="xs" c="dimmed" mb={6}>
             {dayjs(b.period_start).format('D MMM YYYY')} –{' '}
             {dayjs(b.period_end).format('D MMM YYYY')}
-            {b.selected_days?.length ? ` · ${b.selected_days.length} zile` : ''}
+            {b.selected_days?.length ? ` · ${t('budgets.daysSuffix', { count: b.selected_days.length })}` : ''}
           </Text>
           {(b.category_ids?.length ?? 0) + (b.subcategory_ids?.length ?? 0) > 0 && (
             <Group gap={4} mb="xs" wrap="wrap">
@@ -247,7 +253,7 @@ function ArchivedBudgetRow({
                     variant="light"
                     styles={{ root: { background: `${c.color}22`, color: c.color } }}
                   >
-                    {c.name}
+                    {categoryDisplayName(c, t)}
                   </Badge>
                 );
               })}
@@ -263,7 +269,7 @@ function ArchivedBudgetRow({
                     variant="dot"
                     styles={{ root: { borderColor: color, color } }}
                   >
-                    {s.name}
+                    {subcategoryDisplayName(s, t)}
                   </Badge>
                 );
               })}

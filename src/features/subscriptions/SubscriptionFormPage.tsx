@@ -22,6 +22,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
@@ -30,6 +31,8 @@ import { diacriticsFilter } from '@/lib/text';
 import { BrandPicker } from '@/components/BrandPicker';
 import { BrandTile } from '@/components/BrandTile';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeleteSubscription,
   useSubscription,
@@ -38,6 +41,8 @@ import {
 import type { SubscriptionCadence } from '@/types';
 
 export function SubscriptionFormPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -62,8 +67,6 @@ export function SubscriptionFormPage() {
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Live RON preview using today's BNR rate. Each future charge will be re-converted
-  // at its own date by the subscription generator, so this is just an indicator.
   const todayIso = dayjs().format('YYYY-MM-DD');
   const fxRate = useQuery({
     queryKey: ['fx', todayIso, currency],
@@ -95,14 +98,12 @@ export function SubscriptionFormPage() {
     setBrandLogo(sub.brand_logo ?? null);
   }, [editing.data]);
 
-  // Auto-suggest "company card" toggle when category is Work & Business — until user
-  // explicitly toggles the Switch. Must run before any early return below to keep the
-  // hook order stable across renders (Rules of Hooks).
   const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
   useEffect(() => {
+    if (!companyCardEnabled) return;
     if (companyCardTouched) return;
     if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched, companyCardEnabled]);
 
   if (!isNew && editing.isLoading) {
     return (
@@ -114,25 +115,35 @@ export function SubscriptionFormPage() {
 
   const childSubs = (subs.data ?? []).filter((s) => s.parent_category_id === categoryId);
 
+  // Weekday picker uses dayjs locale to render localized day names. ISO ordering: 1=Mon..7=Sun.
+  const weekdayOptions = [1, 2, 3, 4, 5, 6, 7].map((d) => {
+    const label = dayjs().day(d % 7).format('dddd');
+    return { value: String(d), label: label.charAt(0).toUpperCase() + label.slice(1) };
+  });
+
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (typeof amount !== 'number' || amount <= 0) return setError('Sumă invalidă');
+    if (!name.trim()) return setError(t('subscriptions.form.errorNameRequired'));
+    if (typeof amount !== 'number' || amount <= 0) return setError(t('subscriptions.form.errorAmountInvalid'));
     if (cadence === 'weekly') {
       if (typeof chargeDay !== 'number' || chargeDay < 1 || chargeDay > 7) {
-        return setError('Selectează o zi a săptămânii');
+        return setError(t('subscriptions.form.errorWeekdayRequired'));
       }
     } else {
       if (typeof chargeDay !== 'number' || chargeDay < 1 || chargeDay > 31) {
-        return setError('Ziua de debitare 1-31');
+        return setError(t('subscriptions.form.errorChargeDayRange'));
       }
     }
     if (cadence === 'yearly' && (typeof chargeMonth !== 'number' || chargeMonth < 1 || chargeMonth > 12))
-      return setError('Luna 1-12');
-    if (!categoryId) return setError('Alege o categorie');
+      return setError(t('subscriptions.form.errorMonthRange'));
+    if (!categoryId) return setError(t('subscriptions.form.errorCategoryRequired'));
     try {
       const tags: string[] = ['subscription'];
-      if (companyCard) tags.push('company-card');
+      // When the feature is off, preserve any existing company-card tag from
+      // the record so users don't lose data by editing while feature is disabled.
+      const wasCompany = editing.data?.tags?.includes('company-card') ?? false;
+      const includeCompany = companyCardEnabled ? companyCard : wasCompany;
+      if (includeCompany) tags.push('company-card');
       await upsert.mutateAsync({
         id: params.id,
         name: name.trim(),
@@ -150,20 +161,20 @@ export function SubscriptionFormPage() {
       });
       navigate('/subscriptions');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('subscriptions.form.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi acest abonament?',
+      message: t('subscriptions.form.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/subscriptions');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('subscriptions.form.errorDelete'));
         }
       },
     });
@@ -180,24 +191,24 @@ export function SubscriptionFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/subscriptions')}
           >
-            Înapoi
+            {t('subscriptions.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Abonament nou' : name}</Title>
+        <Title order={2}>{isNew ? t('subscriptions.form.newTitle') : name}</Title>
 
         <TextInput
-          label="Nume"
+          label={t('subscriptions.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Netflix Premium"
+          placeholder={t('subscriptions.form.namePlaceholder')}
         />
 
         <Box>
           <Group gap={6} mb={6} align="center">
             <Text size="sm" fw={500}>
-              Logo
+              {t('subscriptions.form.logo')}
             </Text>
             <BrandTile
               name={name}
@@ -209,14 +220,14 @@ export function SubscriptionFormPage() {
             />
           </Group>
           <Text size="xs" c="dimmed" mb="xs">
-            Auto = se detectează automat după nume. Sau alegi manual din lista de mai jos.
+            {t('subscriptions.form.logoHint')}
           </Text>
           <BrandPicker value={brandLogo} onChange={setBrandLogo} />
         </Box>
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Sumă"
+            label={t('subscriptions.form.amount')}
             required
             flex={1}
             value={amount}
@@ -226,7 +237,7 @@ export function SubscriptionFormPage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('subscriptions.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -238,12 +249,12 @@ export function SubscriptionFormPage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('subscriptions.form.fxLoading')
               : amountRonPreview !== null
-                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR de azi (recalculat la fiecare debitare)`
+                ? t('subscriptions.form.fxPreviewToday', { amount: formatRon(amountRonPreview) })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va recalcula la generarea cheltuielii.'
-                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                  ? t('subscriptions.form.fxUnavailable')
+                  : t('subscriptions.form.fxEnterAmount')}
           </Text>
         )}
 
@@ -252,38 +263,29 @@ export function SubscriptionFormPage() {
           value={cadence}
           onChange={(v) => {
             setCadence(v as SubscriptionCadence);
-            // Reset charge_day to a sensible default when switching cadence
             if (v === 'weekly' && (chargeDay === '' || (chargeDay as number) > 7)) setChargeDay(1);
             if (v !== 'weekly' && (chargeDay === '' || (chargeDay as number) < 1)) setChargeDay(1);
           }}
           data={[
-            { label: 'Săptămânal', value: 'weekly' },
-            { label: 'Lunar', value: 'monthly' },
-            { label: 'Anual', value: 'yearly' },
+            { label: t('subscriptions.form.cadenceWeeklyShort'), value: 'weekly' },
+            { label: t('subscriptions.form.cadenceMonthlyShort'), value: 'monthly' },
+            { label: t('subscriptions.form.cadenceYearlyShort'), value: 'yearly' },
           ]}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           {cadence === 'weekly' ? (
             <Select
-              label="Zi a săptămânii"
+              label={t('subscriptions.form.weekday')}
               flex={1}
               value={String(chargeDay)}
               onChange={(v) => v && setChargeDay(Number(v))}
-              data={[
-                { value: '1', label: 'Luni' },
-                { value: '2', label: 'Marți' },
-                { value: '3', label: 'Miercuri' },
-                { value: '4', label: 'Joi' },
-                { value: '5', label: 'Vineri' },
-                { value: '6', label: 'Sâmbătă' },
-                { value: '7', label: 'Duminică' },
-              ]}
+              data={weekdayOptions}
               allowDeselect={false}
             />
           ) : (
             <NumberInput
-              label="Ziua debitării"
+              label={t('subscriptions.form.chargeDay')}
               required
               flex={1}
               value={chargeDay}
@@ -296,7 +298,7 @@ export function SubscriptionFormPage() {
           )}
           {cadence === 'yearly' && (
             <NumberInput
-              label="Luna"
+              label={t('subscriptions.form.monthLabel')}
               required
               flex={1}
               value={chargeMonth}
@@ -310,7 +312,7 @@ export function SubscriptionFormPage() {
         </Group>
 
         <DatePickerInput
-          label="Activ din"
+          label={t('subscriptions.form.activeFrom')}
           value={startDate}
           onChange={(d) => d && setStartDate(dayjs(d as unknown as Date).toDate())}
           valueFormat="D MMM YYYY"
@@ -318,11 +320,11 @@ export function SubscriptionFormPage() {
         />
 
         <Select
-          label="Categorie"
+          label={t('subscriptions.form.category')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={categoryId}
           onChange={(v) => {
             setCategoryId(v);
@@ -332,10 +334,10 @@ export function SubscriptionFormPage() {
 
         {childSubs.length > 0 && (
           <Select
-            label="Subcategorie (opțional)"
+            label={t('subscriptions.form.subcategoryOptional')}
             data={[
-              { value: '', label: 'Fără subcategorie' },
-              ...childSubs.map((s) => ({ value: s.id, label: s.name })),
+              { value: '', label: t('subscriptions.form.noSubcategory') },
+              ...childSubs.map((s) => ({ value: s.id, label: subcategoryDisplayName(s, t) })),
             ]}
             value={subcategoryId ?? ''}
             onChange={(v) => setSubcategoryId(v && v !== '' ? v : null)}
@@ -346,40 +348,40 @@ export function SubscriptionFormPage() {
           <Switch
             checked={active}
             onChange={(e) => setActive(e.currentTarget.checked)}
-            aria-label="Activ"
+            aria-label={t('subscriptions.form.active')}
             mt={2}
           />
           <Box flex={1} miw={0}>
             <Text size="sm" fw={500}>
-              Activ
+              {t('subscriptions.form.active')}
             </Text>
             <Text size="xs" c="dimmed">
-              Cheltuielile se generează automat la fiecare reînnoire
+              {t('subscriptions.form.activeHint')}
             </Text>
           </Box>
         </Group>
 
-        {/* Label detașat: doar thumb-ul togglează. Previne activări accidentale la
-            tap pe text/scroll pe mobile. aria-label păstrează accesibilitatea. */}
-        <Group wrap="nowrap" align="flex-start" gap="sm">
-          <Switch
-            checked={companyCard}
-            onChange={(e) => {
-              setCompanyCard(e.currentTarget.checked);
-              setCompanyCardTouched(true);
-            }}
-            aria-label="Plătit cu cardul firmei"
-            mt={2}
-          />
-          <Box flex={1} miw={0}>
-            <Text size="sm" fw={500}>
-              Plătit cu cardul firmei
-            </Text>
-            <Text size="xs" c="dimmed">
-              ex: Claude Max. Cheltuielile generate sunt excluse din totalul personal în Analytics.
-            </Text>
-          </Box>
-        </Group>
+        {companyCardEnabled && (
+          <Group wrap="nowrap" align="flex-start" gap="sm">
+            <Switch
+              checked={companyCard}
+              onChange={(e) => {
+                setCompanyCard(e.currentTarget.checked);
+                setCompanyCardTouched(true);
+              }}
+              aria-label={t('subscriptions.form.company')}
+              mt={2}
+            />
+            <Box flex={1} miw={0}>
+              <Text size="sm" fw={500}>
+                {t('subscriptions.form.company')}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t('subscriptions.form.companyHint')}
+              </Text>
+            </Box>
+          </Group>
+        )}
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
@@ -388,7 +390,7 @@ export function SubscriptionFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Creează' : 'Salvează'}
+          {isNew ? t('subscriptions.form.create') : t('subscriptions.form.submit')}
         </Button>
 
         {!isNew && (
@@ -401,7 +403,7 @@ export function SubscriptionFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge abonamentul
+              {t('subscriptions.form.delete')}
             </Button>
           </>
         )}

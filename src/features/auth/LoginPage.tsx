@@ -15,10 +15,13 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from './AuthProvider';
 import { CaptchaGate, HCAPTCHA_ENABLED, type CaptchaGateRef } from '@/components/CaptchaGate';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const { status, signIn } = useAuth();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -37,13 +40,13 @@ export function LoginPage() {
     e.preventDefault();
     setError(null);
     if (HCAPTCHA_ENABLED && !captchaToken) {
-      return setError('Te rog completează verificarea anti-bot');
+      return setError(t('validation.captchaRequired'));
     }
     setLoading(true);
     try {
       await signIn(email.trim(), password, captchaToken ?? undefined);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la autentificare');
+      setError(err instanceof Error ? err.message : t('auth.login.error'));
       // hCaptcha tokens are single-use; reset on error so user gets a fresh one
       captchaRef.current?.reset();
       setCaptchaToken(null);
@@ -54,7 +57,10 @@ export function LoginPage() {
 
   return (
     <Center h="100dvh" px="md">
-      <Paper p="xl" radius="lg" withBorder w="100%" maw={420}>
+      <Paper p="xl" radius="lg" withBorder w="100%" maw={420} pos="relative">
+        <Group pos="absolute" top={12} right={12} style={{ zIndex: 2 }}>
+          <LanguageToggle />
+        </Group>
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <Stack gap="xs" align="center">
@@ -70,11 +76,11 @@ export function LoginPage() {
                 Bundy
               </Title>
               <Text size="sm" c="dimmed">
-                Gestionare cheltuieli personale
+                {t('auth.tagline')}
               </Text>
             </Stack>
             <TextInput
-              label="Email"
+              label={t('auth.login.email')}
               type="email"
               autoComplete="email"
               inputMode="email"
@@ -83,7 +89,7 @@ export function LoginPage() {
               onChange={(e) => setEmail(e.currentTarget.value)}
             />
             <PasswordInput
-              label="Parolă"
+              label={t('auth.login.password')}
               autoComplete="current-password"
               required
               value={password}
@@ -91,7 +97,7 @@ export function LoginPage() {
             />
             <Group justify="flex-end">
               <Anchor component={Link} to="/forgot-password" size="xs">
-                Am uitat parola
+                {t('auth.login.forgotPassword')}
               </Anchor>
             </Group>
             <CaptchaGate
@@ -110,12 +116,12 @@ export function LoginPage() {
               fullWidth
               disabled={HCAPTCHA_ENABLED && !captchaToken}
             >
-              Intră în cont
+              {t('auth.login.submit')}
             </Button>
             <Text size="xs" ta="center" c="dimmed">
-              Nu ai cont?{' '}
+              {t('auth.login.noAccount')}{' '}
               <Anchor component={Link} to="/signup">
-                Înregistrează-te
+                {t('auth.login.signupLink')}
               </Anchor>
             </Text>
           </Stack>

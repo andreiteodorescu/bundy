@@ -13,6 +13,7 @@ import {
   Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconCheck } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthProvider';
 
@@ -28,6 +29,7 @@ import { useAuth } from './AuthProvider';
  * then show the new-password form.
  */
 export function ResetPasswordPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { updatePassword } = useAuth();
   const [phase, setPhase] = useState<'init' | 'ready' | 'invalid' | 'done'>('init');
@@ -40,20 +42,17 @@ export function ResetPasswordPage() {
     let mounted = true;
     let timer: number | undefined;
 
-    // Listen for the PASSWORD_RECOVERY event from Supabase JS
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (session && event === 'SIGNED_IN')) {
         if (mounted) setPhase('ready');
       }
     });
 
-    // If Supabase already had time to parse the URL hash before we mounted, check session
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       if (data.session) {
         setPhase('ready');
       } else {
-        // give it a bit, then if no session showed up, we treat link as invalid/expired
         timer = window.setTimeout(() => {
           if (mounted && phase === 'init') setPhase('invalid');
         }, 2000);
@@ -71,8 +70,8 @@ export function ResetPasswordPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < 6) return setError('Parola trebuie să aibă minim 6 caractere');
-    if (password !== confirm) return setError('Parolele nu se potrivesc');
+    if (password.length < 6) return setError(t('validation.passwordTooShort', { min: 6 }));
+    if (password !== confirm) return setError(t('validation.passwordsDontMatch'));
     setLoading(true);
     try {
       await updatePassword(password);
@@ -81,7 +80,7 @@ export function ResetPasswordPage() {
       await supabase.auth.signOut();
       setTimeout(() => navigate('/login', { replace: true }), 1800);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare');
+      setError(err instanceof Error ? err.message : t('auth.reset.error'));
     } finally {
       setLoading(false);
     }
@@ -100,15 +99,15 @@ export function ResetPasswordPage() {
       <Center h="100dvh" px="md">
         <Paper p="xl" radius="lg" withBorder w="100%" maw={420}>
           <Stack gap="md">
-            <Title order={3}>Link invalid sau expirat</Title>
+            <Title order={3}>{t('auth.reset.invalidTitle')}</Title>
             <Text size="sm" c="dimmed">
-              Link-ul de resetare nu mai e valid. Cere unul nou de pe pagina de login.
+              {t('auth.reset.invalidMessage')}
             </Text>
             <Anchor component={Link} to="/forgot-password">
-              Cere un link nou
+              {t('auth.reset.requestNew')}
             </Anchor>
             <Anchor component={Link} to="/login">
-              Înapoi la login
+              {t('auth.reset.backToLogin')}
             </Anchor>
           </Stack>
         </Paper>
@@ -122,9 +121,9 @@ export function ResetPasswordPage() {
         <Paper p="xl" radius="lg" withBorder w="100%" maw={420}>
           <Stack gap="md" align="center" ta="center">
             <IconCheck size={48} color="var(--mantine-color-green-6)" stroke={2} />
-            <Title order={3}>Parolă actualizată</Title>
+            <Title order={3}>{t('auth.reset.doneTitle')}</Title>
             <Text size="sm" c="dimmed">
-              Te redirecționăm către pagina de login...
+              {t('auth.reset.doneMessage')}
             </Text>
           </Stack>
         </Paper>
@@ -137,17 +136,17 @@ export function ResetPasswordPage() {
       <Paper p="xl" radius="lg" withBorder w="100%" maw={420}>
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
-            <Title order={2}>Setează parolă nouă</Title>
+            <Title order={2}>{t('auth.reset.title')}</Title>
             <PasswordInput
-              label="Parolă nouă"
-              description="Minim 6 caractere"
+              label={t('auth.reset.newPassword')}
+              description={t('auth.reset.newPasswordHint')}
               autoComplete="new-password"
               required
               value={password}
               onChange={(e) => setPassword(e.currentTarget.value)}
             />
             <PasswordInput
-              label="Confirmă parola"
+              label={t('auth.reset.confirmPassword')}
               autoComplete="new-password"
               required
               value={confirm}
@@ -159,7 +158,7 @@ export function ResetPasswordPage() {
               </Alert>
             )}
             <Button type="submit" loading={loading} fullWidth>
-              Salvează parola
+              {t('auth.reset.submit')}
             </Button>
           </Stack>
         </form>

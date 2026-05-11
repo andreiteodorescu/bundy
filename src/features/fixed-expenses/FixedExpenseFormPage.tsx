@@ -19,11 +19,14 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeleteFixedExpense,
   useFixedExpense,
@@ -31,6 +34,8 @@ import {
 } from './api';
 
 export function FixedExpenseFormPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -49,9 +54,6 @@ export function FixedExpenseFormPage() {
   const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Live RON preview for foreign-currency templates. Uses today's BNR rate as a
-  // proxy — the actual rate at use-time will be re-fetched per the day the user
-  // applies the template (handled by the expense create flow).
   const todayIso = dayjs().format('YYYY-MM-DD');
   const fxRate = useQuery({
     queryKey: ['fx', todayIso, currency],
@@ -77,12 +79,12 @@ export function FixedExpenseFormPage() {
     setCompanyCardTouched(true);
   }, [editing.data]);
 
-  // Auto-suggest company card when category is Work & Business
   const workBusinessCategoryId = (cats.data ?? []).find((c) => c.slug === 'work-business')?.id ?? null;
   useEffect(() => {
+    if (!companyCardEnabled) return;
     if (companyCardTouched) return;
     if (categoryId && categoryId === workBusinessCategoryId) setCompanyCard(true);
-  }, [categoryId, workBusinessCategoryId, companyCardTouched]);
+  }, [categoryId, workBusinessCategoryId, companyCardTouched, companyCardEnabled]);
 
   if (!isNew && editing.isLoading) {
     return (
@@ -96,9 +98,9 @@ export function FixedExpenseFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (typeof amount !== 'number' || amount <= 0) return setError('Sumă invalidă');
-    if (!categoryId) return setError('Alege o categorie');
+    if (!name.trim()) return setError(t('templates.errorNameRequired'));
+    if (typeof amount !== 'number' || amount <= 0) return setError(t('templates.errorAmountInvalid'));
+    if (!categoryId) return setError(t('templates.errorCategoryRequired'));
     try {
       await upsert.mutateAsync({
         id: params.id,
@@ -107,24 +109,28 @@ export function FixedExpenseFormPage() {
         currency,
         category_id: categoryId,
         subcategory_id: subcategoryId,
-        tags: companyCard ? ['company-card'] : [],
+        tags: companyCardEnabled
+          ? companyCard
+            ? ['company-card']
+            : []
+          : editing.data?.tags ?? [],
       });
       navigate('/fixed-expenses');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('templates.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi acest șablon?',
+      message: t('templates.fixed.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/fixed-expenses');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('templates.errorDelete'));
         }
       },
     });
@@ -141,23 +147,23 @@ export function FixedExpenseFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/fixed-expenses')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Șablon nou' : name}</Title>
+        <Title order={2}>{isNew ? t('templates.fixed.newFormTitle') : name}</Title>
 
         <TextInput
-          label="Nume"
+          label={t('subscriptions.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Terapie"
+          placeholder={t('templates.fixed.namePlaceholder')}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Sumă"
+            label={t('subscriptions.form.amount')}
             required
             flex={1}
             value={amount}
@@ -167,7 +173,7 @@ export function FixedExpenseFormPage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('subscriptions.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -179,21 +185,21 @@ export function FixedExpenseFormPage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('templates.fxLoading')
               : amountRonPreview !== null
-                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR de azi (recalculat la fiecare folosire)`
+                ? t('templates.fxPreviewToday', { amount: formatRon(amountRonPreview) })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va recalcula la folosire.'
-                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                  ? t('templates.fxUnavailable')
+                  : t('templates.fxEnterAmount')}
           </Text>
         )}
 
         <Select
-          label="Categorie"
+          label={t('subscriptions.form.category')}
           required
           searchable
           filter={diacriticsFilter}
-          data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+          data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
           value={categoryId}
           onChange={(v) => {
             setCategoryId(v);
@@ -203,25 +209,27 @@ export function FixedExpenseFormPage() {
 
         {childSubs.length > 0 && (
           <Select
-            label="Subcategorie (opțional)"
+            label={t('templates.subcategoryOptional')}
             data={[
-              { value: '', label: 'Fără subcategorie' },
-              ...childSubs.map((s) => ({ value: s.id, label: s.name })),
+              { value: '', label: t('templates.noSubcategory') },
+              ...childSubs.map((s) => ({ value: s.id, label: subcategoryDisplayName(s, t) })),
             ]}
             value={subcategoryId ?? ''}
             onChange={(v) => setSubcategoryId(v && v !== '' ? v : null)}
           />
         )}
 
-        <Switch
-          label="Plătit cu cardul firmei"
-          description="Marchează că nu plătești tu — exclus din totalul personal în Analytics."
-          checked={companyCard}
-          onChange={(e) => {
-            setCompanyCard(e.currentTarget.checked);
-            setCompanyCardTouched(true);
-          }}
-        />
+        {companyCardEnabled && (
+          <Switch
+            label={t('templates.switchCompany')}
+            description={t('templates.switchCompanyHintShort')}
+            checked={companyCard}
+            onChange={(e) => {
+              setCompanyCard(e.currentTarget.checked);
+              setCompanyCardTouched(true);
+            }}
+          />
+        )}
 
         {error && (
           <Alert color="red" icon={<IconAlertCircle size={16} />}>
@@ -230,7 +238,7 @@ export function FixedExpenseFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Creează' : 'Salvează'}
+          {isNew ? t('subscriptions.form.create') : t('subscriptions.form.submit')}
         </Button>
 
         {!isNew && (
@@ -243,7 +251,7 @@ export function FixedExpenseFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge șablonul
+              {t('subscriptions.form.delete')}
             </Button>
           </>
         )}

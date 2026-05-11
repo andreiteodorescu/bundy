@@ -26,18 +26,22 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { useRecentExpenses } from '@/features/expenses/api';
 import { cleanExpenseName } from '@/lib/text';
 import { formatRon } from '@/lib/money';
 import { getIcon } from '@/data/icons.registry';
-import type { Expense } from '@/types';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
+import type { Category, Expense, Subcategory } from '@/types';
 import { useSearchStore } from './store';
 import { useSearchExpenses } from './api';
 import { parseSearch } from './parseSearch';
 import classes from './SearchModal.module.css';
 
 export function SearchModal() {
+  const { t } = useTranslation();
   const open = useSearchStore((s) => s.open);
   const setOpen = useSearchStore((s) => s.setOpen);
   const recent = useSearchStore((s) => s.recent);
@@ -53,7 +57,6 @@ export function SearchModal() {
   const catById = useMemo(() => new Map((cats.data ?? []).map((c) => [c.id, c])), [cats.data]);
   const subById = useMemo(() => new Map((subs.data ?? []).map((s) => [s.id, s])), [subs.data]);
 
-  // Reset input when modal closes
   useEffect(() => {
     if (!open) setInput('');
   }, [open]);
@@ -66,7 +69,6 @@ export function SearchModal() {
     [results.data],
   );
 
-  // Top brand-like names from history (suggested for empty state)
   const suggestedTop = useMemo(() => {
     const counts = new Map<string, number>();
     for (const e of history.data ?? []) {
@@ -100,17 +102,14 @@ export function SearchModal() {
       transitionProps={{ transition: 'slide-up', duration: 180 }}
       styles={{ body: { padding: 0, minHeight: '100dvh' } }}
     >
-      {/* Sticky header: stays anchored at top of scroll container even when iOS
-          rearranges viewport (keyboard show/hide, etc.). safe-area-inset on the
-          sticky wrapper itself so it always respects the iPhone notch. */}
       <Box className={classes.stickyHeader}>
         <Group gap="xs" p="sm" wrap="nowrap">
-          <ActionIcon variant="subtle" size="lg" onClick={() => setOpen(false)} aria-label="Închide">
+          <ActionIcon variant="subtle" size="lg" onClick={() => setOpen(false)} aria-label={t('search.closeAria')}>
             <IconArrowLeft size={20} />
           </ActionIcon>
           <TextInput
             flex={1}
-            placeholder="Caută text, 500, 03-05-2026, 05-2026..."
+            placeholder={t('search.placeholder')}
             autoFocus
             size="md"
             value={input}
@@ -118,7 +117,7 @@ export function SearchModal() {
             leftSection={<IconSearch size={16} />}
             rightSection={
               input ? (
-                <ActionIcon variant="subtle" size="sm" onClick={() => setInput('')} aria-label="Șterge">
+                <ActionIcon variant="subtle" size="sm" onClick={() => setInput('')} aria-label={t('search.clearAria')}>
                   <IconX size={14} />
                 </ActionIcon>
               ) : null
@@ -126,9 +125,7 @@ export function SearchModal() {
           />
         </Group>
 
-        {/* Smart-detection hint stays inside the sticky wrapper so it doesn't get
-            occluded either. */}
-        {parsed && <DetectionHint parsed={parsed} />}
+        {parsed && <DetectionHint parsed={parsed} t={t} />}
       </Box>
 
       <Box p="md">
@@ -138,6 +135,7 @@ export function SearchModal() {
               suggested={suggestedTop}
               onPick={pickQuery}
               onClear={clearRecent}
+              t={t}
             />
           ) : results.isFetching ? (
             <Center py="xl">
@@ -148,7 +146,7 @@ export function SearchModal() {
               <Stack align="center" gap="xs">
                 <IconReceiptOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
                 <Text c="dimmed" size="sm">
-                  Niciun rezultat pentru „{trimmed}"
+                  {t('search.noResults', { query: trimmed })}
                 </Text>
               </Stack>
             </Center>
@@ -157,7 +155,7 @@ export function SearchModal() {
               <Paper withBorder radius="md" p="sm">
                 <Group justify="space-between">
                   <Text size="sm" c="dimmed">
-                    {results.data!.length} {results.data!.length === 1 ? 'cheltuială' : 'cheltuieli'}
+                    {t('search.results', { count: results.data!.length })}
                   </Text>
                   <Text fw={700} size="lg">
                     {formatRon(total)}
@@ -170,8 +168,9 @@ export function SearchModal() {
                     key={exp.id}
                     expense={exp}
                     category={catById.get(exp.category_id ?? '') ?? null}
-                    subcategoryName={subById.get(exp.subcategory_id ?? '')?.name ?? null}
+                    subcategory={subById.get(exp.subcategory_id ?? '') ?? null}
                     onClick={() => handleResultClick(exp)}
+                    t={t}
                   />
                 ))}
               </Stack>
@@ -182,18 +181,18 @@ export function SearchModal() {
   );
 }
 
-function DetectionHint({ parsed }: { parsed: ReturnType<typeof parseSearch> }) {
+function DetectionHint({ parsed, t }: { parsed: ReturnType<typeof parseSearch>; t: TFunction }) {
   let icon = <IconSearch size={12} />;
-  let label = 'Caut text';
+  let label = t('search.detect.text');
   if (parsed.kind === 'number') {
     icon = <IconCash size={12} />;
-    label = `Caut sume ≈ ${parsed.value.toLocaleString('ro-RO')} RON`;
+    label = t('search.detect.amount', { value: parsed.value.toLocaleString() });
   } else if (parsed.kind === 'date') {
     icon = <IconCalendar size={12} />;
-    label = `Caut pe ${dayjs(parsed.iso).format('D MMM YYYY')}`;
+    label = t('search.detect.date', { date: dayjs(parsed.iso).format('D MMM YYYY') });
   } else if (parsed.kind === 'month') {
     icon = <IconCalendar size={12} />;
-    label = `Caut în ${dayjs(parsed.ym + '-01').format('MMMM YYYY')}`;
+    label = t('search.detect.month', { month: dayjs(parsed.ym + '-01').format('MMMM YYYY') });
   }
   return (
     <Box px="md" py={6} className={classes.hint}>
@@ -212,11 +211,13 @@ function EmptyState({
   suggested,
   onPick,
   onClear,
+  t,
 }: {
   recent: string[];
   suggested: string[];
   onPick: (q: string) => void;
   onClear: () => void;
+  t: TFunction;
 }) {
   if (recent.length === 0 && suggested.length === 0) {
     return (
@@ -224,7 +225,7 @@ function EmptyState({
         <Stack align="center" gap="xs">
           <IconSearch size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
           <Text c="dimmed" size="sm" ta="center" maw={300}>
-            Caută cheltuielile tale după nume, categorie, sumă sau dată.
+            {t('search.emptyHint')}
           </Text>
         </Stack>
       </Center>
@@ -238,11 +239,11 @@ function EmptyState({
             <Group gap={6}>
               <IconClock size={14} color="var(--mantine-color-dimmed)" />
               <Text size="xs" fw={600} c="dimmed">
-                Recente
+                {t('search.recentTitle')}
               </Text>
             </Group>
             <Anchor component="button" type="button" size="xs" c="dimmed" onClick={onClear}>
-              Șterge
+              {t('search.clearRecent')}
             </Anchor>
           </Group>
           <Group gap="xs">
@@ -265,7 +266,7 @@ function EmptyState({
           <Group gap={6} px={4}>
             <IconSparkles size={14} color="var(--mantine-color-dimmed)" />
             <Text size="xs" fw={600} c="dimmed">
-              Cele mai dese cheltuieli
+              {t('search.frequentTitle')}
             </Text>
           </Group>
           <Group gap="xs">
@@ -290,16 +291,20 @@ function EmptyState({
 function ResultRow({
   expense,
   category,
-  subcategoryName,
+  subcategory,
   onClick,
+  t,
 }: {
   expense: Expense;
-  category: { color: string; icon: string; name: string } | null;
-  subcategoryName: string | null;
+  category: Category | null;
+  subcategory: Subcategory | null;
   onClick: () => void;
+  t: TFunction;
 }) {
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
+  const categoryName = category ? categoryDisplayName(category, t) : null;
+  const subcategoryName = subcategory ? subcategoryDisplayName(subcategory, t) : null;
 
   return (
     <UnstyledButton onClick={onClick} w="100%">
@@ -333,7 +338,7 @@ function ResultRow({
             </Group>
             <Text size="xs" c="dimmed">
               {dayjs(expense.occurred_on).format('D MMM YYYY')}
-              {category ? ` · ${category.name}` : ''}
+              {categoryName ? ` · ${categoryName}` : ''}
               {subcategoryName ? ` › ${subcategoryName}` : ''}
             </Text>
           </Box>

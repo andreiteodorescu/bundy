@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Group, ScrollArea, SimpleGrid, Text, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { IconCircleOff, IconSearch } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { BRAND_LOGOS } from '@/data/brandLogos';
 import { BrandGlyph } from './BrandGlyph';
 import classes from './BrandPicker.module.css';
@@ -11,11 +12,8 @@ type Props = {
   onChange: (slug: string | null) => void;
 };
 
-/**
- * Grid picker for subscription brand logos. Includes an "Auto" option
- * (null) which lets the app auto-detect the brand from the subscription name.
- */
 export function BrandPicker({ value, onChange }: Props) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
@@ -28,7 +26,7 @@ export function BrandPicker({ value, onChange }: Props) {
     <div>
       <TextInput
         leftSection={<IconSearch size={16} />}
-        placeholder="Caută brand..."
+        placeholder={t('brands.searchPlaceholder')}
         value={query}
         onChange={(e) => setQuery(e.currentTarget.value)}
         size="sm"
@@ -37,17 +35,16 @@ export function BrandPicker({ value, onChange }: Props) {
 
       <ScrollArea.Autosize mah={280} type="never">
         <SimpleGrid cols={4} spacing="xs">
-          {/* Auto-detect option (clears any explicit choice) */}
-          <Tooltip label="Auto-detectare după nume" withArrow openDelay={300}>
+          <Tooltip label={t('brands.autoTooltip')} withArrow openDelay={300}>
             <UnstyledButton
               onClick={() => onChange(null)}
               className={`${classes.tile} ${value === null ? classes.active : ''}`}
-              aria-label="Auto-detectare"
+              aria-label={t('brands.autoTooltip')}
               aria-pressed={value === null}
             >
               <IconCircleOff size={22} stroke={1.7} />
               <Text size="xs" mt={2}>
-                Auto
+                {t('brands.auto')}
               </Text>
             </UnstyledButton>
           </Tooltip>
@@ -76,7 +73,7 @@ export function BrandPicker({ value, onChange }: Props) {
       {filtered.length === 0 && (
         <Group justify="center" py="md">
           <Text size="sm" c="dimmed">
-            Niciun brand găsit pentru „{query}"
+            {t('brands.empty', { query })}
           </Text>
         </Group>
       )}

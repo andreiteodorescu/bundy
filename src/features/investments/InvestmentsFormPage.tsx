@@ -22,12 +22,14 @@ import { DatePickerInput } from '@mantine/dates';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { ymd } from '@/lib/dates';
 import { confirmDelete } from '@/lib/confirm';
+import { instrumentTypeDisplayName } from '@/i18n/displayName';
 import {
-  INSTRUMENT_TYPE_LABELS,
+  INVESTMENT_TYPES,
   useDeleteInvestment,
   useInvestment,
   useInvestments,
@@ -36,6 +38,7 @@ import {
 import type { InvestmentDirection, InvestmentInstrumentType } from '@/types';
 
 export function InvestmentsFormPage() {
+  const { t } = useTranslation();
   const params = useParams();
   const isNew = !params.id;
   const navigate = useNavigate();
@@ -55,16 +58,16 @@ export function InvestmentsFormPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = editing.data;
-    if (!t) return;
-    setName(t.name);
-    setAmount(Number(t.amount));
-    setCurrency(t.currency);
-    setDirection(t.direction);
-    setInstrumentType(t.instrument_type);
-    setBroker(t.broker ?? '');
-    setDate(new Date(t.occurred_on));
-    setNote(t.note ?? '');
+    const tx = editing.data;
+    if (!tx) return;
+    setName(tx.name);
+    setAmount(Number(tx.amount));
+    setCurrency(tx.currency);
+    setDirection(tx.direction);
+    setInstrumentType(tx.instrument_type);
+    setBroker(tx.broker ?? '');
+    setDate(new Date(tx.occurred_on));
+    setNote(tx.note ?? '');
   }, [editing.data]);
 
   const dateIso = ymd(date);
@@ -96,8 +99,8 @@ export function InvestmentsFormPage() {
 
   async function handleSave() {
     setError(null);
-    if (!name.trim()) return setError('Nume e obligatoriu');
-    if (typeof amount !== 'number' || amount <= 0) return setError('Sumă invalidă');
+    if (!name.trim()) return setError(t('investments.form.errorNameRequired'));
+    if (typeof amount !== 'number' || amount <= 0) return setError(t('investments.form.errorAmountInvalid'));
     try {
       await upsert.mutateAsync({
         id: params.id,
@@ -112,20 +115,20 @@ export function InvestmentsFormPage() {
       });
       navigate('/investments');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Eroare la salvare');
+      setError(err instanceof Error ? err.message : t('investments.form.errorSave'));
     }
   }
 
   function handleDelete() {
     if (!params.id) return;
     confirmDelete({
-      message: 'Sigur vrei să ștergi această tranzacție?',
+      message: t('investments.form.deleteConfirmMessage'),
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
           navigate('/investments');
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Eroare la ștergere');
+          setError(err instanceof Error ? err.message : t('investments.form.errorDelete'));
         }
       },
     });
@@ -142,33 +145,33 @@ export function InvestmentsFormPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/investments')}
           >
-            Înapoi
+            {t('investments.back')}
           </Button>
         </Group>
 
-        <Title order={2}>{isNew ? 'Tranzacție nouă' : name}</Title>
+        <Title order={2}>{isNew ? t('investments.form.newTitle') : name}</Title>
 
         <SegmentedControl
           fullWidth
           value={direction}
           onChange={(v) => setDirection(v as InvestmentDirection)}
           data={[
-            { label: 'Cumpărare', value: 'in' },
-            { label: 'Vânzare', value: 'out' },
+            { label: t('investments.form.directionIn'), value: 'in' },
+            { label: t('investments.form.directionOut'), value: 'out' },
           ]}
         />
 
         <TextInput
-          label="Nume"
+          label={t('investments.form.name')}
           required
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="ex: Pilon III NN, ETF S&P500, Fond mutual BT, BTC"
+          placeholder={t('investments.form.namePlaceholder')}
         />
 
         <Group gap="sm" wrap="nowrap" align="end">
           <NumberInput
-            label="Sumă"
+            label={t('investments.form.amount')}
             required
             flex={1}
             value={amount}
@@ -181,7 +184,7 @@ export function InvestmentsFormPage() {
             inputMode="decimal"
           />
           <Select
-            label="Monedă"
+            label={t('investments.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
             onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
@@ -193,34 +196,37 @@ export function InvestmentsFormPage() {
         {currency !== 'RON' && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
-              ? 'Se încarcă cursul BNR…'
+              ? t('investments.form.fxLoading')
               : amountRonPreview !== null
-                ? `≈ ${formatRon(amountRonPreview)} la cursul BNR din ${dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY')}`
+                ? t('investments.form.fxPreview', {
+                    amount: formatRon(amountRonPreview),
+                    date: dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY'),
+                  })
                 : fxRate.isError
-                  ? 'Curs BNR indisponibil — se va încerca la salvare.'
-                  : 'Introdu o sumă pentru a vedea echivalentul în RON.'}
+                  ? t('investments.form.fxUnavailable')
+                  : t('investments.form.fxEnterAmount')}
           </Text>
         )}
 
         <Select
-          label="Tip instrument"
+          label={t('investments.form.instrumentType')}
           required
-          data={Object.entries(INSTRUMENT_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+          data={INVESTMENT_TYPES.map((v) => ({ value: v, label: instrumentTypeDisplayName(v, t) }))}
           value={instrumentType}
           onChange={(v) => v && setInstrumentType(v as InvestmentInstrumentType)}
           allowDeselect={false}
         />
 
         <Autocomplete
-          label="Broker / platformă (opțional)"
-          placeholder="ex: XTB, BT Capital, NN Pensii, Binance"
+          label={t('investments.form.broker')}
+          placeholder={t('investments.form.brokerPlaceholder')}
           value={broker}
           onChange={setBroker}
           data={brokerSuggestions}
         />
 
         <DatePickerInput
-          label="Data"
+          label={t('investments.form.date')}
           required
           value={date}
           onChange={(d) => d && setDate(new Date(d as unknown as string))}
@@ -228,7 +234,7 @@ export function InvestmentsFormPage() {
         />
 
         <Textarea
-          label="Notă (opțional)"
+          label={t('investments.form.noteOptional')}
           value={note}
           onChange={(e) => setNote(e.currentTarget.value)}
           autosize
@@ -243,7 +249,7 @@ export function InvestmentsFormPage() {
         )}
 
         <Button onClick={handleSave} loading={upsert.isPending} size="md">
-          {isNew ? 'Adaugă' : 'Salvează'}
+          {isNew ? t('investments.form.create') : t('investments.form.submit')}
         </Button>
 
         {!isNew && (
@@ -256,7 +262,7 @@ export function InvestmentsFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              Șterge tranzacția
+              {t('investments.form.delete')}
             </Button>
           </>
         )}

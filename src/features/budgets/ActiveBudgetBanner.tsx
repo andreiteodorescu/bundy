@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconWallet } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useActiveBudgets, useBudgetProgress } from './api';
 import { BudgetProgressBar } from './BudgetProgressBar';
@@ -10,6 +11,7 @@ import type { Budget } from '@/types';
 import classes from './ActiveBudgetBanner.module.css';
 
 export function ActiveBudgetBanner() {
+  const { t } = useTranslation();
   const active = useActiveBudgets();
   const budgets = active.data ?? [];
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -50,7 +52,7 @@ export function ActiveBudgetBanner() {
           <span
             key={i}
             className={`${classes.dot} ${i === activeIdx ? classes.dotActive : ''}`}
-            aria-label={`Buget ${i + 1} din ${budgets.length}`}
+            aria-label={t('budgets.bannerNumeration', { current: i + 1, total: budgets.length })}
           />
         ))}
       </Group>
@@ -59,6 +61,7 @@ export function ActiveBudgetBanner() {
 }
 
 function ActiveBudgetCard({ budget }: { budget: Budget }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const progress = useBudgetProgress(budget);
   const firedThresholds = useRef(new Set<number>());
@@ -71,13 +74,13 @@ function ActiveBudgetCard({ budget }: { budget: Budget }) {
   useEffect(() => {
     if (!progress.data) return;
     const pct = progress.data.pct;
-    for (const t of budget.thresholds_pct) {
-      if (pct >= t && !firedThresholds.current.has(t)) {
-        firedThresholds.current.add(t);
+    for (const threshold of budget.thresholds_pct) {
+      if (pct >= threshold && !firedThresholds.current.has(threshold)) {
+        firedThresholds.current.add(threshold);
         supabase
           .from('budget_notifications')
           .upsert(
-            { budget_id: budget.id, threshold_pct: t },
+            { budget_id: budget.id, threshold_pct: threshold },
             { onConflict: 'budget_id,threshold_pct', ignoreDuplicates: true },
           )
           .select()
@@ -85,15 +88,15 @@ function ActiveBudgetCard({ budget }: { budget: Budget }) {
             if (!error && data && data.length > 0) {
               notifications.show({
                 title: budget.name,
-                message: `Ai cheltuit ${Math.round(pct)}% din buget`,
-                color: t >= 100 ? 'red' : t >= 90 ? 'orange' : 'yellow',
+                message: t('budgets.banner.spentPercent', { pct: Math.round(pct) }),
+                color: threshold >= 100 ? 'red' : threshold >= 90 ? 'orange' : 'yellow',
                 autoClose: 5000,
               });
             }
           });
       }
     }
-  }, [progress.data, budget.thresholds_pct, budget.id, budget.name]);
+  }, [progress.data, budget.thresholds_pct, budget.id, budget.name, t]);
 
   return (
     <UnstyledButton onClick={() => navigate(`/budgets/${budget.id}/edit`)} w="100%">

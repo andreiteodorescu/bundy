@@ -28,13 +28,17 @@ import {
   IconPlus,
   IconSearch,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatMoney, formatRon } from '@/lib/money';
-import { INSTRUMENT_TYPE_LABELS, useInvestments } from './api';
+import { instrumentTypeDisplayName } from '@/i18n/displayName';
+import { INVESTMENT_TYPES, useInvestments } from './api';
 import type { InvestmentInstrumentType, InvestmentTransaction } from '@/types';
 
 const PAGE_SIZE = 20;
 
 export function InvestmentsListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const investments = useInvestments();
 
@@ -76,7 +80,6 @@ export function InvestmentsListPage() {
     setPage(1);
   }, [search, directionFilter, instrumentFilter, brokerFilter, startDate, endDate]);
 
-  // Net invested + per-instrument breakdown over the FILTERED set
   const { totalIn, totalOut, byInstrument } = useMemo(() => {
     let tIn = 0;
     let tOut = 0;
@@ -113,27 +116,27 @@ export function InvestmentsListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('investments.back')}
           </Button>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
             onClick={() => navigate('/investments/new')}
           >
-            Adaugă
+            {t('investments.addShort')}
           </Button>
         </Group>
 
         <Group gap="xs" align="center">
           <IconChartLine size={22} />
-          <Title order={2}>Investiții</Title>
+          <Title order={2}>{t('investments.title')}</Title>
         </Group>
 
         <Paper withBorder radius="md" p="sm">
           <Stack gap={4}>
             <Group justify="space-between" wrap="nowrap">
               <Text size="sm" c="dimmed">
-                Net investit{hasFilters ? ' (filtrat)' : ''}
+                {hasFilters ? t('investments.netFiltered') : t('investments.net')}
               </Text>
               <Text fw={700} size="xl" c={net >= 0 ? undefined : 'red'}>
                 {formatRon(net)}
@@ -141,7 +144,10 @@ export function InvestmentsListPage() {
             </Group>
             {(totalIn > 0 || totalOut > 0) && (
               <Text size="xs" c="dimmed">
-                Cumpărări {formatRon(totalIn)} · Vânzări {formatRon(totalOut)}
+                {t('investments.buysSellsLine', {
+                  buys: formatRon(totalIn),
+                  sells: formatRon(totalOut),
+                })}
               </Text>
             )}
             {byInstrument.size > 0 && (
@@ -151,7 +157,7 @@ export function InvestmentsListPage() {
                   .map(([type, amount]) => (
                     <Group key={type} justify="space-between" wrap="nowrap" gap="xs">
                       <Text size="xs" c="dimmed" truncate>
-                        {INSTRUMENT_TYPE_LABELS[type]}
+                        {instrumentTypeDisplayName(type, t)}
                       </Text>
                       <Text size="xs" fw={500}>
                         {formatRon(amount)}
@@ -165,7 +171,7 @@ export function InvestmentsListPage() {
 
         <Stack gap="xs">
           <TextInput
-            placeholder="Caută după nume..."
+            placeholder={t('investments.searchPlaceholder')}
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -176,15 +182,15 @@ export function InvestmentsListPage() {
             value={directionFilter}
             onChange={(v) => setDirectionFilter(v as typeof directionFilter)}
             data={[
-              { label: 'Toate', value: 'all' },
-              { label: 'Cumpărări', value: 'in' },
-              { label: 'Vânzări', value: 'out' },
+              { label: t('investments.directionAll'), value: 'all' },
+              { label: t('investments.directionIn'), value: 'in' },
+              { label: t('investments.directionOut'), value: 'out' },
             ]}
             size="sm"
           />
           <Select
-            placeholder="Filtrează după tip instrument"
-            data={Object.entries(INSTRUMENT_TYPE_LABELS).map(([v, l]) => ({ value: v, label: l }))}
+            placeholder={t('investments.instrumentFilterPlaceholder')}
+            data={INVESTMENT_TYPES.map((v) => ({ value: v, label: instrumentTypeDisplayName(v, t) }))}
             value={instrumentFilter}
             onChange={(v) => setInstrumentFilter(v as InvestmentInstrumentType | null)}
             clearable
@@ -193,7 +199,7 @@ export function InvestmentsListPage() {
           />
           {brokerOptions.length > 0 && (
             <Select
-              placeholder="Filtrează după broker"
+              placeholder={t('investments.brokerFilterPlaceholder')}
               data={brokerOptions}
               value={brokerFilter}
               onChange={setBrokerFilter}
@@ -204,7 +210,7 @@ export function InvestmentsListPage() {
           )}
           <Group gap="xs" grow>
             <DatePickerInput
-              placeholder="De la"
+              placeholder={t('investments.fromPlaceholder')}
               value={startDate}
               onChange={(d) => setStartDate(d ? new Date(d as unknown as string) : null)}
               clearable
@@ -212,7 +218,7 @@ export function InvestmentsListPage() {
               valueFormat="D MMM YYYY"
             />
             <DatePickerInput
-              placeholder="Până la"
+              placeholder={t('investments.toPlaceholder')}
               value={endDate}
               onChange={(d) => setEndDate(d ? new Date(d as unknown as string) : null)}
               clearable
@@ -235,15 +241,15 @@ export function InvestmentsListPage() {
                   setEndDate(null);
                 }}
               >
-                Resetează filtrele
+                {t('investments.resetFilters')}
               </Button>
             </Group>
           )}
         </Stack>
 
         <Text size="xs" c="dimmed">
-          {filtered.length} {filtered.length === 1 ? 'tranzacție' : 'tranzacții'}
-          {hasFilters && all.length !== filtered.length ? ` din ${all.length} totale` : ''}
+          {t('investments.txCount', { count: filtered.length })}
+          {hasFilters && all.length !== filtered.length ? t('investments.outOfTotal', { total: all.length }) : ''}
         </Text>
 
         {investments.isLoading ? (
@@ -255,7 +261,7 @@ export function InvestmentsListPage() {
             <Stack align="center" gap="xs">
               <IconChartLine size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
               <Text c="dimmed">
-                {all.length === 0 ? 'Nicio tranzacție de investiții' : 'Nicio potrivire'}
+                {all.length === 0 ? t('investments.empty') : t('investments.noMatch')}
               </Text>
               {all.length === 0 && (
                 <Button
@@ -264,7 +270,7 @@ export function InvestmentsListPage() {
                   onClick={() => navigate('/investments/new')}
                   leftSection={<IconPlus size={16} />}
                 >
-                  Adaugă prima
+                  {t('investments.addFirst')}
                 </Button>
               )}
             </Stack>
@@ -276,6 +282,7 @@ export function InvestmentsListPage() {
                 key={i.id}
                 tx={i}
                 onClick={() => navigate(`/investments/${i.id}/edit`)}
+                t={t}
               />
             ))}
           </Stack>
@@ -291,7 +298,15 @@ export function InvestmentsListPage() {
   );
 }
 
-function InvestmentRow({ tx, onClick }: { tx: InvestmentTransaction; onClick: () => void }) {
+function InvestmentRow({
+  tx,
+  onClick,
+  t,
+}: {
+  tx: InvestmentTransaction;
+  onClick: () => void;
+  t: TFunction;
+}) {
   const isIn = tx.direction === 'in';
   return (
     <UnstyledButton onClick={onClick}>
@@ -322,11 +337,11 @@ function InvestmentRow({ tx, onClick }: { tx: InvestmentTransaction; onClick: ()
                 {tx.name}
               </Text>
               <Badge size="xs" variant="light" color={isIn ? 'blue' : 'orange'}>
-                {isIn ? 'cumpărare' : 'vânzare'}
+                {isIn ? t('investments.badgeIn') : t('investments.badgeOut')}
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">
-              {dayjs(tx.occurred_on).format('D MMM YYYY')} · {INSTRUMENT_TYPE_LABELS[tx.instrument_type]}
+              {dayjs(tx.occurred_on).format('D MMM YYYY')} · {instrumentTypeDisplayName(tx.instrument_type, t)}
               {tx.broker ? ` · ${tx.broker}` : ''}
             </Text>
           </Box>

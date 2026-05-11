@@ -28,6 +28,8 @@ import {
   IconPlus,
   IconSearch,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatMoney, formatRon } from '@/lib/money';
 import { useFxRates } from '@/lib/useFxRates';
 import { useSavings } from './api';
@@ -36,6 +38,7 @@ import type { SavingsTransaction } from '@/types';
 const PAGE_SIZE = 20;
 
 export function SavingsListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const savings = useSavings();
 
@@ -75,9 +78,6 @@ export function SavingsListPage() {
     setPage(1);
   }, [search, directionFilter, accountFilter, startDate, endDate]);
 
-  // EUR is the primary display currency for savings. Sum in EUR natively (so 1100 EUR
-   // + 1500 EUR = exactly 2600 EUR, not a round-trip via historical fx_rate). Non-EUR
-   // amounts (RON, USD) are converted to EUR via current BNR rate.
   const fx = useFxRates(['EUR', 'USD']);
   const eurRate = fx.rateOf('EUR');
   const usdRate = fx.rateOf('USD');
@@ -97,11 +97,9 @@ export function SavingsListPage() {
     { totalInEur: 0, totalOutEur: 0 },
   );
   const netEur = totalInEur - totalOutEur;
-  // RON shown as secondary line = "what this EUR amount is worth today".
   const netRon = eurRate ? netEur * eurRate : null;
   const totalInRon = eurRate ? totalInEur * eurRate : null;
   const totalOutRon = eurRate ? totalOutEur * eurRate : null;
-  // Fallback when EUR rate isn't loaded yet: show historic RON sum (amount_ron).
   const ronFallback = filtered.reduce(
     (acc, s) => {
       const amt = Number(s.amount_ron);
@@ -134,27 +132,27 @@ export function SavingsListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('savings.back')}
           </Button>
           <Button
             leftSection={<IconPlus size={16} />}
             size="sm"
             onClick={() => navigate('/savings/new')}
           >
-            Adaugă
+            {t('savings.addShort')}
           </Button>
         </Group>
 
         <Group gap="xs" align="center">
           <IconPigMoney size={22} />
-          <Title order={2}>Economii</Title>
+          <Title order={2}>{t('savings.title')}</Title>
         </Group>
 
         <Paper withBorder radius="md" p="sm">
           <Stack gap={4}>
             <Group justify="space-between" wrap="nowrap" gap="sm">
               <Text size="sm" c="dimmed">
-                Net{hasFilters ? ' (filtrat)' : ''}
+                {hasFilters ? t('savings.netFiltered') : t('savings.net')}
               </Text>
               <Box ta="right" miw={0}>
                 <Text
@@ -174,8 +172,14 @@ export function SavingsListPage() {
             {(showEur ? totalInEur > 0 || totalOutEur > 0 : ronFallback.totalIn > 0 || ronFallback.totalOut > 0) && (
               <Text size="xs" c="dimmed">
                 {showEur && totalInRon !== null && totalOutRon !== null
-                  ? `Depozite ${formatMoney(totalInEur, 'EUR')} · Retrageri ${formatMoney(totalOutEur, 'EUR')}`
-                  : `Depozite ${formatRon(ronFallback.totalIn)} · Retrageri ${formatRon(ronFallback.totalOut)}`}
+                  ? t('savings.depositsWithdrawalsLine', {
+                      deposits: formatMoney(totalInEur, 'EUR'),
+                      withdrawals: formatMoney(totalOutEur, 'EUR'),
+                    })
+                  : t('savings.depositsWithdrawalsLine', {
+                      deposits: formatRon(ronFallback.totalIn),
+                      withdrawals: formatRon(ronFallback.totalOut),
+                    })}
               </Text>
             )}
           </Stack>
@@ -183,7 +187,7 @@ export function SavingsListPage() {
 
         <Stack gap="xs">
           <TextInput
-            placeholder="Caută după nume..."
+            placeholder={t('savings.searchPlaceholder')}
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -194,15 +198,15 @@ export function SavingsListPage() {
             value={directionFilter}
             onChange={(v) => setDirectionFilter(v as typeof directionFilter)}
             data={[
-              { label: 'Toate', value: 'all' },
-              { label: 'Depozite', value: 'in' },
-              { label: 'Retrageri', value: 'out' },
+              { label: t('savings.directionAll'), value: 'all' },
+              { label: t('savings.directionIn'), value: 'in' },
+              { label: t('savings.directionOut'), value: 'out' },
             ]}
             size="sm"
           />
           {accountOptions.length > 0 && (
             <Select
-              placeholder="Filtrează după cont"
+              placeholder={t('savings.accountFilterPlaceholder')}
               data={accountOptions}
               value={accountFilter}
               onChange={setAccountFilter}
@@ -213,7 +217,7 @@ export function SavingsListPage() {
           )}
           <Group gap="xs" grow>
             <DatePickerInput
-              placeholder="De la"
+              placeholder={t('savings.fromPlaceholder')}
               value={startDate}
               onChange={(d) => setStartDate(d ? new Date(d as unknown as string) : null)}
               clearable
@@ -221,7 +225,7 @@ export function SavingsListPage() {
               valueFormat="D MMM YYYY"
             />
             <DatePickerInput
-              placeholder="Până la"
+              placeholder={t('savings.toPlaceholder')}
               value={endDate}
               onChange={(d) => setEndDate(d ? new Date(d as unknown as string) : null)}
               clearable
@@ -243,15 +247,15 @@ export function SavingsListPage() {
                   setEndDate(null);
                 }}
               >
-                Resetează filtrele
+                {t('savings.resetFilters')}
               </Button>
             </Group>
           )}
         </Stack>
 
         <Text size="xs" c="dimmed">
-          {filtered.length} {filtered.length === 1 ? 'tranzacție' : 'tranzacții'}
-          {hasFilters && all.length !== filtered.length ? ` din ${all.length} totale` : ''}
+          {t('savings.txCount', { count: filtered.length })}
+          {hasFilters && all.length !== filtered.length ? t('savings.outOfTotal', { total: all.length }) : ''}
         </Text>
 
         {savings.isLoading ? (
@@ -263,7 +267,7 @@ export function SavingsListPage() {
             <Stack align="center" gap="xs">
               <IconPigMoney size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
               <Text c="dimmed">
-                {all.length === 0 ? 'Nicio tranzacție de economii' : 'Nicio potrivire'}
+                {all.length === 0 ? t('savings.empty') : t('savings.noMatch')}
               </Text>
               {all.length === 0 && (
                 <Button
@@ -272,7 +276,7 @@ export function SavingsListPage() {
                   onClick={() => navigate('/savings/new')}
                   leftSection={<IconPlus size={16} />}
                 >
-                  Adaugă prima
+                  {t('savings.addFirst')}
                 </Button>
               )}
             </Stack>
@@ -284,6 +288,7 @@ export function SavingsListPage() {
                 key={s.id}
                 tx={s}
                 onClick={() => navigate(`/savings/${s.id}/edit`)}
+                t={t}
               />
             ))}
           </Stack>
@@ -299,7 +304,7 @@ export function SavingsListPage() {
   );
 }
 
-function SavingsRow({ tx, onClick }: { tx: SavingsTransaction; onClick: () => void }) {
+function SavingsRow({ tx, onClick, t }: { tx: SavingsTransaction; onClick: () => void; t: TFunction }) {
   const isIn = tx.direction === 'in';
   return (
     <UnstyledButton onClick={onClick}>
@@ -330,7 +335,7 @@ function SavingsRow({ tx, onClick }: { tx: SavingsTransaction; onClick: () => vo
                 {tx.name}
               </Text>
               <Badge size="xs" variant="light" color={isIn ? 'teal' : 'orange'}>
-                {isIn ? 'depozit' : 'retragere'}
+                {isIn ? t('savings.badgeIn') : t('savings.badgeOut')}
               </Badge>
             </Group>
             <Text size="xs" c="dimmed">

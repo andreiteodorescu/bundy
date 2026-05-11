@@ -19,6 +19,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconArrowLeft, IconEyeOff, IconLock } from '@tabler/icons-react';
 import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { readSettings, useProfile } from '@/features/settings/api';
@@ -32,16 +33,16 @@ import { useCategories, useSubcategories } from '@/features/categories/api';
 import { formatRon } from '@/lib/money';
 import { cleanExpenseName } from '@/lib/text';
 import { getIcon } from '@/data/icons.registry';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import type { Expense } from '@/types';
 
 export function HiddenExpensesPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const profile = useProfile();
   const ttl = readSettings(profile.data).hidden_pin_ttl_min ?? DEFAULT_HIDDEN_PIN_TTL_MIN;
   const [unlocked, setUnlocked] = useState(() => isUnlocked(ttl));
 
-  // Re-evaluate the unlock state when the app returns from background (E in Settings UI).
-  // If the user was away >TTL, they get the PIN prompt again.
   useEffect(() => {
     function onVis() {
       if (document.visibilityState === 'visible') {
@@ -72,14 +73,14 @@ export function HiddenExpensesPage() {
               leftSection={<IconArrowLeft size={16} />}
               onClick={() => navigate('/more')}
             >
-              Înapoi
+              {t('hidden.back')}
             </Button>
           </Group>
-          <Title order={2}>Cheltuieli ascunse</Title>
+          <Title order={2}>{t('hidden.title')}</Title>
           <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
-            Nu ai un PIN setat. Mergi la Setări pentru a configura unul.
+            {t('hidden.noPin')}
           </Alert>
-          <Button onClick={() => navigate('/settings')}>Mergi la Setări</Button>
+          <Button onClick={() => navigate('/settings')}>{t('hidden.goToSettings')}</Button>
         </Stack>
       </Container>
     );
@@ -99,6 +100,7 @@ function PinPrompt({
   onUnlock: () => void;
   storedHash: string;
 }) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [pin, setPin] = useState('');
   const [attempts, setAttempts] = useState(0);
@@ -116,7 +118,7 @@ function PinPrompt({
       onUnlock();
     } else {
       setAttempts((a) => a + 1);
-      setError('PIN incorect');
+      setError(t('hidden.wrongPin'));
       setPin('');
     }
   }
@@ -132,7 +134,7 @@ function PinPrompt({
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('hidden.back')}
           </Button>
         </Group>
 
@@ -152,10 +154,10 @@ function PinPrompt({
             <IconLock size={32} stroke={2} />
           </Box>
           <Title order={3} ta="center">
-            Cheltuieli ascunse
+            {t('hidden.title')}
           </Title>
           <Text c="dimmed" size="sm" ta="center">
-            Introdu PIN-ul de 4 cifre pentru a vedea cheltuielile ascunse.
+            {t('hidden.enterPinHint')}
           </Text>
           <PinInput
             length={4}
@@ -172,7 +174,7 @@ function PinPrompt({
           />
           {error && (
             <Text c="red" size="sm">
-              {error} {attempts > 1 ? `(${attempts} încercări)` : ''}
+              {error} {attempts > 1 ? t('hidden.attempts', { count: attempts }) : ''}
             </Text>
           )}
         </Stack>
@@ -182,6 +184,7 @@ function PinPrompt({
 }
 
 function HiddenExpensesList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { profileId } = useAuth();
   const cats = useCategories();
@@ -212,7 +215,6 @@ function HiddenExpensesList() {
 
   const total = (expenses.data ?? []).reduce((s, e) => s + Number(e.amount_ron), 0);
 
-  // Refresh unlocked timestamp on every interaction with this page
   useEffect(() => {
     const handler = () => markUnlocked();
     window.addEventListener('click', handler);
@@ -234,18 +236,18 @@ function HiddenExpensesList() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/more')}
           >
-            Înapoi
+            {t('hidden.back')}
           </Button>
           <Badge leftSection={<IconEyeOff size={12} />} color="gray">
-            ascunse
+            {t('hidden.badge')}
           </Badge>
         </Group>
 
-        <Title order={2}>Cheltuieli ascunse</Title>
+        <Title order={2}>{t('hidden.title')}</Title>
         <Paper withBorder radius="md" p="sm">
           <Group justify="space-between">
             <Text size="sm" c="dimmed">
-              Total {expenses.data?.length ?? 0} cheltuieli
+              {t('hidden.totalCount', { count: expenses.data?.length ?? 0 })}
             </Text>
             <Text fw={700} size="lg">
               {formatRon(total)}
@@ -261,14 +263,16 @@ function HiddenExpensesList() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconEyeOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Nicio cheltuială ascunsă</Text>
+              <Text c="dimmed">{t('hidden.empty')}</Text>
             </Stack>
           </Center>
         ) : (
           <Stack gap="xs">
             {(expenses.data ?? []).map((exp) => {
               const category = catById.get(exp.category_id ?? '') ?? null;
-              const subcategoryName = subById.get(exp.subcategory_id ?? '')?.name ?? null;
+              const subcategory = subById.get(exp.subcategory_id ?? '') ?? null;
+              const categoryName = category ? categoryDisplayName(category, t) : null;
+              const subcategoryName = subcategory ? subcategoryDisplayName(subcategory, t) : null;
               const Icon = getIcon(category?.icon);
               const color = category?.color ?? 'var(--mantine-color-gray-6)';
               return (
@@ -296,7 +300,7 @@ function HiddenExpensesList() {
                         </Text>
                         <Text size="xs" c="dimmed">
                           {dayjs(exp.occurred_on).format('D MMM YYYY')}
-                          {category ? ` · ${category.name}` : ''}
+                          {categoryName ? ` · ${categoryName}` : ''}
                           {subcategoryName ? ` › ${subcategoryName}` : ''}
                         </Text>
                       </Box>

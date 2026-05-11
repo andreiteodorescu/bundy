@@ -37,12 +37,16 @@ import {
   IconPencil,
   IconPlus,
 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { getIcon } from '@/data/icons.registry';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import { usePredefinedExpenses, useReorderPredefined } from './api';
 import type { Category, PredefinedExpense, Subcategory } from '@/types';
 
 export function PredefinedExpensesListPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const templates = usePredefinedExpenses();
   const cats = useCategories();
@@ -93,22 +97,21 @@ export function PredefinedExpensesListPage() {
             leftSection={<IconArrowLeft size={16} />}
             onClick={() => navigate('/home')}
           >
-            Înapoi
+            {t('templates.back')}
           </Button>
           <Button
             size="compact-sm"
             leftSection={<IconPlus size={16} />}
             onClick={() => navigate('/predefined-expenses/new')}
           >
-            Șablon nou
+            {t('templates.predefined.newButton')}
           </Button>
         </Group>
 
         <Box>
-          <Title order={2}>Cheltuială predefinită</Title>
+          <Title order={2}>{t('templates.predefined.title')}</Title>
           <Text size="sm" c="dimmed">
-            Tap pe un șablon → formularul de adăugare se deschide cu nume + categorie deja
-            completate. Doar suma rămâne de introdus. Pentru editare folosește iconița creion.
+            {t('templates.predefined.intro')}
           </Text>
         </Box>
 
@@ -120,14 +123,14 @@ export function PredefinedExpensesListPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconClipboardList size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Niciun șablon predefinit</Text>
+              <Text c="dimmed">{t('templates.predefined.empty')}</Text>
               <Button
                 size="sm"
                 variant="light"
                 onClick={() => navigate('/predefined-expenses/new')}
                 leftSection={<IconPlus size={16} />}
               >
-                Adaugă primul
+                {t('templates.addFirst')}
               </Button>
             </Stack>
           </Center>
@@ -144,7 +147,7 @@ export function PredefinedExpensesListPage() {
                   }
                   onClick={() => setReorderMode((v) => !v)}
                 >
-                  {reorderMode ? 'Termină reordonarea' : 'Reordonează'}
+                  {reorderMode ? t('templates.reorderDone') : t('templates.reorderStart')}
                 </Button>
               </Group>
             )}
@@ -164,6 +167,7 @@ export function PredefinedExpensesListPage() {
                       reorderMode={reorderMode}
                       onUse={() => pickTemplate(tpl)}
                       onEdit={() => navigate(`/predefined-expenses/${tpl.id}/edit`)}
+                      t={t}
                     />
                   ))}
                 </Stack>
@@ -183,6 +187,7 @@ function SortablePredefinedRow({
   reorderMode,
   onUse,
   onEdit,
+  t,
 }: {
   tpl: PredefinedExpense;
   category: Category | null;
@@ -190,6 +195,7 @@ function SortablePredefinedRow({
   reorderMode: boolean;
   onUse: () => void;
   onEdit: () => void;
+  t: TFunction;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tpl.id,
@@ -197,6 +203,8 @@ function SortablePredefinedRow({
   });
   const Icon = getIcon(tpl.icon ?? category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
+  const categoryName = category ? categoryDisplayName(category, t) : t('templates.noCategory');
+  const subcategoryName = subcategory ? subcategoryDisplayName(subcategory, t) : null;
 
   return (
     <Paper
@@ -223,7 +231,7 @@ function SortablePredefinedRow({
             size="lg"
             {...attributes}
             {...listeners}
-            aria-label="Trage pentru reordonare"
+            aria-label={t('templates.gripAria')}
           >
             <IconGripVertical size={18} />
           </ActionIcon>
@@ -255,8 +263,8 @@ function SortablePredefinedRow({
             {tpl.name}
           </Text>
           <Text size="xs" c="dimmed">
-            {category?.name ?? 'Fără categorie'}
-            {subcategory ? ` › ${subcategory.name}` : ''}
+            {categoryName}
+            {subcategoryName ? ` › ${subcategoryName}` : ''}
             {' · '}{tpl.default_currency}
           </Text>
         </Box>
@@ -266,7 +274,7 @@ function SortablePredefinedRow({
               variant="subtle"
               color="gray"
               size="lg"
-              aria-label="Editează șablon"
+              aria-label={t('templates.editAria')}
               onClick={onEdit}
             >
               <IconPencil size={18} />

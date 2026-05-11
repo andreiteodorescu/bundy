@@ -1,59 +1,157 @@
+/* Floating pill bottom nav.
+   The bar is detached from screen edges (16px horizontal margin, 12px above
+   the safe-area / PWA lift). Looks "lifted" off the surface like an iOS
+   floating tab bar. */
 .nav {
-  /* Total height grows with safe-area + PWA lift so the inner content area
-     stays at --bottom-nav-height (64px). Otherwise padding-bottom would eat
-     into the content (border-box) and squash the icons + FAB. */
-  height: calc(var(--bottom-nav-height) + var(--safe-bottom) + var(--pwa-bottom-lift));
-  background: var(--mantine-color-body, #1a1b1e);
-  /* Border only on top + bottom (no left/right edges visible against viewport). */
-  border-top: 1px solid var(--mantine-color-default-border);
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + var(--pwa-bottom-lift) + 12px);
+  height: var(--bottom-nav-height);
+
+  background: rgba(26, 27, 30, 0.78);
+  -webkit-backdrop-filter: saturate(180%) blur(28px);
+  backdrop-filter: saturate(180%) blur(28px);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 28px;
+
+  /* Layered shadow for the "floating" feel: tight contact + soft halo. */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 4px 12px -2px rgba(0, 0, 0, 0.3),
+    0 16px 40px -8px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-mantine-color-scheme='light'] .nav {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 4px 12px -2px rgba(0, 0, 0, 0.08),
+      0 16px 40px -8px rgba(0, 0, 0, 0.18);
+  }
 }
 
 .item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* iOS PWA standalone doesn't stretch <a> children to row height by default,
-     even with parent's align="stretch". Force full-height fill. */
   align-self: stretch;
   height: 100%;
   min-height: var(--bottom-nav-height);
-  gap: 2px;
+  gap: 3px;
   text-decoration: none;
-  color: var(--mantine-color-dimmed, #909296);
+  color: rgba(235, 235, 245, 0.55);
   -webkit-text-fill-color: currentColor;
-  padding: 8px 4px;
+  padding: 10px 4px;
+  /* Tap target stays full-cell, but the visible pill is inset (see ::before). */
 }
 
-/* iOS WebKit (especially in standalone PWA mode) sometimes fails to propagate
-   currentColor to <a>-nested SVGs. Force explicit inheritance + sane fallback.
-   The first selector targets every Tabler SVG inside a nav item. */
+@media (prefers-color-scheme: light) {
+  :root[data-mantine-color-scheme='light'] .item {
+    color: rgba(60, 60, 67, 0.6);
+  }
+}
+
+/* Sliding pill behind the active icon. Lives at z-index -1 inside the .item
+   so it sits behind the icon + label. Spring animation on enter via
+   cubic-bezier overshoot. */
+.item::before {
+  content: '';
+  position: absolute;
+  inset: 6px 8px;
+  border-radius: 18px;
+  background: var(--mantine-primary-color-light, rgba(79, 108, 194, 0.18));
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 200ms ease,
+    transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.item > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Tap micro-feedback on inactive items. */
+.item:active:not(.active) {
+  transform: scale(0.96);
+}
+
+/* SVG inheritance fix for iOS WebKit (PWA standalone bug). */
 .item svg {
   display: block;
   flex-shrink: 0;
   color: inherit;
   stroke: currentColor;
   fill: none;
+  transition:
+    transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 200ms ease;
 }
 
-.item:active {
-  background: var(--mantine-color-default-hover, rgba(255, 255, 255, 0.05));
-}
+/* ---- Active state: pill appears, icon scales up + lifts, color flips ---- */
 
 .active {
   color: var(--mantine-primary-color-filled, #4f6cc2);
 }
 
+.active::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
 .active svg {
   color: var(--mantine-primary-color-filled, #4f6cc2);
+  fill: currentColor;
+  fill-opacity: 0.16;
+  transform: scale(1.12) translateY(-1px);
 }
+
+/* Label fades + shifts down slightly on active so the icon gets visual focus. */
+.active span {
+  transition: opacity 200ms ease;
+}
+
+/* ---- FAB: lifted out of the bar, big shadow, spring on tap ---- */
 
 .fabSlot {
   position: relative;
+  z-index: 2;
 }
 
 .fab {
-  transform: translateY(-12px);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+  transform: translateY(-18px);
+  box-shadow:
+    0 6px 16px -3px rgba(79, 108, 194, 0.55),
+    0 12px 28px -6px rgba(0, 0, 0, 0.45),
+    0 0 0 4px rgba(26, 27, 30, 0.78);
+  transition:
+    transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 200ms ease;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-mantine-color-scheme='light'] .fab {
+    box-shadow:
+      0 6px 16px -3px rgba(79, 108, 194, 0.45),
+      0 12px 28px -6px rgba(0, 0, 0, 0.18),
+      0 0 0 4px rgba(255, 255, 255, 0.82);
+  }
+}
+
+.fab:active {
+  transform: translateY(-16px) scale(0.92);
+  box-shadow:
+    0 4px 10px -3px rgba(79, 108, 194, 0.65),
+    0 8px 20px -6px rgba(0, 0, 0, 0.5),
+    0 0 0 4px rgba(26, 27, 30, 0.78);
 }

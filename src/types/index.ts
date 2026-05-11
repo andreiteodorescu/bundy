@@ -224,3 +224,44 @@ export type BrandRule = {
   subcategory_slug?: string;
   priority: number;
 };
+
+export type FeedbackType = 'bug' | 'feature';
+
+export type FeedbackStatus =
+  | 'open'
+  | 'in_progress'
+  | 'fixed'
+  | 'wont_fix'
+  | 'proposed'
+  | 'planned'
+  | 'done'
+  | 'declined';
+
+export type Feedback = {
+  id: string;
+  profile_id: string;
+  type: FeedbackType;
+  title: string;
+  body: string | null;
+  status: FeedbackStatus;
+  votes_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FeedbackVote = {
+  feedback_id: string;
+  profile_id: string;
+  created_at: string;
+};
+
+export type FeedbackNotification = {
+  id: string;
+  profile_id: string;
+  feedback_id: string;
+  old_status: FeedbackStatus | null;
+  new_status: FeedbackStatus;
+  read_at: string | null;
+  created_at: string;
+};
+

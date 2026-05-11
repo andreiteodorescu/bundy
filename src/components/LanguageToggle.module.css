@@ -1,0 +1,38 @@
+.wrap {
+  /* Pill-shaped container that lives at top-right of an auth Paper. */
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-mantine-color-scheme='light'] .wrap {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+}
+
+.btn {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: var(--mantine-color-dimmed);
+  transition: background 160ms ease, color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:hover {
+  color: var(--mantine-color-text);
+}
+
+.active {
+  background: var(--mantine-primary-color-filled);
+  color: white;
+}
+
+.active:hover {
+  color: white;
+}

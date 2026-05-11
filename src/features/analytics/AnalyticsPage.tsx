@@ -17,13 +17,15 @@ import { MonthPickerInput } from '@mantine/dates';
 import { BarChart, DonutChart } from '@mantine/charts';
 import dayjs from 'dayjs';
 import { IconChevronLeft, IconChevronRight, IconReceiptOff } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 import { useCategories, useSubcategories } from '@/features/categories/api';
+import { useCompanyCardEnabled } from '@/features/settings/api';
+import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import { formatRon } from '@/lib/money';
 import { splitMonthIntoWeeks } from '@/lib/dates';
 import { useExpensesInRange, useMonthlyTotals } from './api';
 import classes from './AnalyticsPage.module.css';
 
-/** Compact axis tick: 1234 → "1.2k", 12345 → "12k", 234 → "234" */
 function compactRon(v: number): string {
   const abs = Math.abs(v);
   if (abs >= 1000) {
@@ -36,6 +38,8 @@ function compactRon(v: number): string {
 type RangeKind = 'month' | 'last3' | 'year';
 
 export function AnalyticsPage() {
+  const { t } = useTranslation();
+  const companyCardEnabled = useCompanyCardEnabled();
   const [range, setRange] = useState<RangeKind>('month');
   const [month, setMonth] = useState<Date>(() => dayjs().startOf('month').toDate());
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
@@ -50,19 +54,20 @@ export function AnalyticsPage() {
     if (range === 'last3') {
       const s = dayjs().subtract(2, 'month').startOf('month');
       const e = dayjs().endOf('day');
-      return { startDate: s.format('YYYY-MM-DD'), endDate: e.format('YYYY-MM-DD'), label: 'Ultimele 3 luni' };
+      return { startDate: s.format('YYYY-MM-DD'), endDate: e.format('YYYY-MM-DD'), label: t('analytics.rangeLast3Label') };
     }
     const s = dayjs().startOf('year');
     const e = dayjs().endOf('day');
     return { startDate: s.format('YYYY-MM-DD'), endDate: e.format('YYYY-MM-DD'), label: s.format('YYYY') };
-  }, [range, month]);
+  }, [range, month, t]);
 
   const expenses = useExpensesInRange(startDate, endDate);
   const monthly = useMonthlyTotals(6, {
     categoryId: filterCategory,
     subcategoryId: filterSubcategory,
-    // When filtering, include company-card expenses so Work & Business etc. show up.
-    excludeCompanyCard: !filterCategory && !filterSubcategory,
+    // Only exclude company-card from the trend when the feature is enabled AND
+    // no specific filter is active. With the feature off, all expenses are personal.
+    excludeCompanyCard: companyCardEnabled && !filterCategory && !filterSubcategory,
   });
   const cats = useCategories();
   const subs = useSubcategories();
@@ -71,20 +76,16 @@ export function AnalyticsPage() {
 
   const isFiltered = Boolean(filterCategory || filterSubcategory);
 
-  /** Expenses after category/subcategory filter (subcategory wins if both set), separated
-   *  into "personal" (no `company-card` tag) and "company-card" buckets. The personal
-   *  set drives all charts/totals by default; the company-card total is shown as a
-   *  secondary line so the user knows it exists without polluting their personal stats.
-   *
-   *  When the user explicitly filters by a category/subcategory (e.g. Munca & Business),
-   *  they're drilling into a specific scope — show ALL matching expenses, no exclusion,
-   *  otherwise filtering Work & Business would be empty since most are company-card. */
   const { personalExpenses, companyCardExpenses } = useMemo(() => {
     let all = expenses.data ?? [];
     if (filterSubcategory) all = all.filter((e) => e.subcategory_id === filterSubcategory);
     else if (filterCategory) all = all.filter((e) => e.category_id === filterCategory);
     const filterActive = Boolean(filterCategory || filterSubcategory);
-    if (filterActive) return { personalExpenses: all, companyCardExpenses: [] };
+    if (filterActive || !companyCardEnabled) {
+      // Either drilling into a specific scope, or the company-card feature is off:
+      // treat everything as personal so the user sees the full picture.
+      return { personalExpenses: all, companyCardExpenses: [] };
+    }
     const personal = [];
     const cc = [];
     for (const e of all) {
@@ -92,7 +93,7 @@ export function AnalyticsPage() {
       else personal.push(e);
     }
     return { personalExpenses: personal, companyCardExpenses: cc };
-  }, [expenses.data, filterCategory, filterSubcategory]);
+  }, [expenses.data, filterCategory, filterSubcategory, companyCardEnabled]);
 
   const filteredExpenses = personalExpenses;
   const totalSpent = filteredExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
@@ -100,20 +101,21 @@ export function AnalyticsPage() {
   const avgPerExpense = expenseCount > 0 ? totalSpent / expenseCount : 0;
   const companyCardTotal = companyCardExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
 
-  /** Subcategory options scoped to the selected category (when one is selected). */
   const subcategoryOptions = useMemo(() => {
     const all = subs.data ?? [];
-    const filtered = filterCategory
+    const filteredSubs = filterCategory
       ? all.filter((s) => s.parent_category_id === filterCategory)
       : all;
-    return filtered.map((s) => {
+    return filteredSubs.map((s) => {
       const parent = catById.get(s.parent_category_id);
+      const subName = subcategoryDisplayName(s, t);
+      const parentName = parent ? categoryDisplayName(parent, t) : '—';
       return {
         value: s.id,
-        label: filterCategory ? s.name : `${parent?.name ?? '—'} › ${s.name}`,
+        label: filterCategory ? subName : `${parentName} › ${subName}`,
       };
     });
-  }, [subs.data, filterCategory, catById]);
+  }, [subs.data, filterCategory, catById, t]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -124,10 +126,15 @@ export function AnalyticsPage() {
     return Array.from(map.entries())
       .map(([id, value]) => {
         const c = catById.get(id);
-        return { id, name: c?.name ?? 'Necategorizat', color: c?.color ?? '#888', value };
+        return {
+          id,
+          name: c ? categoryDisplayName(c, t) : t('analytics.uncategorized'),
+          color: c?.color ?? '#888',
+          value,
+        };
       })
       .sort((a, b) => b.value - a.value);
-  }, [filteredExpenses, catById]);
+  }, [filteredExpenses, catById, t]);
 
   const bySubcategory = useMemo(() => {
     const map = new Map<string, number>();
@@ -141,17 +148,15 @@ export function AnalyticsPage() {
         const c = s ? catById.get(s.parent_category_id) : null;
         return {
           id,
-          name: s?.name ?? '—',
-          parent: c?.name ?? '',
+          name: s ? subcategoryDisplayName(s, t) : '—',
+          parent: c ? categoryDisplayName(c, t) : '',
           color: s?.color ?? c?.color ?? '#888',
           value,
         };
       })
       .sort((a, b) => b.value - a.value);
-    // When unfiltered, keep the page tidy with top 8. When filtered, show all so small
-    // categories (e.g. bilete loto) become visible.
     return isFiltered ? arr : arr.slice(0, 8);
-  }, [filteredExpenses, subById, catById, isFiltered]);
+  }, [filteredExpenses, subById, catById, isFiltered, t]);
 
   const weeklyForMonth = useMemo(() => {
     if (range !== 'month') return [];
@@ -165,27 +170,26 @@ export function AnalyticsPage() {
         );
       });
       return {
-        label: `S${w.index + 1}`,
+        label: t('analytics.weekShort', { n: w.index + 1 }),
         total: inWeek.reduce((s, e) => s + Number(e.amount_ron), 0),
       };
     });
-  }, [range, month, filteredExpenses]);
+  }, [range, month, filteredExpenses, t]);
 
   const isCurrentMonth = dayjs(month).isSame(dayjs(), 'month');
 
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
-        <Title order={2}>Analytics</Title>
+        <Title order={2}>{t('analytics.title')}</Title>
 
         <Group gap="xs" wrap="nowrap">
           <Select
-            placeholder="Toate categoriile"
-            data={(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            placeholder={t('analytics.filterCategoryPlaceholder')}
+            data={(cats.data ?? []).map((c) => ({ value: c.id, label: categoryDisplayName(c, t) }))}
             value={filterCategory}
             onChange={(v) => {
               setFilterCategory(v);
-              // Clear subcategory if it no longer belongs to the chosen category.
               const sub = (subs.data ?? []).find((s) => s.id === filterSubcategory);
               if (sub && v && sub.parent_category_id !== v) setFilterSubcategory(null);
             }}
@@ -195,7 +199,7 @@ export function AnalyticsPage() {
             size="sm"
           />
           <Select
-            placeholder="Toate subcategoriile"
+            placeholder={t('analytics.filterSubcategoryPlaceholder')}
             data={subcategoryOptions}
             value={filterSubcategory}
             onChange={setFilterSubcategory}
@@ -211,9 +215,9 @@ export function AnalyticsPage() {
           value={range}
           onChange={(v) => setRange(v as RangeKind)}
           data={[
-            { label: 'Lună', value: 'month' },
-            { label: '3 luni', value: 'last3' },
-            { label: 'An', value: 'year' },
+            { label: t('analytics.rangeMonth'), value: 'month' },
+            { label: t('analytics.rangeLast3'), value: 'last3' },
+            { label: t('analytics.rangeYear'), value: 'year' },
           ]}
         />
 
@@ -251,7 +255,7 @@ export function AnalyticsPage() {
           <Center py="xl">
             <Stack align="center" gap="xs">
               <IconReceiptOff size={36} stroke={1.5} color="var(--mantine-color-dimmed)" />
-              <Text c="dimmed">Nicio cheltuială în {label}</Text>
+              <Text c="dimmed">{t('analytics.empty', { period: label })}</Text>
             </Stack>
           </Center>
         ) : (
@@ -260,32 +264,31 @@ export function AnalyticsPage() {
               <div className={classes.totalRow}>
                 <Box>
                   <Text size="xs" c="dimmed">
-                    Total {label}
+                    {t('analytics.totalLabel', { label })}
                   </Text>
                   <Text fw={800} size="2rem" lh={1.1}>
                     {formatRon(totalSpent)}
                   </Text>
                   {companyCardTotal > 0 && (
                     <Text size="xs" c="dimmed" mt={2}>
-                      + {formatRon(companyCardTotal)} cu cardul firmei (excluse din total)
+                      {t('analytics.companyCardSuffix', { amount: formatRon(companyCardTotal) })}
                     </Text>
                   )}
                 </Box>
                 <Box className={classes.totalRowRight}>
                   <Text size="xs" c="dimmed">
-                    {expenseCount} {expenseCount === 1 ? 'cheltuială' : 'cheltuieli'}
+                    {t('analytics.expenseCount', { count: expenseCount })}
                   </Text>
                   <Text size="sm" fw={500}>
-                    medie {formatRon(avgPerExpense)}
+                    {t('analytics.average', { amount: formatRon(avgPerExpense) })}
                   </Text>
                 </Box>
               </div>
             </Paper>
 
-            {/* Monthly trend (last 6 months, always shown) */}
             <Paper withBorder radius="md" p="md">
               <Text fw={600} mb="sm">
-                Trend lunar (6 luni)
+                {t('analytics.monthlyTrend')}
               </Text>
               <BarChart
                 h={200}
@@ -301,11 +304,10 @@ export function AnalyticsPage() {
               />
             </Paper>
 
-            {/* Weekly within month (only for month range) */}
             {range === 'month' && weeklyForMonth.length > 0 && (
               <Paper withBorder radius="md" p="md">
                 <Text fw={600} mb="sm">
-                  Cheltuieli pe săptămâni
+                  {t('analytics.weeklyTitle')}
                 </Text>
                 <BarChart
                   h={180}
@@ -321,11 +323,10 @@ export function AnalyticsPage() {
               </Paper>
             )}
 
-            {/* Category donut — hidden when scoped to one category/subcategory (single slice is meaningless) */}
             {!isFiltered && byCategory.length > 0 && (
               <Paper withBorder radius="md" p="md">
                 <Text fw={600} mb="sm">
-                  Cheltuieli pe categorii
+                  {t('analytics.byCategory')}
                 </Text>
                 <div className={classes.donutLayout}>
                   <DonutChart
@@ -357,11 +358,10 @@ export function AnalyticsPage() {
               </Paper>
             )}
 
-            {/* Subcategories breakdown — top 8 by default, full list when filtered */}
             {bySubcategory.length > 0 && (
               <Paper withBorder radius="md" p="md">
                 <Text fw={600} mb="sm">
-                  {isFiltered ? 'Cheltuieli pe subcategorii' : 'Top subcategorii'}
+                  {isFiltered ? t('analytics.subcategoryBreakdown') : t('analytics.topSubcategories')}
                 </Text>
                 <Stack gap="xs">
                   {bySubcategory.map((s) => {

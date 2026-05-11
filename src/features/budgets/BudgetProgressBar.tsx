@@ -1,10 +1,12 @@
 import { Badge, Group, Progress, Text } from '@mantine/core';
+import { useTranslation } from 'react-i18next';
 import { useBudgetProgress } from './api';
 import { formatRon } from '@/lib/money';
 import { computeBudgetStatus } from './status';
 import type { Budget } from '@/types';
 
 export function BudgetProgressBar({ budget, compact = false }: { budget: Budget; compact?: boolean }) {
+  const { t } = useTranslation();
   const progress = useBudgetProgress(budget);
   const pct = progress.data?.pct ?? 0;
   const spent = progress.data?.spent ?? 0;
@@ -17,7 +19,7 @@ export function BudgetProgressBar({ budget, compact = false }: { budget: Budget;
     <>
       <Group justify="space-between" mb={6} gap={6} wrap="wrap">
         <Badge color={status.color} variant="light" size="sm">
-          {status.label}
+          {t(status.labelKey)}
         </Badge>
         <Text size="xs" c={pct >= 100 ? 'red' : 'dimmed'} fw={pct >= 90 ? 700 : 500}>
           {Math.round(pct)}%
@@ -26,12 +28,12 @@ export function BudgetProgressBar({ budget, compact = false }: { budget: Budget;
       <Progress value={Math.min(pct, 100)} color={color} size={compact ? 'sm' : 'md'} radius="xl" />
       <Group justify="space-between" mt={compact ? 2 : 6} gap={6} wrap="wrap">
         <Text size="xs" c="dimmed">
-          {formatRon(spent)} cheltuiți
+          {t('budgets.progress.spent', { amount: formatRon(spent) })}
         </Text>
         <Text size="xs" c={pct >= 100 ? 'red' : 'dimmed'} fw={pct >= 90 ? 700 : 500}>
           {remaining >= 0
-            ? `${formatRon(remaining)} disponibil`
-            : `${formatRon(Math.abs(remaining))} peste`}
+            ? t('budgets.progress.remaining', { amount: formatRon(remaining) })
+            : t('budgets.progress.over', { amount: formatRon(Math.abs(remaining)) })}
         </Text>
       </Group>
     </>
