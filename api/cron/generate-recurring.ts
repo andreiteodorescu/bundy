@@ -17,13 +17,22 @@ import { XMLParser } from 'fast-xml-parser';
 
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
+type SubscriptionCadence =
+  | 'daily'
+  | 'weekly'
+  | 'biweekly'
+  | 'monthly'
+  | 'quarterly'
+  | 'semiannual'
+  | 'yearly';
+
 type Subscription = {
   id: string;
   profile_id: string;
   name: string;
   amount: number;
   currency: string;
-  cadence: 'weekly' | 'monthly' | 'yearly';
+  cadence: SubscriptionCadence;
   charge_day: number;
   charge_month: number | null;
   category_id: string | null;
@@ -156,6 +165,18 @@ function subscriptionChargeDates(sub: Subscription, windowStart: string, windowE
 
   const out: string[] = [];
 
+  // ---- Day-grain cadences ----
+
+  if (sub.cadence === 'daily') {
+    let cur = new Date(startBound + 'T00:00:00Z');
+    const last = new Date(endBound + 'T00:00:00Z');
+    while (cur.getTime() <= last.getTime()) {
+      out.push(ymd(cur));
+      cur = addDays(cur, 1);
+    }
+    return out;
+  }
+
   if (sub.cadence === 'weekly') {
     // ISO weekday: 1=Mon..7=Sun
     let cur = new Date(startBound + 'T00:00:00Z');
@@ -168,32 +189,60 @@ function subscriptionChargeDates(sub: Subscription, windowStart: string, windowE
     return out;
   }
 
-  // monthly / yearly: walk months between bounds, clamp day to month length
+  if (sub.cadence === 'biweekly') {
+    // First charge: first matching weekday on/after sub.start_date.
+    // Then every 14 days. Anchor on the actual subscription start (not windowStart)
+    // so the cycle is stable across runs.
+    let firstCharge = new Date(sub.start_date + 'T00:00:00Z');
+    while (((firstCharge.getUTCDay() + 6) % 7) + 1 !== sub.charge_day) {
+      firstCharge = addDays(firstCharge, 1);
+    }
+    const startD = parseYmd(startBound);
+    const endD = parseYmd(endBound);
+    let cur = firstCharge;
+    while (cur.getTime() <= endD.getTime()) {
+      if (cur.getTime() >= startD.getTime()) out.push(ymd(cur));
+      cur = addDays(cur, 14);
+    }
+    return out;
+  }
+
+  // ---- Month-grain cadences ----
+  // monthly = step 1, quarterly = step 3, semiannual = step 6, yearly = step 12.
+  const monthStep =
+    sub.cadence === 'quarterly' ? 3
+    : sub.cadence === 'semiannual' ? 6
+    : sub.cadence === 'yearly' ? 12
+    : 1;
+
+  // Anchor on subscription's start month so quarterly/semiannual cycle is stable.
+  // For yearly with charge_month, anchor on (charge_month) of subStart's year.
+  const subStartD = parseYmd(sub.start_date);
+  let y = subStartD.getUTCFullYear();
+  let m = sub.cadence === 'yearly' && sub.charge_month
+    ? sub.charge_month - 1
+    : subStartD.getUTCMonth();
+
+  // Step backward to first cursor at or before window start.
   const startD = parseYmd(startBound);
   const endD = parseYmd(endBound);
-  let y = startD.getUTCFullYear();
-  let m = startD.getUTCMonth(); // 0..11
-  while (y < endD.getUTCFullYear() || (y === endD.getUTCFullYear() && m <= endD.getUTCMonth())) {
-    if (sub.cadence === 'yearly' && sub.charge_month && m + 1 !== sub.charge_month) {
-      m++;
-      if (m > 11) {
-        m = 0;
-        y++;
-      }
-      continue;
+  while (y > startD.getUTCFullYear() || (y === startD.getUTCFullYear() && m > startD.getUTCMonth())) {
+    m -= monthStep;
+    while (m < 0) {
+      m += 12;
+      y--;
     }
+  }
+
+  while (y < endD.getUTCFullYear() || (y === endD.getUTCFullYear() && m <= endD.getUTCMonth())) {
     const dim = daysInMonth(y, m);
     const day = Math.min(sub.charge_day, dim);
     const candidate = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     if (candidate >= startBound && candidate <= endBound) out.push(candidate);
-    if (sub.cadence === 'yearly') {
+    m += monthStep;
+    while (m > 11) {
+      m -= 12;
       y++;
-    } else {
-      m++;
-      if (m > 11) {
-        m = 0;
-        y++;
-      }
     }
   }
   return out;

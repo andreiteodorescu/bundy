@@ -28,9 +28,24 @@ import { useSubscriptions, useToggleSubscription } from './api';
 import type { Subscription } from '@/types';
 
 function monthlyEquivalent(amount: number, cadence: Subscription['cadence']): number {
-  if (cadence === 'weekly') return amount * (365.25 / 7) / 12;
-  if (cadence === 'yearly') return amount / 12;
-  return amount;
+  // Convert any cadence to its monthly RON equivalent for the "estimated
+  // monthly total" widget at the bottom of the list.
+  switch (cadence) {
+    case 'daily':
+      return amount * (365.25 / 12); // ≈ 30.44 days/month
+    case 'weekly':
+      return amount * (365.25 / 7) / 12; // ≈ 4.345 weeks/month
+    case 'biweekly':
+      return amount * (365.25 / 14) / 12; // ≈ 2.17 fortnights/month
+    case 'monthly':
+      return amount;
+    case 'quarterly':
+      return amount / 3;
+    case 'semiannual':
+      return amount / 6;
+    case 'yearly':
+      return amount / 12;
+  }
 }
 
 export function SubscriptionsListPage() {
@@ -222,19 +237,27 @@ function SubscriptionRow({
 }
 
 function formatCadence(s: Subscription, t: TFunction): string {
-  if (s.cadence === 'weekly') {
-    // dayjs week starts Sunday by default — index 0 = Sunday. Bias by charge_day=1 = Monday
-    // by adding 1 mod 7 so Monday lookup gives "Monday" in the current locale.
-    const weekday = dayjs().day((s.charge_day) % 7).format('dddd');
-    return t('subscriptions.cadenceWeekly', {
-      weekday: weekday.charAt(0).toUpperCase() + weekday.slice(1),
-    });
+  // dayjs week starts Sunday (index 0). ISO weekday: 1=Mon..7=Sun. Map by `% 7`.
+  const weekdayName = (isoDay: number) => {
+    const w = dayjs().day(isoDay % 7).format('dddd');
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  };
+  switch (s.cadence) {
+    case 'daily':
+      return t('subscriptions.cadenceDaily');
+    case 'weekly':
+      return t('subscriptions.cadenceWeekly', { weekday: weekdayName(s.charge_day) });
+    case 'biweekly':
+      return t('subscriptions.cadenceBiweekly', { weekday: weekdayName(s.charge_day) });
+    case 'monthly':
+      return t('subscriptions.cadenceMonthly', { day: s.charge_day });
+    case 'quarterly':
+      return t('subscriptions.cadenceQuarterly', { day: s.charge_day });
+    case 'semiannual':
+      return t('subscriptions.cadenceSemiannual', { day: s.charge_day });
+    case 'yearly': {
+      const month = s.charge_month ? dayjs().month(s.charge_month - 1).format('MMM') : '?';
+      return t('subscriptions.cadenceYearly', { day: s.charge_day, month });
+    }
   }
-  if (s.cadence === 'yearly') {
-    const month = s.charge_month
-      ? dayjs().month(s.charge_month - 1).format('MMM')
-      : '?';
-    return t('subscriptions.cadenceYearly', { day: s.charge_day, month });
-  }
-  return t('subscriptions.cadenceMonthly', { day: s.charge_day });
 }

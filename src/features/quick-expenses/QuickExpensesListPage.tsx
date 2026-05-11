@@ -247,7 +247,6 @@ function QuickRow({
               transform: CSS.Transform.toString(transform),
               transition,
               opacity: isDragging ? 0.6 : 1,
-              touchAction: 'none',
             }
           : undefined
       }
@@ -261,6 +260,7 @@ function QuickRow({
             {...attributes}
             {...listeners}
             aria-label={t('templates.gripAria')}
+            style={{ touchAction: 'none' }}
           >
             <IconGripVertical size={18} />
           </ActionIcon>

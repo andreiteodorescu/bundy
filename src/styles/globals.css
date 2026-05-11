@@ -323,13 +323,9 @@ a {
      - .bottom-nav — has its own glass treatment in BottomNav.module.css. */
 
 .mantine-Paper-root:not(.mantine-Menu-dropdown):not(.mantine-Tooltip-tooltip):not(.mantine-Notification-root):not(.bottom-nav) {
-  /* Solid semi-transparent surface (no backdrop-filter). Backdrop blur was
-     causing severe scroll jank on iOS Safari and Chrome when many cards are
-     visible at once (Categories list, Expenses list…) — the compositor has
-     to recompute the blur for every card on every paint frame. Cards in a
-     vertical list are mostly stacked anyway, so the blur was barely visible.
-     Slightly higher alpha (0.65 vs 0.55) compensates for losing the blur. */
-  background: rgba(20, 32, 38, 0.65);
+  background: rgba(20, 32, 38, 0.55);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
   border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.3);
   /* Pull radius up close to the BottomNav's 28px so cards + nav read as the

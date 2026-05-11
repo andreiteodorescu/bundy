@@ -295,7 +295,6 @@ function SortableBudgetRow({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
-        touchAction: 'none',
       }}
     >
       <Group wrap="nowrap" gap="sm" align="flex-start">
@@ -307,6 +306,7 @@ function SortableBudgetRow({
           {...listeners}
           aria-label={t('budgets.gripAria')}
           mt={2}
+          style={{ touchAction: 'none' }}
         >
           <IconGripVertical size={18} />
         </ActionIcon>

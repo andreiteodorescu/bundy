@@ -11,7 +11,6 @@ import {
   Loader,
   NumberInput,
   Select,
-  SegmentedControl,
   Stack,
   Switch,
   Text,
@@ -125,7 +124,12 @@ export function SubscriptionFormPage() {
     setError(null);
     if (!name.trim()) return setError(t('subscriptions.form.errorNameRequired'));
     if (typeof amount !== 'number' || amount <= 0) return setError(t('subscriptions.form.errorAmountInvalid'));
-    if (cadence === 'weekly') {
+    // Daily has no charge_day picker — set to 1 internally (DB column is NOT NULL).
+    // Weekly/biweekly use charge_day as ISO weekday (1..7).
+    // Monthly/quarterly/semiannual/yearly use charge_day as day-of-month (1..31).
+    if (cadence === 'daily') {
+      // No-op; we'll force chargeDay to 1 below.
+    } else if (cadence === 'weekly' || cadence === 'biweekly') {
       if (typeof chargeDay !== 'number' || chargeDay < 1 || chargeDay > 7) {
         return setError(t('subscriptions.form.errorWeekdayRequired'));
       }
@@ -144,13 +148,14 @@ export function SubscriptionFormPage() {
       const wasCompany = editing.data?.tags?.includes('company-card') ?? false;
       const includeCompany = companyCardEnabled ? companyCard : wasCompany;
       if (includeCompany) tags.push('company-card');
+      const finalChargeDay = cadence === 'daily' ? 1 : (chargeDay as number);
       await upsert.mutateAsync({
         id: params.id,
         name: name.trim(),
         amount,
         currency,
         cadence,
-        charge_day: chargeDay,
+        charge_day: finalChargeDay,
         charge_month: cadence === 'yearly' && typeof chargeMonth === 'number' ? chargeMonth : null,
         category_id: categoryId,
         subcategory_id: subcategoryId,
@@ -258,58 +263,71 @@ export function SubscriptionFormPage() {
           </Text>
         )}
 
-        <SegmentedControl
-          fullWidth
+        <Select
+          label={t('subscriptions.form.cadence')}
           value={cadence}
           onChange={(v) => {
-            setCadence(v as SubscriptionCadence);
-            if (v === 'weekly' && (chargeDay === '' || (chargeDay as number) > 7)) setChargeDay(1);
-            if (v !== 'weekly' && (chargeDay === '' || (chargeDay as number) < 1)) setChargeDay(1);
+            const next = (v as SubscriptionCadence) ?? 'monthly';
+            setCadence(next);
+            // Reset charge_day to a sane default when switching cadence types.
+            if (next === 'weekly' || next === 'biweekly') {
+              if (chargeDay === '' || (chargeDay as number) > 7) setChargeDay(1);
+            } else if (next !== 'daily') {
+              if (chargeDay === '' || (chargeDay as number) < 1) setChargeDay(1);
+            }
           }}
+          allowDeselect={false}
           data={[
+            { label: t('subscriptions.form.cadenceDailyShort'), value: 'daily' },
             { label: t('subscriptions.form.cadenceWeeklyShort'), value: 'weekly' },
+            { label: t('subscriptions.form.cadenceBiweeklyShort'), value: 'biweekly' },
             { label: t('subscriptions.form.cadenceMonthlyShort'), value: 'monthly' },
+            { label: t('subscriptions.form.cadenceQuarterlyShort'), value: 'quarterly' },
+            { label: t('subscriptions.form.cadenceSemiannualShort'), value: 'semiannual' },
             { label: t('subscriptions.form.cadenceYearlyShort'), value: 'yearly' },
           ]}
         />
 
-        <Group gap="sm" wrap="nowrap" align="end">
-          {cadence === 'weekly' ? (
-            <Select
-              label={t('subscriptions.form.weekday')}
-              flex={1}
-              value={String(chargeDay)}
-              onChange={(v) => v && setChargeDay(Number(v))}
-              data={weekdayOptions}
-              allowDeselect={false}
-            />
-          ) : (
-            <NumberInput
-              label={t('subscriptions.form.chargeDay')}
-              required
-              flex={1}
-              value={chargeDay}
-              onChange={(v) =>
-                setChargeDay(typeof v === 'number' ? v : v === '' ? '' : Number(v))
-              }
-              min={1}
-              max={31}
-            />
-          )}
-          {cadence === 'yearly' && (
-            <NumberInput
-              label={t('subscriptions.form.monthLabel')}
-              required
-              flex={1}
-              value={chargeMonth}
-              onChange={(v) =>
-                setChargeMonth(typeof v === 'number' ? v : v === '' ? '' : Number(v))
-              }
-              min={1}
-              max={12}
-            />
-          )}
-        </Group>
+        {/* Daily cadence has no charge_day picker — it fires every day. */}
+        {cadence !== 'daily' && (
+          <Group gap="sm" wrap="nowrap" align="end">
+            {cadence === 'weekly' || cadence === 'biweekly' ? (
+              <Select
+                label={t('subscriptions.form.weekday')}
+                flex={1}
+                value={String(chargeDay)}
+                onChange={(v) => v && setChargeDay(Number(v))}
+                data={weekdayOptions}
+                allowDeselect={false}
+              />
+            ) : (
+              <NumberInput
+                label={t('subscriptions.form.chargeDay')}
+                required
+                flex={1}
+                value={chargeDay}
+                onChange={(v) =>
+                  setChargeDay(typeof v === 'number' ? v : v === '' ? '' : Number(v))
+                }
+                min={1}
+                max={31}
+              />
+            )}
+            {cadence === 'yearly' && (
+              <NumberInput
+                label={t('subscriptions.form.monthLabel')}
+                required
+                flex={1}
+                value={chargeMonth}
+                onChange={(v) =>
+                  setChargeMonth(typeof v === 'number' ? v : v === '' ? '' : Number(v))
+                }
+                min={1}
+                max={12}
+              />
+            )}
+          </Group>
+        )}
 
         <DatePickerInput
           label={t('subscriptions.form.activeFrom')}

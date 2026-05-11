@@ -109,7 +109,14 @@ export type Expense = {
   updated_at: string;
 };
 
-export type SubscriptionCadence = 'weekly' | 'monthly' | 'yearly';
+export type SubscriptionCadence =
+  | 'daily'
+  | 'weekly'
+  | 'biweekly'
+  | 'monthly'
+  | 'quarterly'
+  | 'semiannual'
+  | 'yearly';
 
 export type Subscription = {
   id: string;

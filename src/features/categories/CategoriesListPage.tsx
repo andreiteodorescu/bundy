@@ -141,7 +141,6 @@ function SortableCategoryRow({
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.6 : 1,
-        touchAction: 'none',
       }}
     >
       <Group wrap="nowrap" gap="sm">
@@ -152,6 +151,11 @@ function SortableCategoryRow({
           {...attributes}
           {...listeners}
           aria-label={t('categories.gripAria')}
+          /* touch-action: none ONLY on the grip handle so vertical scroll on
+             the row body still works on iOS / mobile. dnd-kit's PointerSensor
+             attaches its move listener to where {...listeners} is spread, so
+             this is the only element that needs the touch-action override. */
+          style={{ touchAction: 'none' }}
         >
           <IconGripVertical size={18} />
         </ActionIcon>

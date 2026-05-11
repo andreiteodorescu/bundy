@@ -83,10 +83,16 @@ export async function runSubscriptionGenerator(profileId: string): Promise<{ cre
 /**
  * Compute the actual charge dates for a subscription within a date window.
  *
- * - **weekly**: charge_day is ISO weekday (1=Mon..7=Sun). Iterates day-by-day.
- * - **monthly**: charge_day is day-of-month (1..31). Clamps to last day if month is shorter
- *   (e.g. day=31 in February becomes day=28/29).
- * - **yearly**: charge_day + charge_month define the annual date.
+ * Cadences:
+ * - **daily**:      every day from start_date. charge_day ignored.
+ * - **weekly**:     charge_day = ISO weekday (1=Mon..7=Sun). Day-by-day scan.
+ * - **biweekly**:   every 14 days, anchored on the first matching weekday
+ *                   (charge_day = ISO weekday) on or after start_date.
+ * - **monthly**:    charge_day = day-of-month (1..31). Clamps to month end
+ *                   (day=31 in February becomes 28/29).
+ * - **quarterly**:  every 3 months, same charge_day, anchored on start_date's month.
+ * - **semiannual**: every 6 months, same charge_day, anchored on start_date's month.
+ * - **yearly**:     charge_day + charge_month define the annual date.
  */
 export function chargeDatesInWindow(
   sub: Subscription,
@@ -99,6 +105,17 @@ export function chargeDatesInWindow(
   const subEnd = sub.end_date ? dayjs(sub.end_date) : null;
   const effectiveEnd = subEnd && subEnd.isBefore(windowEnd) ? subEnd : windowEnd;
 
+  // ---- Day-grain cadences ----
+
+  if (sub.cadence === 'daily') {
+    let cursor = effectiveStart.startOf('day');
+    while (cursor.isBefore(effectiveEnd) || cursor.isSame(effectiveEnd, 'day')) {
+      dates.push(cursor.format('YYYY-MM-DD'));
+      cursor = cursor.add(1, 'day');
+    }
+    return dates;
+  }
+
   if (sub.cadence === 'weekly') {
     let cursor = effectiveStart.startOf('day');
     while (cursor.isBefore(effectiveEnd) || cursor.isSame(effectiveEnd, 'day')) {
@@ -110,14 +127,51 @@ export function chargeDatesInWindow(
     return dates;
   }
 
-  let cursor = effectiveStart.startOf('month');
-  while (cursor.isBefore(effectiveEnd) || cursor.isSame(effectiveEnd, 'month')) {
-    if (sub.cadence === 'yearly') {
-      if (sub.charge_month && cursor.month() + 1 !== sub.charge_month) {
-        cursor = cursor.add(1, 'month');
-        continue;
-      }
+  if (sub.cadence === 'biweekly') {
+    // First charge: the first occurrence of charge_day weekday on/after subStart.
+    // Subsequent charges: every 14 days from that anchor.
+    let firstCharge = subStart.startOf('day');
+    while (firstCharge.isoWeekday() !== sub.charge_day) {
+      firstCharge = firstCharge.add(1, 'day');
     }
+    let cursor = firstCharge;
+    while (cursor.isBefore(effectiveEnd) || cursor.isSame(effectiveEnd, 'day')) {
+      if (cursor.isSame(effectiveStart, 'day') || cursor.isAfter(effectiveStart, 'day')) {
+        dates.push(cursor.format('YYYY-MM-DD'));
+      }
+      cursor = cursor.add(14, 'day');
+    }
+    return dates;
+  }
+
+  // ---- Month-grain cadences (monthly, quarterly, semiannual, yearly) ----
+
+  // monthStep: how many months between charges.
+  // quarterly = 3, semiannual = 6, yearly = 12, monthly = 1.
+  const monthStep =
+    sub.cadence === 'quarterly'
+      ? 3
+      : sub.cadence === 'semiannual'
+        ? 6
+        : sub.cadence === 'yearly'
+          ? 12
+          : 1;
+
+  // For yearly with a specific charge_month, anchor on (charge_month) of subStart's year.
+  // For quarterly/semiannual, anchor on subStart's month so the cycle stays aligned.
+  let cursor = subStart.startOf('month');
+  if (sub.cadence === 'yearly' && sub.charge_month) {
+    cursor = cursor.month(sub.charge_month - 1);
+  }
+
+  // Step backward to first cursor that is at or before windowStart, then step forward
+  // to find all charges in window. (Avoids skipping if subStart is before the window
+  // by a multiple of monthStep months.)
+  while (cursor.isAfter(effectiveStart, 'month')) {
+    cursor = cursor.subtract(monthStep, 'month');
+  }
+
+  while (cursor.isBefore(effectiveEnd) || cursor.isSame(effectiveEnd, 'month')) {
     const daysInMonth = cursor.daysInMonth();
     const day = Math.min(sub.charge_day, daysInMonth);
     const candidate = cursor.date(day);
@@ -127,8 +181,8 @@ export function chargeDatesInWindow(
     ) {
       dates.push(candidate.format('YYYY-MM-DD'));
     }
-    cursor = cursor.add(sub.cadence === 'yearly' ? 12 : 1, 'month');
-    if (cursor.isAfter(windowEnd.add(1, 'month'))) break;
+    cursor = cursor.add(monthStep, 'month');
+    if (cursor.isAfter(windowEnd.add(monthStep, 'month'))) break;
   }
   return dates;
 }

@@ -218,7 +218,6 @@ function SortablePredefinedRow({
               transform: CSS.Transform.toString(transform),
               transition,
               opacity: isDragging ? 0.6 : tpl.active ? 1 : 0.5,
-              touchAction: 'none',
             }
           : { opacity: tpl.active ? 1 : 0.5 }
       }
@@ -232,6 +231,7 @@ function SortablePredefinedRow({
             {...attributes}
             {...listeners}
             aria-label={t('templates.gripAria')}
+            style={{ touchAction: 'none' }}
           >
             <IconGripVertical size={18} />
           </ActionIcon>
