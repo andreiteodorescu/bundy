@@ -1,12 +1,13 @@
-/* Floating pill bottom nav.
-   The bar is detached from screen edges (16px horizontal margin, 12px above
-   the safe-area / PWA lift). Looks "lifted" off the surface like an iOS
-   floating tab bar. */
+/* Floating pill bottom nav. Detached from edges, glass blur, soft shadow. */
 .nav {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(var(--safe-bottom) + var(--pwa-bottom-lift) + 12px);
+  /* Just respect the iOS home-indicator safe area + a tiny gap. The legacy
+     --pwa-bottom-lift was a workaround for older browsers where safe-area
+     wasn't detected; with viewport-fit=cover (set in index.html) it's
+     reported correctly, so adding more lift on top just floats the bar high. */
+  bottom: calc(var(--safe-bottom) + 4px);
   height: var(--bottom-nav-height);
 
   background: rgba(26, 27, 30, 0.78);
@@ -16,7 +17,6 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 28px;
 
-  /* Layered shadow for the "floating" feel: tight contact + soft halo. */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.06) inset,
     0 4px 12px -2px rgba(0, 0, 0, 0.3),
@@ -35,6 +35,32 @@
   }
 }
 
+/* The "ball" / sliding indicator. Lives in the nav as an absolute positioned
+   element. JS sets `transform: translateX(...)` and `width` based on which
+   item is active; CSS handles the spring transition between positions. */
+.indicator {
+  position: absolute;
+  /* Symmetric inset so the ball is perfectly centered inside the nav. */
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: 0;
+  border-radius: 999px;
+  background: var(--mantine-primary-color-filled, #4f6cc2);
+  /* Inner highlight only — no outer drop shadow so there's no perceived glow
+     leaking past the ball's bottom edge. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  /* Spring physics: overshoot on x for bounce, faster width adjust. */
+  transition:
+    transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    width 360ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 200ms ease;
+  z-index: 0;
+  pointer-events: none;
+  /* Use will-change so the browser knows to compose this on its own GPU layer. */
+  will-change: transform, width;
+}
+
 .item {
   position: relative;
   display: flex;
@@ -48,8 +74,10 @@
   text-decoration: none;
   color: rgba(235, 235, 245, 0.55);
   -webkit-text-fill-color: currentColor;
-  padding: 10px 4px;
-  /* Tap target stays full-cell, but the visible pill is inset (see ::before). */
+  padding: 9px 4px 10px;
+  /* Sit above the indicator so icon + label render on top of the colored pill. */
+  z-index: 1;
+  transition: color 220ms ease;
 }
 
 @media (prefers-color-scheme: light) {
@@ -58,67 +86,28 @@
   }
 }
 
-/* Sliding pill behind the active icon. Lives at z-index -1 inside the .item
-   so it sits behind the icon + label. Spring animation on enter via
-   cubic-bezier overshoot. */
-.item::before {
-  content: '';
-  position: absolute;
-  inset: 6px 8px;
-  border-radius: 18px;
-  background: var(--mantine-primary-color-light, rgba(79, 108, 194, 0.18));
-  opacity: 0;
-  transform: scale(0.6);
-  transition:
-    opacity 200ms ease,
-    transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.item > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Tap micro-feedback on inactive items. */
 .item:active:not(.active) {
   transform: scale(0.96);
 }
 
-/* SVG inheritance fix for iOS WebKit (PWA standalone bug). */
 .item svg {
   display: block;
   flex-shrink: 0;
   color: inherit;
   stroke: currentColor;
   fill: none;
-  transition:
-    transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    color 200ms ease;
+  transition: color 220ms ease;
 }
 
-/* ---- Active state: pill appears, icon scales up + lifts, color flips ---- */
-
+/* Active item: white text + filled icon for contrast against the colored ball. */
 .active {
-  color: var(--mantine-primary-color-filled, #4f6cc2);
-}
-
-.active::before {
-  opacity: 1;
-  transform: scale(1);
+  color: white;
 }
 
 .active svg {
-  color: var(--mantine-primary-color-filled, #4f6cc2);
-  fill: currentColor;
-  fill-opacity: 0.16;
-  transform: scale(1.12) translateY(-1px);
-}
-
-/* Label fades + shifts down slightly on active so the icon gets visual focus. */
-.active span {
-  transition: opacity 200ms ease;
+  color: white;
+  fill: white;
+  fill-opacity: 0.18;
 }
 
 /* ---- FAB: lifted out of the bar, big shadow, spring on tap ---- */

@@ -53,9 +53,9 @@ a {
   padding-top: calc(var(--safe-top));
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
-  /* Extra 32px because the bottom nav is now floating with a 12px gap below it
-     (so total occupied = nav-height + safe + lift + 12, plus a 20px content buffer). */
-  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + var(--pwa-bottom-lift) + 32px);
+  /* Floating nav is at safe-bottom + 4px with height = --bottom-nav-height,
+     so total occupied = safe-bottom + 4 + nav-height. Add a 20px content buffer. */
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 24px);
   min-height: 100dvh;
 }
 
