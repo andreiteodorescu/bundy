@@ -285,7 +285,7 @@ function UserRow({
         <Box flex={1} miw={0}>
           <Group gap={6} wrap="nowrap">
             <Text fw={600} truncate>
-              {user.profile_name ?? t('admin.noProfile')}
+              {user.profile_name ?? user.email ?? '?'}
             </Text>
             {user.is_admin_flag && (
               <Badge size="xs" color="accent" variant="light">
@@ -307,10 +307,17 @@ function UserRow({
                 {t('admin.badgeUnverified')}
               </Badge>
             )}
+            {user.email_confirmed_at && !user.profile_id && (
+              <Badge size="xs" color="red" variant="light">
+                {t('admin.badgeSetupFailed')}
+              </Badge>
+            )}
           </Group>
-          <Text size="xs" c="dimmed" truncate>
-            {user.email ?? '?'}
-          </Text>
+          {user.profile_name && (
+            <Text size="xs" c="dimmed" truncate>
+              {user.email ?? '?'}
+            </Text>
+          )}
           <Text size="xs" c="dimmed">
             {t('admin.row.expenseCount', { count: user.expense_count })} ·{' '}
             {t('admin.row.registeredAt', { date: dayjs(user.user_created_at).format('D MMM YYYY') })}

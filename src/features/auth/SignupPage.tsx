@@ -11,6 +11,7 @@ import {
   Image,
   Paper,
   PasswordInput,
+  PinInput,
   Stack,
   Text,
   TextInput,
@@ -26,7 +27,7 @@ import { DEFAULT_PROFILE_ICON } from '@/data/animalIcons';
 
 export function SignupPage() {
   const { t } = useTranslation();
-  const { status, signUp } = useAuth();
+  const { status, signUp, verifySignupOtp, resendSignupOtp } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -38,8 +39,41 @@ export function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<CaptchaGateRef>(null);
+
+  async function handleVerifyOtp(code: string) {
+    setOtpError(null);
+    setOtpVerifying(true);
+    try {
+      await verifySignupOtp(email.trim(), code);
+      // verifyOtp creates the session → AuthProvider will pick it up and redirect.
+      // We don't need to navigate manually — the `status === 'authenticated'`
+      // check at the top of this component fires and <Navigate to="/home" />
+      // takes over.
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : t('auth.signup.otpError'));
+      setOtp('');
+    } finally {
+      setOtpVerifying(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    setResending(true);
+    setOtpError(null);
+    try {
+      await resendSignupOtp(email.trim());
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : t('auth.signup.otpError'));
+    } finally {
+      setResending(false);
+    }
+  }
 
   if (status === 'authenticated') {
     const target = (location.state as { from?: string })?.from ?? '/home';
@@ -84,7 +118,14 @@ export function SignupPage() {
 
   if (emailSent) {
     return (
-      <Center h="100dvh" px="md">
+      <Center
+        mih="100dvh"
+        px="md"
+        style={{
+          paddingTop: 'calc(var(--safe-top) + var(--mantine-spacing-md))',
+          paddingBottom: 'calc(var(--safe-bottom) + var(--mantine-spacing-md))',
+        }}
+      >
         <Paper p="xl" radius="lg" withBorder w="100%" maw={420}>
           <Stack gap="md" align="center" ta="center">
             <Box
@@ -101,15 +142,50 @@ export function SignupPage() {
             >
               <IconMailCheck size={32} stroke={2} />
             </Box>
-            <Title order={3}>{t('auth.signup.checkEmailTitle')}</Title>
+            <Title order={3}>{t('auth.signup.otpTitle')}</Title>
             <Text size="sm" c="dimmed">
               <Trans
-                i18nKey="auth.signup.checkEmailMessage"
+                i18nKey="auth.signup.otpMessage"
                 values={{ email }}
                 components={{ bold: <b /> }}
               />
             </Text>
-            <Anchor component={Link} to="/login">
+            <PinInput
+              length={6}
+              type="number"
+              value={otp}
+              onChange={setOtp}
+              onComplete={handleVerifyOtp}
+              disabled={otpVerifying}
+              autoFocus
+              oneTimeCode
+            />
+            {otpError && (
+              <Alert color="red" icon={<IconAlertCircle size={16} />} w="100%">
+                {otpError}
+              </Alert>
+            )}
+            <Button
+              fullWidth
+              loading={otpVerifying}
+              disabled={otp.length !== 6}
+              onClick={() => handleVerifyOtp(otp)}
+            >
+              {t('auth.signup.otpVerify')}
+            </Button>
+            <Group gap="xs" justify="center">
+              <Text size="sm" c="dimmed">{t('auth.signup.otpNoEmail')}</Text>
+              <Anchor
+                component="button"
+                type="button"
+                size="sm"
+                onClick={handleResendOtp}
+                disabled={resending}
+              >
+                {resending ? t('auth.signup.otpResending') : t('auth.signup.otpResend')}
+              </Anchor>
+            </Group>
+            <Anchor component={Link} to="/login" size="sm">
               {t('auth.signup.backToLogin')}
             </Anchor>
           </Stack>

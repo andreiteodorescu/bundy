@@ -21,6 +21,9 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   requestPasswordReset: (email: string, captchaToken?: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  verifySignupOtp: (email: string, token: string) => Promise<void>;
+  resendSignupOtp: (email: string, captchaToken?: string) => Promise<void>;
+  verifyPasswordResetOtp: (email: string, token: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -120,6 +123,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async updatePassword(newPassword) {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+    },
+    async verifySignupOtp(email, token) {
+      // PWA-friendly alternative to the email confirmation link: user enters the
+      // 6-digit code from the email directly in the app. Verifying it creates a
+      // real Supabase session in *this* browser context (the PWA), rather than
+      // in Safari where the link would have opened.
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'signup' });
+      if (error) throw error;
+    },
+    async resendSignupOtp(email, captchaToken) {
+      // User lost the email / code expired (default 1h TTL). Resend a fresh one.
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { captchaToken },
+      });
+      if (error) throw error;
+    },
+    async verifyPasswordResetOtp(email, token) {
+      // Same PWA-friendly pattern as signup OTP. Verifies the recovery code from
+      // the password-reset email; success creates a recovery session in this PWA
+      // context, after which updatePassword() can set the new password.
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'recovery' });
       if (error) throw error;
     },
   };
