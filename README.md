@@ -25,12 +25,14 @@ Domain: **bundy.ro**
 | DnD | `@dnd-kit/sortable` | Reorder pe categorii + template-uri (quick/predefined/fixed) |
 | DB + Auth | **Supabase** (Postgres + RLS + Auth) | Free tier 500MB |
 | Hosting | **Vercel** Hobby | Free, custom domain, serverless `/api/*` + cron |
-| FX rates | BNR proxy via `api/fx.ts` | EUR/USD → RON, cached în `fx_rates` |
+| Email | **Resend** SMTP (opțional) | Custom SMTP via Supabase Auth pentru subject + body branded + `noreply@bundy.ro` sender |
+| FX rates | BNR proxy via `api/fx.ts` | 9 monede non-RON → RON: EUR, USD, GBP, CHF, CAD, AUD, HUF, PLN. Cached în `fx_rates` |
 | Cron server-side | Vercel Cron (daily) | Generator subs/loans pentru când userul nu deschide app-ul |
 | Captcha | hCaptcha | Anti-bot pe signup/login/forgot |
 | i18n | `react-i18next` | RO-first cu fallback EN, switch în Settings, locale persistat în profil |
 | Export | `jsPDF` + `jspdf-autotable` (lazy) | PDF/CSV export pe ExpensesListPage, code-split (~420KB lazy chunk) |
 | DB backup | GitHub Actions + Supabase CLI | Cron daily la 02:00 UTC, schema + data dump gzipped commited în repo |
+| Tests | Vitest + @testing-library/react | 117 teste (unit + integration) — splitMonthIntoWeeks, monthlyEquivalent, chargeDatesInWindow, suggestCategory, computeBudgetStatus, getFxRate, PIN, bankMatcher, displayCurrency |
 
 ---
 
@@ -81,9 +83,12 @@ src/
     queryClient.ts            TanStack Query config
     fx.ts                     getFxRate (DB cache → /api/fx fallback)
     useFxRates.ts             Hook pentru fetch în masă FX rates pentru o listă de monede (pentru list pages)
+    displayCurrency.ts        useDisplayConversion + useTodayDisplayRate hooks — per-expense historical conversion la moneda de display a userului (Option C-B)
+    bankMatcher.ts            normalizeMerchant + matchBankRule pentru open banking keyword rules
+    useGoBack.ts              History-aware back navigation: navigate(-1) cu fallback la route părinte
     pwa.ts                    isStandalonePWA() — detectare display-mode + iOS navigator.standalone
     autocomplete.ts           3-layer match: user rules → seed rules → Fuse history
-    money.ts                  Currency type, formatRon, round2
+    money.ts                  Currency type (9 monede), CURRENCIES array, formatMoney, formatRon, round2
     dates.ts                  splitMonthIntoWeeks (regula aprilie), todayIso, ymd
     text.ts                   diacriticsFilter, cleanExpenseName, normalize
     pin.ts                    PIN hash + TTL helpers
@@ -135,6 +140,11 @@ supabase/
     0028_company_card_setting.sql profiles.company_card_enabled bool (grandfather: TRUE pentru profile cu date taggate company-card)
     0029_feedback.sql            feedback + feedback_votes + feedback_notifications + triggers (votes_count auto, status-change notification) + RLS via is_admin()
     0030_extended_cadences.sql   subscriptions cadence CHECK extins: daily/weekly/biweekly/monthly/quarterly/semiannual/yearly
+    0031_bank_connections.sql    Tabele open banking: bank_connections + bank_transactions + bank_import_rules + RLS
+    0032_default_bank_rules.sql  Seed 7 reguli default (wolt, freshful, mega image, etc.) pe profile existente, idempotent
+    0033_bank_pending_requisitions.sql Tabelă short-lived pentru OAuth callbacks GoCardless
+    0034_fix_feedback_rls.sql    Fix bug RLS din 0029: policy-urile foloseau profile_id = auth.uid() (greșit, comparase user_id cu profile_id). Switch la pattern-ul standard via profile_members
+    0035_fix_feedback_trigger.sql Fix trigger feedback_notify_status_change: SECURITY DEFINER ca să poată insera notification pentru autor când admin schimbă status-ul
 .github/
   workflows/
     db-backup.yml               Cron daily 02:00 UTC: schema + data dump via supabase CLI prin Session pooler, gzip, commit în repo (30-day retention)
@@ -156,7 +166,7 @@ vercel.json                   X-Robots-Tag noindex + cron config /api/cron/gener
    - **Project URL** (NU "REST API URL")
    - **anon public** key
    - **service_role** key (secret, doar pentru `api/fx.ts`, `api/cron/generate-recurring.ts` și `scripts/seed-historical.ts`)
-3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0030_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
+3. SQL Editor → New query → rulează **ÎN ORDINE** toate `0001_*.sql` … `0035_*.sql` din `supabase/migrations/`. Fiecare e idempotent (poate fi re-rulat fără efect dacă a fost deja aplicat). 0002 e deprecated (înlocuit de 0003) — sare peste.
 4. Authentication → Providers → Email → **Enable Sign Ups: ON** (oricine cu URL-ul `bundy.ro` poate crea cont; verificarea email e obligatorie din default).
 5. Authentication → URL Configuration:
    - **Site URL**: `https://bundy.ro` (prod) sau `http://localhost:5173` (dev)
@@ -225,6 +235,42 @@ Secret key:  0x0000000000000000000000000000000000000000
 Pune site key în `.env.local`, secret key în Supabase → captcha-ul rulează în dev fără puzzle real.
 
 **Skip captcha în dev**: lasă `VITE_HCAPTCHA_SITE_KEY` gol → CaptchaGate randează un mesaj "captcha disabled" și submit merge fără. Dar dacă captcha e ON în Supabase, login va eșua cu "no captcha_token found" — dezactivează în Supabase Auth → Attack Protection sau folosește test keys.
+
+---
+
+## Custom SMTP via Resend (recomandat pentru prod)
+
+**Problema cu SMTP-ul default Supabase**: free tier are **rate limit strict (~3-4 emailuri/oră per project)**. Hit-uiești limita rapid la signup-uri / password reset-uri. Plus emailurile vin de la `noreply@mail.app.supabase.io` (sender name = numele proiectului Supabase) — nu poți customiza.
+
+**Soluția**: Custom SMTP via **Resend** (free 3000 emails/lună, burst-uri de zeci/secundă) — păstrezi Supabase Auth pentru DB + RLS + sessions, schimbi doar **canalul prin care pleacă emailurile**.
+
+### Setup (~10 min)
+
+1. **Cont Resend** la https://resend.com (signup cu GitHub/Google OAuth, rapid).
+
+2. **Adaugă domeniul `bundy.ro`** în Resend → Domains → Add Domain → primești 3-4 DNS records (DKIM, SPF, DMARC opțional).
+
+3. **Adaugă DNS records în Vercel** (pentru că nameservers sunt Vercel, nu ROTLD):
+   - Vercel Dashboard → Project → Settings → Domains → bundy.ro → DNS → Add Record
+   - Pentru fiecare: copy Name/Type/Value exact din Resend, TTL=60
+   - Atenție la DKIM: value-ul e ~300+ caractere, copy-paste exact (folosește butonul Copy din Resend)
+   - **NU** include `bundy.ro` în câmpul Name în Vercel — doar partea de subdomeniu (`send`, `resend._domainkey`, `_dmarc`)
+   - Verificarea DNS durează 5-30 min după Save
+
+4. **Generează API Key** în Resend → API Keys → Create:
+   - Permission: **Sending access** (NU Full access)
+   - Domain: `bundy.ro`
+   - Copy key-ul `re_xxxxxxxx...` o singură dată (nu îl mai poți vedea)
+
+5. **Activează Custom SMTP în Supabase**:
+   - Dashboard → Authentication → SMTP Settings → toggle **Enable Custom SMTP**
+   - Host: `smtp.resend.com`, Port: `465`
+   - Username: `resend`, Password: API key-ul din pas 4
+   - Sender email: `noreply@bundy.ro`, Sender name: `Bundy`
+
+6. **Customizează template-urile email** în Supabase → Authentication → Emails → Templates. Avem versiuni HTML branded (bronze accent button + Bundy logo) pentru: Confirm signup, Reset Password, Change Email Address, Magic Link, Invite User. Subject + body customizate per template.
+
+**Notă importantă**: signup folosește **cod OTP de 8 cifre** ca path principal (vezi secțiunea "OTP-based signup"). Email template-ul pune **codul ca buton mare** + link ca fallback. Userii pe iOS PWA vor folosi codul; non-PWA vor folosi link-ul.
 
 ---
 
@@ -348,7 +394,12 @@ Două surse, unificate prin tipul `BrandLogo` (vezi `src/data/brandLogos.ts`):
 
 `BrandPicker` în formul de subscripție permite selectare manuală cu opțiunea "Auto" (lasă regex-ul `test` din `BrandLogo` să detecteze din numele subscripției). `BrandTile` randează în liste folosind slug-ul explicit (din `subscriptions.brand_logo`) sau auto-detect prin nume.
 
-### BNR FX → RON
+### Multi-currency support (9 monede)
+**Currencies supportate**: RON, EUR, USD, GBP, CHF, CAD, AUD, HUF, PLN. Toate au curs zilnic publicat de BNR (XML, deja folosit). Type `Currency` în `src/lib/money.ts` + array `CURRENCIES`. Pentru extindere: add la enum + add la SUPPORTED sets în `api/fx.ts`, `api/cron/generate-recurring.ts`, `api/bank/_sync.ts`. Niciun DB migration necesar — coloanele `currency` sunt `text` simple.
+
+**Default currency per user**: setting în Settings → "Monedă implicită". Stocat în `profiles.settings.default_currency` (JSONB). Pre-completează moneda pe **toate** forms-urile de cheltuieli/abonamente/loans/savings/investments/predefined/quick/fixed pentru o intrare nouă. Editarea unei intrări existente păstrează moneda salvată (pattern touched flag — user override e îngheț după prima interacțiune cu Select-ul).
+
+### BNR FX → RON (storage + historical conversion)
 - `getFxRate(date, currency)` în `src/lib/fx.ts`
 - 1) lookup `fx_rates` table (cache).
 - 2) miss → call `/api/fx?date=...&currency=...` (Vercel function).
@@ -356,9 +407,28 @@ Două surse, unificate prin tipul `BrandLogo` (vezi `src/data/brandLogos.ts`):
 - În dev, `/api/fx` rulează ca middleware Vite (vezi `vite.config.ts → apiDevMiddleware`).
 - Pe expense salvăm `fx_rate` și `fx_rate_date` ca să nu se schimbe rapoartele istorice când BNR re-publică.
 
-**Live FX preview pe formulare**: AddExpensePage, FixedExpenseFormPage, SubscriptionFormPage, BudgetFormPage, LoanFormPage afișează "≈ X RON la cursul BNR din Y" sub Group-ul amount+currency când currency != RON. Implementat ca `useQuery(['fx', date, currency])` cu `staleTime: 6h` — cache între forms.
+**Live FX preview pe formulare**: AddExpensePage, FixedExpenseFormPage, SubscriptionFormPage, BudgetFormPage, LoanFormPage, SavingsFormPage afișează "≈ X (display currency) la cursul BNR din Y" sub Group-ul amount+currency când currency != display currency. Implementat ca `useQuery(['fx', date, currency])` cu `staleTime: 6h` — cache între forms.
 
-**Conversie în liste**: `useFxRates(currencies)` hook care fetch-uiește în masă. Folosit în SubscriptionsListPage, FixedExpensesListPage, FixedExpensesPrePage, QuickExpensesListPage, LoansListPage pentru a afișa "X EUR ≈ Y RON" pe fiecare rând cu monedă străină.
+**Conversie în liste**: `useFxRates(currencies)` hook care fetch-uiește în masă. Folosit în SubscriptionsListPage, FixedExpensesListPage, FixedExpensesPrePage, QuickExpensesListPage, LoansListPage. Cross-rate calculat client-side: `(amount × rowRate_RON) / displayRate_RON` → conversie corectă către display currency a userului, hide-uit complet când row.currency === displayCurrency.
+
+### Display currency conversion (historical accuracy, Option C-B)
+`src/lib/displayCurrency.ts` exportă două hook-uri:
+- **`useDisplayConversion(expenses)`** — primește array de cheltuieli, returnează `{ convert, total, formatInDisplay, displayCurrency, isReady }`. Per-expense, convertește la display currency folosind cursul BNR de pe **data fiecărei cheltuieli** (nu de azi). Totalurile istorice rămân stabile zi de zi, nu "respiră" cu FX-ul de azi.
+- **`useTodayDisplayRate()`** — variant simplu pentru convertit valori pre-aggregate (ex: budget amount, FX preview) folosind cursul de azi pentru display currency. Mic drift acceptabil pentru valori forward-looking.
+
+**Algoritm per expense** (în display currency D):
+- `D === 'RON'` → folosește `amount_ron` direct (pinned la insert, no FX, no drift)
+- `currency_original === D` → folosește `amount_original` (nativ, exact)
+- altfel → `amount_ron / rate(D, occurred_on)` — cursul istoric pentru moneda de display din ziua cheltuielii
+
+**Cum se manifestă pentru useri**:
+- User RON-default → comportament identic cu varianta veche, `amount_ron` direct, zero FX fetch în plus.
+- User GBP-default cu majoritar GBP-native expenses → totalul sumează `amount_original` direct pe cheltuielile GBP-native (zero conversie, exact). Pentru cele câteva non-GBP, cross-rate via istoric.
+- User mixt → fiecare cheltuială folosește cursul din ziua ei. Sub 1% drift pe sume mari.
+
+**Folosit în**: HomePage total widget, ExpensesListPage (page total + weekly totals + per-row), BudgetProgressBar (spent + remaining + pct), AnalyticsPage (totalSpent, companyCardTotal, byCategory, bySubcategory, weeklyForMonth, monthlyTotals în chart), SavingsListPage sub-line, BudgetsListPage amount per buget.
+
+**De ce on-the-fly, nu denormalized**: stocarea unui `amount_in_display_currency` per expense ar necesita schema migration + backfill batch + re-backfill la fiecare schimbare de display currency. Pe-the-fly cu cache (TanStack Query + Supabase fx_rates) → zero migrare, latency neglijabilă după first fetch (rate-urile istorice sunt immutable).
 
 ### Subscriptions: generator dual (client + server)
 **Client-side** (`src/features/subscriptions/generator.ts`): la fiecare login (gated cu un flag `bundy.subscriptions.lastRun=YYYY-MM-DD` în localStorage), `runSubscriptionGenerator()`:
@@ -434,6 +504,46 @@ Comportament curent (intenționat):
 - `src/lib/supabase.ts` definește un custom storage adapter care scrie sesiunea în **AMBELE** localStorage + IndexedDB (`idb-keyval`). iOS evictează localStorage din PWA-uri după ~7 zile inactivitate; IndexedDB rezistă mai bine.
 - `visibilitychange` listener → `supabase.auth.refreshSession()` la foreground.
 - Supabase config: `autoRefreshToken: true`, `persistSession: true`, `flowType: 'pkce'`.
+
+### OTP-based signup + password reset (PWA-friendly)
+**Problema**: iOS PWA standalone-uri nu pot inregistra URL handlers. Click pe link de email → deschide Safari (browser context), NU PWA-ul instalat. Sesiunea creată în Safari nu se sincronizează cu PWA-ul (storage contexts separate). User-ul trebuie să se re-logheze manual în PWA → UX dur.
+
+**Soluția**: în loc de link-based confirmation, folosim **cod OTP de 8 cifre** pe care user-ul îl tastează direct în PWA. Codul vine în email ca number plain (variabila Supabase `{{ .Token }}`). Verificarea via `supabase.auth.verifyOtp({ type: 'signup' / 'recovery' })` creează sesiunea **direct în contextul PWA**.
+
+**Flow signup**:
+1. User completează form-ul → `signUp()` → email cu cod 8 cifre
+2. UI tranziționează la PinInput cu `oneTimeCode` prop (iOS Mail oferă autofill)
+3. User tastează → `verifyOtp({ type: 'signup' })` → sesiune creată în PWA → auto-redirect la `/home`
+
+**Flow reset password**:
+1. User cere reset → email cu cod
+2. UI: PinInput + 2 PasswordInput pe aceeași pagină
+3. Single submit: `verifyOtp({ type: 'recovery' })` → recovery session → `updateUser({ password })` → redirect `/home`
+
+Link fallback rămâne în email pentru cei care preferă (deschide în Safari, comportament vechi).
+
+### Vitest test suite (117 teste, 10 fișiere)
+Setup în `vitest.config.ts` + `src/test/setup.ts` (jsdom environment + dayjs plugins preconfigurate).
+
+Acoperă **math critic** unde un bug ar însemna calcule greșite peste tot:
+- `splitMonthIntoWeeks` (regula aprilie, edge cases lună scurtă, prima zi sambata/duminica)
+- `monthlyEquivalent` pe 7 cadențe + cross-check (50 RON/lună echivalent în toate cadențele)
+- `chargeDatesInWindow` pentru subs + loans: 7 cadențe (subs), idempotency property, clamp charge_day=31 pe februarie, stop la end_date
+- `suggestCategory` (autocomplete): user rule beats seed, priority ordering, regex match, history fuzzy fallback, diacritics normalization
+- `computeBudgetStatus`: toate 5 stări (upcoming/active/warning/exceeded/achieved), edge case exact 90% și exact amount
+- `getFxRate`: cache hit + cache miss + network fallback + RON identity
+- PIN logic: hash determinism, verify, sliding TTL window, expiration cleanup
+- `bankMatcher.normalizeMerchant`: "MEGA IMAGE" → "megaimage", diacritice, mixed-case
+- `displayCurrency`: RON pass-through, native match, cross-currency historical, no-drift property
+
+Comenzi:
+```bash
+npm run test           # rulează o dată
+npm run test:watch     # watch mode
+npm run test:ui        # Vitest UI în browser
+```
+
+Tests **nu** acoperă: componente React (UI tests sunt fragile pentru un small project), API integration end-to-end (acceptăm verify-via-staging), DB queries (RLS testat manual).
 
 ### "Reîncarcă aplicația" în PWA standalone
 PWA-ul standalone n-are URL bar deci utilizatorul nu poate face Cmd+R. Soluția: NavLink "Reîncarcă aplicația" în pagina "Mai mult", **vizibil doar când** `isStandalonePWA()` returnează `true` (vezi `src/lib/pwa.ts` — `matchMedia('(display-mode: standalone)')` + fallback iOS `navigator.standalone`). Click → toast "Se reîncarcă aplicația…" → `window.location.reload()`.
@@ -758,3 +868,7 @@ Bug deja reparat: când e activ filtrul pe categorie/subcategorie, excluderea co
 - **Glass blur acceptat pe carduri**: backdrop-filter saturate(160%) blur(18px) e expensive pe compositor dar visual diferențiază aplicația semnificativ. Risk-ul de sacadare a fost mitigat prin (1) fixarea body gradient într-un `body::before` pseudo-element, (2) `touch-action: none` izolat pe grip handle-uri (nu pe Paper) ca să elibereze main thread la scroll. Dacă reapare lag, se scoate.
 - **PDF/CSV export prin lazy import**: `jsPDF` + `jspdf-autotable` sunt heavy (~420KB combined). Userul folosește export poate o dată pe lună, deci nu plătim cost-ul în initial bundle — `await import('jspdf')` la click.
 - **DB backup în GitHub Actions, NU în Supabase Pro paid backups**: free tier-ul Supabase nu include backup-uri automate descărcabile. Workflow-ul cron daily oferă același rezultat (gzipped SQL în repo) cu zero cost. Session pooler pentru IPv4 connectivity din GitHub runners.
+- **Display currency conversion on-the-fly (Option C-B), NU denormalized columns**: stocarea unei coloane `amount_in_display_currency` per expense ar fi necesitat schema migration + backfill batch pentru toate cheltuielile istorice + re-backfill la fiecare schimbare de display currency. Pe-the-fly cu cache (TanStack Query + Supabase fx_rates table deja existentă) → zero migrare, latency neglijabilă după first fetch (BNR rates istorice sunt immutable). Per-expense convertit la cursul **din data cheltuielii**, nu de azi — totaluri istorice stabile zi de zi.
+- **OTP code în loc de magic link pentru auth flows**: PWA-urile pe iOS nu pot înregistra URL handlers. Click-ul pe un link de email deschide Safari (browser context), nu PWA-ul standalone (alt context, alt storage). Sesiunea creată în Safari nu se sincronizează cu PWA-ul → user trebuie să se re-logheze manual. Cu OTP code, user-ul tastează codul direct în PWA → sesiune creată în context-ul corect. Link-ul rămâne ca fallback în email pentru cei care preferă.
+- **Custom SMTP via Resend pentru emails branded + rate limit**: Supabase default SMTP are rate limit ~3-4/oră per project și sender hardcoded la `noreply@mail.app.supabase.io`. Resend free 3000/lună + custom domain → emailurile vin de la `Bundy <noreply@bundy.ro>`, fără rate limit până la zeci de signup-uri simultani.
+- **Vitest peste Jest** pentru tests: vine cu Vite, sintaxă identică, zero config extra. Acoperă math critic (FX, cadențe, budget state, PIN, autocomplete, merchant matching) — exact unde un bug ar afecta utilizatori pe tăcute. Skip pe UI tests fragile + integration end-to-end (cost mare, beneficiu mic pentru un app cu un user).
