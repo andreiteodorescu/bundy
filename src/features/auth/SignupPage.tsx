@@ -1,6 +1,7 @@
 import { FormEvent, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
+  ActionIcon,
   Alert,
   Anchor,
   Box,
@@ -15,7 +16,7 @@ import {
   TextInput,
   Title,
 } from '@mantine/core';
-import { IconAlertCircle, IconCheck, IconMailCheck } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft, IconCheck, IconMailCheck } from '@tabler/icons-react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useAuth } from './AuthProvider';
 import { AnimalIconPicker } from '@/components/AnimalIconPicker';
@@ -118,8 +119,29 @@ export function SignupPage() {
   }
 
   return (
-    <Center h="100dvh" px="md" py="md">
+    <Center
+      mih="100dvh"
+      px="md"
+      py="md"
+      style={{
+        paddingTop: 'calc(var(--safe-top) + var(--mantine-spacing-md))',
+        paddingBottom: 'calc(var(--safe-bottom) + var(--mantine-spacing-md))',
+      }}
+    >
       <Paper p="xl" radius="lg" withBorder w="100%" maw={460} pos="relative">
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          size="lg"
+          pos="absolute"
+          top={12}
+          left={12}
+          style={{ zIndex: 2 }}
+          onClick={() => navigate('/login')}
+          aria-label={t('auth.signup.backToLogin')}
+        >
+          <IconArrowLeft size={20} />
+        </ActionIcon>
         <Group pos="absolute" top={12} right={12} style={{ zIndex: 2 }}>
           <LanguageToggle />
         </Group>
