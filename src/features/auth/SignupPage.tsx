@@ -151,7 +151,7 @@ export function SignupPage() {
               />
             </Text>
             <PinInput
-              length={6}
+              length={8}
               type="number"
               value={otp}
               onChange={setOtp}
@@ -168,7 +168,7 @@ export function SignupPage() {
             <Button
               fullWidth
               loading={otpVerifying}
-              disabled={otp.length !== 6}
+              disabled={otp.length !== 8}
               onClick={() => handleVerifyOtp(otp)}
             >
               {t('auth.signup.otpVerify')}
