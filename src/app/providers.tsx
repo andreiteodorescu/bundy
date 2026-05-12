@@ -29,7 +29,13 @@ export function Providers({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <ModalsProvider>
-              <Notifications position="top-right" />
+              <Notifications
+                position="top-right"
+                // Push notifications below the iOS notch + status bar in PWA mode.
+                // var(--safe-top) is env(safe-area-inset-top), set in globals.css.
+                containerWidth={400}
+                style={{ top: 'calc(var(--safe-top) + 12px)' }}
+              />
               {children}
               {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
             </ModalsProvider>

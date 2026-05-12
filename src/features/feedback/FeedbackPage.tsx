@@ -248,12 +248,18 @@ function FeedbackRow({
       {
         onSuccess: () =>
           toast.show({ message: t('feedback.admin.statusUpdated'), color: 'green', autoClose: 1500 }),
-        onError: (err) =>
-          toast.show({
-            message: err instanceof Error ? err.message : t('common.error'),
-            color: 'red',
-            autoClose: 4000,
-          }),
+        onError: (err) => {
+          // Supabase errors are plain { message, code, details, hint } objects,
+          // not Error instances. Extract any usable text we can.
+          // eslint-disable-next-line no-console
+          console.error('[feedback] status change failed:', err);
+          const message =
+            (err as { message?: string })?.message ||
+            (err as { details?: string })?.details ||
+            (err as { hint?: string })?.hint ||
+            t('common.error');
+          toast.show({ message, color: 'red', autoClose: 6000 });
+        },
       },
     );
   }
