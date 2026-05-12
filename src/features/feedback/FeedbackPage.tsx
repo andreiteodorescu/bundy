@@ -399,6 +399,9 @@ function FeedbackFormModal({
       title={editing ? t('feedback.form.editTitle') : t('feedback.form.newTitle')}
       centered
       size="md"
+      // Don't close on outside-click — users typing title/body lose their input if
+      // they tap outside by accident. Close button + Escape are still available.
+      closeOnClickOutside={false}
     >
       <Stack gap="sm">
         <SegmentedControl

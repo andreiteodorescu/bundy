@@ -91,7 +91,13 @@ export function BankRuleEditModal({
   }
 
   return (
-    <Modal opened={opened} onClose={onClose} title={t('bank.ruleAdd')} size="md">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={t('bank.ruleAdd')}
+      size="md"
+      closeOnClickOutside={false}
+    >
       <Stack gap="sm">
         <Textarea
           label={t('bank.ruleKeywordsLabel')}
