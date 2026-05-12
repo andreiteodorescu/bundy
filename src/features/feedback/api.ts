@@ -142,11 +142,18 @@ export function useUpdateFeedbackStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { id: string; status: FeedbackStatus }) => {
-      const { error } = await supabase
+      // .select() + checking returned rows is how we detect silent RLS blocks:
+      // Supabase doesn't throw on UPDATE-rejected-by-RLS, it just returns 0 rows.
+      // Without .select() we'd see "success" with nothing actually changed.
+      const { data, error } = await supabase
         .from('feedback')
         .update({ status: input.status })
-        .eq('id', input.id);
+        .eq('id', input.id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Update blocked (no permission or row not found)');
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: FEEDBACK_KEY }),
   });

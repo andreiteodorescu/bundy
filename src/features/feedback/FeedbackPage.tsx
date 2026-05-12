@@ -248,6 +248,12 @@ function FeedbackRow({
       {
         onSuccess: () =>
           toast.show({ message: t('feedback.admin.statusUpdated'), color: 'green', autoClose: 1500 }),
+        onError: (err) =>
+          toast.show({
+            message: err instanceof Error ? err.message : t('common.error'),
+            color: 'red',
+            autoClose: 4000,
+          }),
       },
     );
   }
