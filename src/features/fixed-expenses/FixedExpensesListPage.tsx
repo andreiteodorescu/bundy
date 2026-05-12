@@ -42,7 +42,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
-import { formatMoney, formatRon } from '@/lib/money';
+import { formatMoney, type Currency } from '@/lib/money';
+import { useDefaultCurrency } from '@/features/settings/api';
 import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
 import { categoryDisplayName } from '@/i18n/displayName';
@@ -57,7 +58,10 @@ export function FixedExpensesListPage() {
   const fixed = useFixedExpenses();
   const cats = useCategories();
   const reorder = useReorderFixedExpenses();
-  const fx = useFxRates((fixed.data ?? []).map((f) => f.currency));
+  const displayCurrency = useDefaultCurrency();
+  // Include display currency so we can convert row amounts into it via cross-rate.
+  const fx = useFxRates([...(fixed.data ?? []).map((f) => f.currency), displayCurrency]);
+  const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);
   const [order, setOrder] = useState<string[]>([]);
   const [reorderMode, setReorderMode] = useState(false);
 
@@ -155,6 +159,8 @@ export function FixedExpensesListPage() {
                       fixed={row}
                       category={catById.get(row.category_id ?? '') ?? null}
                       rateRon={fx.rateOf(row.currency)}
+                      displayCurrency={displayCurrency}
+                      displayRate={displayRate}
                       reorderMode={reorderMode}
                       onClick={() => navigate(`/fixed-expenses/${row.id}/edit`)}
                       t={t}
@@ -174,6 +180,8 @@ function SortableFixedRow({
   fixed,
   category,
   rateRon,
+  displayCurrency,
+  displayRate,
   reorderMode,
   onClick,
   t,
@@ -181,6 +189,8 @@ function SortableFixedRow({
   fixed: FixedExpense;
   category: Category | null;
   rateRon: number | null;
+  displayCurrency: Currency;
+  displayRate: number | null;
   reorderMode: boolean;
   onClick: () => void;
   t: TFunction;
@@ -191,8 +201,18 @@ function SortableFixedRow({
   });
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
-  const showRon = fixed.currency !== 'RON' && rateRon !== null;
-  const amountRon = showRon ? Number(fixed.amount) * rateRon : null;
+  // Compute the row's value in the user's display currency:
+  //   - native (row.currency === display): no conversion, hide secondary line
+  //   - row.currency === RON: amount / displayRate (since displayRate = RON per 1 unit)
+  //   - row.currency ≠ RON and ≠ display: amount × rowRate / displayRate (cross-rate)
+  let amountDisplay: number | null = null;
+  if (fixed.currency !== displayCurrency) {
+    const rowRateToRon = fixed.currency === 'RON' ? 1 : rateRon;
+    if (rowRateToRon !== null && displayRate !== null && displayRate > 0) {
+      amountDisplay = (Number(fixed.amount) * rowRateToRon) / displayRate;
+    }
+  }
+  const showConversion = amountDisplay !== null;
   const categoryName = category ? categoryDisplayName(category, t) : null;
 
   return (
@@ -247,7 +267,7 @@ function SortableFixedRow({
             </Text>
             <Text size="xs" c="dimmed">
               {formatMoney(Number(fixed.amount), fixed.currency)}
-              {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
+              {showConversion && amountDisplay !== null && ` ≈ ${formatMoney(amountDisplay, displayCurrency)}`}
               {categoryName ? ` · ${categoryName}` : ''}
             </Text>
           </Box>
@@ -258,7 +278,7 @@ function SortableFixedRow({
             </Text>
             <Text size="xs" c="dimmed">
               {formatMoney(Number(fixed.amount), fixed.currency)}
-              {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
+              {showConversion && amountDisplay !== null && ` ≈ ${formatMoney(amountDisplay, displayCurrency)}`}
               {categoryName ? ` · ${categoryName}` : ''}
             </Text>
           </UnstyledButton>

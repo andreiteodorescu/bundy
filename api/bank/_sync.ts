@@ -3,7 +3,8 @@ import { extractMerchantText, getTransactions } from './_gocardless';
 
 export const config = { runtime: 'nodejs' };
 
-const SUPPORTED_FX = new Set(['EUR', 'USD']);
+// Keep in sync with src/lib/money.ts CURRENCIES (minus RON which doesn't need FX).
+const SUPPORTED_FX = new Set(['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'HUF', 'PLN']);
 
 type BankConnection = {
   id: string;

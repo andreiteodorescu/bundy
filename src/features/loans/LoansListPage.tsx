@@ -20,7 +20,8 @@ import { IconArrowLeft, IconBuildingBank, IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
-import { formatMoney, formatRon, round2 } from '@/lib/money';
+import { formatMoney, formatRon, round2, type Currency } from '@/lib/money';
+import { useDefaultCurrency } from '@/features/settings/api';
 import { getFxRate } from '@/lib/fx';
 import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
@@ -35,7 +36,9 @@ export function LoansListPage() {
   const cats = useCategories();
   const toggle = useToggleLoan();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
-  const fx = useFxRates((loans.data ?? []).map((l) => l.currency));
+  const displayCurrency = useDefaultCurrency();
+  const fx = useFxRates([...(loans.data ?? []).map((l) => l.currency), displayCurrency]);
+  const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);
 
   const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
 
@@ -115,6 +118,8 @@ export function LoansListPage() {
                   loan={loan}
                   category={catById.get(loan.category_id ?? '') ?? null}
                   rateRon={fx.rateOf(loan.currency)}
+                  displayCurrency={displayCurrency}
+                  displayRate={displayRate}
                   onToggle={(active) => toggle.mutate({ id: loan.id, active })}
                   onClick={() => navigate(`/loans/${loan.id}/edit`)}
                   t={t}
@@ -130,7 +135,11 @@ export function LoansListPage() {
                   </Text>
                 </Box>
                 <Text fw={800} size="xl">
-                  {monthlyTotalRon === null ? '...' : formatRon(monthlyTotalRon)}
+                  {monthlyTotalRon === null
+                    ? '...'
+                    : displayRate !== null
+                      ? formatMoney(monthlyTotalRon / displayRate, displayCurrency)
+                      : formatRon(monthlyTotalRon)}
                 </Text>
               </Group>
             </Paper>
@@ -145,6 +154,8 @@ function LoanRow({
   loan,
   category,
   rateRon,
+  displayCurrency,
+  displayRate,
   onToggle,
   onClick,
   t,
@@ -152,14 +163,22 @@ function LoanRow({
   loan: Loan;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
+  displayCurrency: Currency;
+  displayRate: number | null;
   onToggle: (active: boolean) => void;
   onClick: () => void;
   t: TFunction;
 }) {
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
-  const showRon = loan.currency !== 'RON' && rateRon !== null;
-  const monthlyRon = showRon ? Number(loan.monthly_payment) * rateRon : null;
+  let monthlyDisplay: number | null = null;
+  if (loan.currency !== displayCurrency) {
+    const rowRateToRon = loan.currency === 'RON' ? 1 : rateRon;
+    if (rowRateToRon !== null && displayRate !== null && displayRate > 0) {
+      monthlyDisplay = (Number(loan.monthly_payment) * rowRateToRon) / displayRate;
+    }
+  }
+  const showConversion = monthlyDisplay !== null;
 
   const remaining = loan.end_date
     ? Math.max(0, dayjs(loan.end_date).diff(dayjs(), 'month'))
@@ -198,7 +217,7 @@ function LoanRow({
           </Group>
           <Text size="xs" c="dimmed">
             {formatMoney(Number(loan.monthly_payment), loan.currency)}
-            {showRon && monthlyRon !== null && ` ≈ ${formatRon(monthlyRon)}`}
+            {showConversion && monthlyDisplay !== null && ` ≈ ${formatMoney(monthlyDisplay, displayCurrency)}`}
             {' · '}{t('loans.chargeDay', { day: loan.charge_day })}
             {remaining !== null && ` · ${t('loans.monthsRemaining', { count: remaining })}`}
           </Text>

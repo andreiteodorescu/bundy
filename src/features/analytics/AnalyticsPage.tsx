@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { useCompanyCardEnabled } from '@/features/settings/api';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
-import { formatRon } from '@/lib/money';
+import { useDisplayConversion } from '@/lib/displayCurrency';
 import { splitMonthIntoWeeks } from '@/lib/dates';
 import { useExpensesInRange, useMonthlyTotals } from './api';
 import classes from './AnalyticsPage.module.css';
@@ -95,10 +95,25 @@ export function AnalyticsPage() {
   }, [expenses.data, filterCategory, filterSubcategory, companyCardEnabled]);
 
   const filteredExpenses = personalExpenses;
-  const totalSpent = filteredExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
+  // Single conversion hook for all aggregations on the page. Per-expense
+  // historical accuracy when display currency ≠ RON; pass-through when RON.
+  const display = useDisplayConversion(useMemo(
+    () => [...filteredExpenses, ...companyCardExpenses],
+    [filteredExpenses, companyCardExpenses],
+  ));
+  const formatVal = display.formatInDisplay;
+  const valueOf = (e: { amount_original: number | string; currency_original: string; amount_ron: number | string; occurred_on: string }) =>
+    display.convert({
+      amount_original: Number(e.amount_original),
+      currency_original: e.currency_original as never,
+      amount_ron: Number(e.amount_ron),
+      occurred_on: e.occurred_on,
+    }) ?? 0;
+
+  const totalSpent = filteredExpenses.reduce((s, e) => s + valueOf(e), 0);
   const expenseCount = filteredExpenses.length;
   const avgPerExpense = expenseCount > 0 ? totalSpent / expenseCount : 0;
-  const companyCardTotal = companyCardExpenses.reduce((s, e) => s + Number(e.amount_ron), 0);
+  const companyCardTotal = companyCardExpenses.reduce((s, e) => s + valueOf(e), 0);
 
   const subcategoryOptions = useMemo(() => {
     const all = subs.data ?? [];
@@ -120,7 +135,7 @@ export function AnalyticsPage() {
     const map = new Map<string, number>();
     for (const e of filteredExpenses) {
       if (!e.category_id) continue;
-      map.set(e.category_id, (map.get(e.category_id) ?? 0) + Number(e.amount_ron));
+      map.set(e.category_id, (map.get(e.category_id) ?? 0) + valueOf(e));
     }
     return Array.from(map.entries())
       .map(([id, value]) => {
@@ -139,7 +154,7 @@ export function AnalyticsPage() {
     const map = new Map<string, number>();
     for (const e of filteredExpenses) {
       if (!e.subcategory_id) continue;
-      map.set(e.subcategory_id, (map.get(e.subcategory_id) ?? 0) + Number(e.amount_ron));
+      map.set(e.subcategory_id, (map.get(e.subcategory_id) ?? 0) + valueOf(e));
     }
     const arr = Array.from(map.entries())
       .map(([id, value]) => {
@@ -170,10 +185,28 @@ export function AnalyticsPage() {
       });
       return {
         label: t('analytics.weekShort', { n: w.index + 1 }),
-        total: inWeek.reduce((s, e) => s + Number(e.amount_ron), 0),
+        total: inWeek.reduce((s, e) => s + valueOf(e), 0),
       };
     });
   }, [range, month, filteredExpenses, t]);
+
+  // Recompute monthly totals in display currency from the raw expenses returned
+  // by useMonthlyTotals. The hook's `.monthlyTotals` is summed in RON; we need
+  // historical per-expense conversion for accuracy when display ≠ RON.
+  const monthlyTotalsInDisplay = useMemo(() => {
+    if (!monthly.data) return monthly.monthlyTotals;
+    const filtered = monthly.data.filter((e) => {
+      if (companyCardEnabled && !filterCategory && !filterSubcategory && e.tags?.includes('company-card'))
+        return false;
+      if (filterSubcategory) return e.subcategory_id === filterSubcategory;
+      if (filterCategory) return e.category_id === filterCategory;
+      return true;
+    });
+    return monthly.monthlyTotals.map((m) => {
+      const inMonth = filtered.filter((e) => dayjs(e.occurred_on).format('YYYY-MM') === m.month);
+      return { ...m, total: inMonth.reduce((s, e) => s + valueOf(e), 0) };
+    });
+  }, [monthly.data, monthly.monthlyTotals, filterCategory, filterSubcategory, companyCardEnabled, valueOf]);
 
   const isCurrentMonth = dayjs(month).isSame(dayjs(), 'month');
 
@@ -264,11 +297,11 @@ export function AnalyticsPage() {
                     {t('analytics.totalLabel', { label })}
                   </Text>
                   <Text fw={800} size="2rem" lh={1.1}>
-                    {formatRon(totalSpent)}
+                    {formatVal(totalSpent)}
                   </Text>
                   {companyCardTotal > 0 && (
                     <Text size="xs" c="dimmed" mt={2}>
-                      {t('analytics.companyCardSuffix', { amount: formatRon(companyCardTotal) })}
+                      {t('analytics.companyCardSuffix', { amount: formatVal(companyCardTotal) })}
                     </Text>
                   )}
                 </Box>
@@ -277,7 +310,7 @@ export function AnalyticsPage() {
                     {t('analytics.expenseCount', { count: expenseCount })}
                   </Text>
                   <Text size="sm" fw={500}>
-                    {t('analytics.average', { amount: formatRon(avgPerExpense) })}
+                    {t('analytics.average', { amount: formatVal(avgPerExpense) })}
                   </Text>
                 </Box>
               </div>
@@ -289,12 +322,12 @@ export function AnalyticsPage() {
               </Text>
               <BarChart
                 h={200}
-                data={monthly.monthlyTotals}
+                data={monthlyTotalsInDisplay}
                 dataKey="label"
                 series={[{ name: 'total', color: 'accent.5' }]}
                 tickLine="y"
                 gridAxis="y"
-                valueFormatter={(v) => formatRon(v)}
+                valueFormatter={(v) => formatVal(v)}
                 withTooltip
                 tooltipAnimationDuration={150}
                 yAxisProps={{ width: 48, tickFormatter: compactRon }}
@@ -313,7 +346,7 @@ export function AnalyticsPage() {
                   series={[{ name: 'total', color: 'accent.6' }]}
                   tickLine="y"
                   gridAxis="y"
-                  valueFormatter={(v) => formatRon(v)}
+                  valueFormatter={(v) => formatVal(v)}
                   withTooltip
                   yAxisProps={{ width: 48, tickFormatter: compactRon }}
                 />
@@ -333,8 +366,8 @@ export function AnalyticsPage() {
                     paddingAngle={2}
                     withTooltip
                     tooltipDataSource="segment"
-                    chartLabel={formatRon(totalSpent)}
-                    valueFormatter={(v) => formatRon(v)}
+                    chartLabel={formatVal(totalSpent)}
+                    valueFormatter={(v) => formatVal(v)}
                   />
                   <Stack gap={6} flex={1} miw={0} className={classes.donutLegend}>
                     {byCategory.slice(0, 6).map((c) => (
@@ -346,7 +379,7 @@ export function AnalyticsPage() {
                           </Text>
                         </Group>
                         <Text size="xs" fw={600} ta="right">
-                          {formatRon(c.value)}
+                          {formatVal(c.value)}
                         </Text>
                       </Group>
                     ))}
@@ -373,7 +406,7 @@ export function AnalyticsPage() {
                             </Text>
                           </Text>
                           <Text size="sm" fw={600}>
-                            {formatRon(s.value)}
+                            {formatVal(s.value)}
                           </Text>
                         </Group>
                         <Box

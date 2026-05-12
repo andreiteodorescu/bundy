@@ -1,6 +1,32 @@
-export type Currency = 'RON' | 'EUR' | 'USD';
+/**
+ * Supported currencies in Bundy. Picked for the Romanian audience:
+ *   - RON: native
+ *   - EUR, USD: most common foreign
+ *   - GBP: UK diaspora
+ *   - CHF, CAD, AUD: other diaspora destinations
+ *   - HUF, PLN: neighboring countries / work migration
+ *
+ * All have daily FX rates published by BNR. Adding more is mechanical:
+ *   1. Add the code below + to CURRENCIES
+ *   2. Add to SUPPORTED sets in api/fx.ts, api/cron/generate-recurring.ts,
+ *      api/bank/_sync.ts
+ *   3. BNR XML (bnr.ro/files/xml/years/nbrfxratesYYYY.xml) already publishes
+ *      it — no provider change needed
+ */
+export type Currency =
+  | 'RON'
+  | 'EUR'
+  | 'USD'
+  | 'GBP'
+  | 'CHF'
+  | 'CAD'
+  | 'AUD'
+  | 'HUF'
+  | 'PLN';
 
-export const CURRENCIES: Currency[] = ['RON', 'EUR', 'USD'];
+export const CURRENCIES: Currency[] = [
+  'RON', 'EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'HUF', 'PLN',
+];
 
 const formatters = new Map<string, Intl.NumberFormat>();
 

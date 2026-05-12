@@ -21,7 +21,7 @@ import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeleteQuickExpense,
@@ -41,9 +41,17 @@ export function QuickExpenseFormPage() {
   const upsert = useUpsertQuickExpense();
   const del = useDeleteQuickExpense();
 
+  const defaultCurrencyPref = useDefaultCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('RON');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrencyPref);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (editing.data) return;
+    setCurrency(defaultCurrencyPref);
+  }, [defaultCurrencyPref, editing.data, currencyTouched]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [active, setActive] = useState(true);
@@ -86,9 +94,6 @@ export function QuickExpenseFormPage() {
     if (!name.trim()) return setError(t('templates.errorNameRequired'));
     if (typeof amount !== 'number' || amount <= 0) return setError(t('templates.errorAmountInvalid'));
     if (!categoryId) return setError(t('templates.errorCategoryRequired'));
-    if (currency !== 'RON') {
-      return setError(t('templates.quick.errorOnlyRon'));
-    }
     try {
       await upsert.mutateAsync({
         id: params.id,
@@ -105,7 +110,7 @@ export function QuickExpenseFormPage() {
             : []
           : editing.data?.tags ?? [],
       });
-      navigate('/quick-expenses');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('templates.errorSave'));
     }
@@ -118,7 +123,7 @@ export function QuickExpenseFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/quick-expenses');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('templates.errorDelete'));
         }
@@ -135,7 +140,7 @@ export function QuickExpenseFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/quick-expenses')}
+            onClick={() => navigate(-1)}
           >
             {t('templates.back')}
           </Button>
@@ -167,7 +172,10 @@ export function QuickExpenseFormPage() {
             label={t('subscriptions.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />
@@ -237,7 +245,7 @@ export function QuickExpenseFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              {t('subscriptions.form.delete')}
+              {t('templates.quick.deleteButton')}
             </Button>
           </>
         )}

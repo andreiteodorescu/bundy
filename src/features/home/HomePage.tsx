@@ -13,7 +13,7 @@ import { useExpensesByMonth } from '@/features/expenses/api';
 import { useQuickTodayAggregates } from '@/features/quick-expenses/api';
 import { ActiveBudgetBanner } from '@/features/budgets/ActiveBudgetBanner';
 import { useCompanyCardEnabled } from '@/features/settings/api';
-import { formatRon } from '@/lib/money';
+import { useDisplayConversion } from '@/lib/displayCurrency';
 import classes from './HomePage.module.css';
 
 export function HomePage() {
@@ -24,9 +24,12 @@ export function HomePage() {
   const quickToday = useQuickTodayAggregates();
 
   const companyCardEnabled = useCompanyCardEnabled();
-  const { personalTotal, companyCardTotal } = (expenses.data ?? []).reduce(
+  const allExpenses = expenses.data ?? [];
+  const display = useDisplayConversion(allExpenses);
+  const { personalTotal, companyCardTotal } = allExpenses.reduce(
     (acc, e) => {
-      const amt = Number(e.amount_ron);
+      const amt = display.convert(e);
+      if (amt === null) return acc; // rate still loading
       if (companyCardEnabled && e.tags?.includes('company-card')) {
         acc.companyCardTotal += amt;
       } else {
@@ -56,7 +59,7 @@ export function HomePage() {
                   {t('home.totalPersonal', { month: monthLabel })}
                 </Text>
                 <Text fw={800} size="2rem" lh={1.1}>
-                  {formatRon(personalTotal)}
+                  {display.formatInDisplay(personalTotal)}
                 </Text>
                 {companyCardTotal > 0 && (
                   <>
@@ -64,7 +67,7 @@ export function HomePage() {
                       {t('home.totalCompany')}
                     </Text>
                     <Text fw={600} size="md" lh={1.2}>
-                      {formatRon(companyCardTotal)}
+                      {display.formatInDisplay(companyCardTotal)}
                     </Text>
                   </>
                 )}

@@ -6,6 +6,7 @@ import { getFxRate } from '@/lib/fx';
 import { round2, type Currency } from '@/lib/money';
 import type { BrandRule, Expense, ExpenseSource } from '@/types';
 import { seedBrandRules } from '@/data/brandRules.seed';
+import { BUDGETS_KEY } from '@/features/budgets/api';
 
 export const EXPENSES_KEY = ['expenses'] as const;
 export const BRAND_RULES_KEY = ['brand_rules'] as const;
@@ -138,7 +139,12 @@ export function useUpsertExpense() {
       if (error) throw error;
       return data as Expense;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: EXPENSES_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: EXPENSES_KEY });
+      // Budget progress widgets rely on summing expenses — must invalidate too,
+      // otherwise the budget shows stale "spent" totals after adding/editing an expense.
+      qc.invalidateQueries({ queryKey: BUDGETS_KEY });
+    },
   });
 }
 
@@ -149,7 +155,10 @@ export function useDeleteExpense() {
       const { error } = await supabase.from('expenses').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: EXPENSES_KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: EXPENSES_KEY });
+      qc.invalidateQueries({ queryKey: BUDGETS_KEY });
+    },
   });
 }
 

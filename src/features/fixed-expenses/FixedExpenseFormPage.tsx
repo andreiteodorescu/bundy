@@ -20,12 +20,13 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { CURRENCIES, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeleteFixedExpense,
@@ -45,9 +46,17 @@ export function FixedExpenseFormPage() {
   const upsert = useUpsertFixedExpense();
   const del = useDeleteFixedExpense();
 
+  const defaultCurrency = useDefaultCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('RON');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (params.id) return;
+    setCurrency(defaultCurrency);
+  }, [defaultCurrency, params.id, currencyTouched]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [companyCard, setCompanyCard] = useState(false);
@@ -66,6 +75,9 @@ export function FixedExpenseFormPage() {
     currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
       ? amount * fxRate.data.rate_to_ron
       : null;
+  const todayDisplay = useTodayDisplayRate();
+  const amountDisplayPreview =
+    amountRonPreview !== null ? todayDisplay.convertFromRon(amountRonPreview) : null;
 
   useEffect(() => {
     const fx = editing.data;
@@ -115,7 +127,7 @@ export function FixedExpenseFormPage() {
             : []
           : editing.data?.tags ?? [],
       });
-      navigate('/fixed-expenses');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('templates.errorSave'));
     }
@@ -128,7 +140,7 @@ export function FixedExpenseFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/fixed-expenses');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('templates.errorDelete'));
         }
@@ -145,7 +157,7 @@ export function FixedExpenseFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/fixed-expenses')}
+            onClick={() => navigate(-1)}
           >
             {t('templates.back')}
           </Button>
@@ -176,18 +188,21 @@ export function FixedExpenseFormPage() {
             label={t('subscriptions.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />
         </Group>
 
-        {currency !== 'RON' && (
+        {currency !== todayDisplay.displayCurrency && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
               ? t('templates.fxLoading')
-              : amountRonPreview !== null
-                ? t('templates.fxPreviewToday', { amount: formatRon(amountRonPreview) })
+              : amountDisplayPreview !== null
+                ? t('templates.fxPreviewToday', { amount: todayDisplay.formatInDisplay(amountDisplayPreview) })
                 : fxRate.isError
                   ? t('templates.fxUnavailable')
                   : t('templates.fxEnterAmount')}
@@ -251,7 +266,7 @@ export function FixedExpenseFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              {t('subscriptions.form.delete')}
+              {t('templates.fixed.deleteButton')}
             </Button>
           </>
         )}

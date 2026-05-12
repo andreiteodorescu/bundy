@@ -63,7 +63,8 @@ type Loan = {
 type FxRow = { date: string; currency: string; rate_to_ron: number };
 
 const WINDOW_DAYS = 30;
-const SUPPORTED_CURRENCIES = new Set(['EUR', 'USD']);
+// Keep in sync with src/lib/money.ts CURRENCIES (minus RON which doesn't need FX).
+const SUPPORTED_CURRENCIES = new Set(['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'HUF', 'PLN']);
 
 export default async function handler(req: Request): Promise<Response> {
   // Auth — Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. Reject anyone else.

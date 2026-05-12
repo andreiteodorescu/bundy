@@ -14,6 +14,7 @@ import {
   PasswordInput,
   PinInput,
   SegmentedControl,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -26,6 +27,7 @@ import {
   IconArrowLeft,
   IconBriefcase,
   IconCheck,
+  IconCoin,
   IconKey,
   IconLock,
   IconLockOff,
@@ -34,6 +36,7 @@ import {
 import { Trans, useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/i18n';
+import { CURRENCIES } from '@/lib/money';
 import { useAuth } from '@/features/auth/AuthProvider';
 import {
   DEFAULT_HIDDEN_PIN_TTL_MIN,
@@ -114,6 +117,11 @@ export function SettingsPage() {
   const settings = readSettings(profile.data);
   const ttl = settings.hidden_pin_ttl_min ?? DEFAULT_HIDDEN_PIN_TTL_MIN;
   const companyCardEnabled = settings.company_card_enabled === true;
+  const defaultCurrency = settings.default_currency ?? 'RON';
+
+  function handleDefaultCurrencyChange(next: string) {
+    updateSettings.mutate({ default_currency: next });
+  }
 
   function applyCompanyCardChange(next: boolean) {
     updateSettings.mutate(
@@ -340,6 +348,31 @@ export function SettingsPage() {
           </Box>
         </Group>
 
+        <Group wrap="nowrap" align="flex-start" gap="sm">
+          <Box pt={2}>
+            <IconCoin size={20} color="var(--mantine-color-dimmed)" />
+          </Box>
+          <Box flex={1} miw={0}>
+            <Group justify="space-between" wrap="nowrap" align="center" gap="sm">
+              <Text size="sm" fw={500}>
+                {t('settings.features.defaultCurrencyLabel')}
+              </Text>
+              <Select
+                value={defaultCurrency}
+                onChange={(v) => v && handleDefaultCurrencyChange(v)}
+                data={CURRENCIES}
+                size="xs"
+                w={100}
+                allowDeselect={false}
+                disabled={updateSettings.isPending}
+              />
+            </Group>
+            <Text size="xs" c="dimmed" mt={4}>
+              {t('settings.features.defaultCurrencyDescription')}
+            </Text>
+          </Box>
+        </Group>
+
         <Divider label={t('settings.security.divider')} labelPosition="left" mt="md" />
 
         <Button
@@ -358,17 +391,13 @@ export function SettingsPage() {
 
         <Divider label={t('settings.hidden.divider')} labelPosition="left" mt="md" />
 
-        <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
-          <Trans i18nKey="settings.hidden.warning" components={{ strong: <b /> }} />
-        </Alert>
-
-        <Group gap="sm" wrap="nowrap" align="center">
+        <Group gap="sm" wrap="wrap" align="center">
           {hasPin ? (
-            <Badge color="green" leftSection={<IconLock size={12} />}>
+            <Badge color="green" leftSection={<IconLock size={12} />} style={{ flexShrink: 0 }}>
               {t('settings.hidden.pinSet')}
             </Badge>
           ) : (
-            <Badge color="gray" leftSection={<IconLockOff size={12} />}>
+            <Badge color="gray" leftSection={<IconLockOff size={12} />} style={{ flexShrink: 0 }}>
               {t('settings.hidden.noPin')}
             </Badge>
           )}

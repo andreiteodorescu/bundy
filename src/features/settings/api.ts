@@ -85,6 +85,12 @@ export type ProfileSettings = {
    * are migrated to true via 0028 so behavior is preserved.
    */
   company_card_enabled?: boolean;
+  /**
+   * Default currency for new expense / subscription / savings forms. User can
+   * still override per-row. Falls back to 'RON' when absent. ISO code matching
+   * the Currency type in src/lib/money.ts.
+   */
+  default_currency?: string;
 };
 
 export function readSettings(profile: Profile | null | undefined): ProfileSettings {
@@ -99,6 +105,21 @@ export function readSettings(profile: Profile | null | undefined): ProfileSettin
 export function useCompanyCardEnabled(): boolean {
   const profile = useProfile();
   return readSettings(profile.data).company_card_enabled === true;
+}
+
+/**
+ * Hook returning the user's preferred default currency for new entries.
+ * Falls back to 'RON' if the setting is absent (most users) or if the stored
+ * value isn't in the current CURRENCIES list (defensive — e.g. a currency
+ * was removed).
+ */
+export function useDefaultCurrency(): import('@/lib/money').Currency {
+  const profile = useProfile();
+  const raw = readSettings(profile.data).default_currency;
+  const valid = (raw && (
+    ['RON', 'EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'HUF', 'PLN'] as const
+  ).includes(raw as never)) ? raw : 'RON';
+  return valid as import('@/lib/money').Currency;
 }
 
 export function useDeleteAccount() {

@@ -20,7 +20,7 @@ import { CURRENCIES, type Currency } from '@/lib/money';
 import { confirmDelete } from '@/lib/confirm';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeletePredefined,
@@ -40,14 +40,26 @@ export function PredefinedExpenseFormPage() {
   const upsert = useUpsertPredefined();
   const del = useDeletePredefined();
 
+  const defaultCurrencyPref = useDefaultCurrency();
   const [name, setName] = useState('');
-  const [defaultCurrency, setDefaultCurrency] = useState<Currency>('RON');
+  const [defaultCurrency, setDefaultCurrency] = useState<Currency>(defaultCurrencyPref);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategoryId, setSubcategoryId] = useState<string | null>(null);
   const [active, setActive] = useState(true);
   const [companyCard, setCompanyCard] = useState(false);
   const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  // Profile (and thus default currency) loads async — useState only captures the
+  // initial fallback ('RON'). Mirror defaultCurrencyPref into the form state
+  // until the user manually picks a currency. After they touch the Select,
+  // currencyTouched=true freezes their choice even if defaultCurrencyPref shifts.
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (editing.data) return;
+    setDefaultCurrency(defaultCurrencyPref);
+  }, [defaultCurrencyPref, editing.data, currencyTouched]);
 
   useEffect(() => {
     const tpl = editing.data;
@@ -97,7 +109,7 @@ export function PredefinedExpenseFormPage() {
             : []
           : editing.data?.tags ?? [],
       });
-      navigate('/predefined-expenses');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('templates.errorSave'));
     }
@@ -110,7 +122,7 @@ export function PredefinedExpenseFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/predefined-expenses');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('templates.errorDelete'));
         }
@@ -127,7 +139,7 @@ export function PredefinedExpenseFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/predefined-expenses')}
+            onClick={() => navigate(-1)}
           >
             {t('templates.back')}
           </Button>
@@ -147,7 +159,10 @@ export function PredefinedExpenseFormPage() {
           label={t('templates.predefined.defaultCurrency')}
           data={CURRENCIES.map((c) => ({ value: c, label: c }))}
           value={defaultCurrency}
-          onChange={(v) => setDefaultCurrency((v as Currency) ?? 'RON')}
+          onChange={(v) => {
+            setCurrencyTouched(true);
+            setDefaultCurrency((v as Currency) ?? 'RON');
+          }}
           allowDeselect={false}
         />
 
@@ -214,7 +229,7 @@ export function PredefinedExpenseFormPage() {
               onClick={handleDelete}
               loading={del.isPending}
             >
-              {t('subscriptions.form.delete')}
+              {t('templates.predefined.deleteButton')}
             </Button>
           </>
         )}

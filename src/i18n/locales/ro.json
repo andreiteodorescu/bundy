@@ -71,7 +71,9 @@
       "companyCardDisabled": "Funcționalitățile pentru cardul firmei sunt dezactivate",
       "companyCardWarning": "Ai cheltuieli existente marcate cu \"cardul firmei\". Dezactivarea le va ascunde din UI-ul de totaluri, dar rămân în baza de date cu tag-ul intact. Reactivarea le aduce înapoi. Continui?",
       "companyCardWarningTitle": "Dezactivează funcționalitățile pentru cardul firmei",
-      "companyCardDisableConfirm": "Dezactivează"
+      "companyCardDisableConfirm": "Dezactivează",
+      "defaultCurrencyLabel": "Monedă implicită",
+      "defaultCurrencyDescription": "Moneda pre-completată pe forms-uri de cheltuieli, abonamente, economii. Poți oricând schimba per înregistrare."
     },
     "profile": {
       "divider": "Profil",
@@ -106,7 +108,7 @@
       "pinDisabled": "PIN dezactivat",
       "pinEnabled": "PIN setat",
       "ttlLabel": "Timp re-prompt PIN",
-      "ttlDescription": "După cât timp de inactivitate (sau revenire din background) se cere PIN-ul din nou. Fereastra se reînnoiește la fiecare interacțiune cu pagina ascunsă.",
+      "ttlDescription": "După cât timp de inactivitate se cere PIN-ul din nou. Fereastra se reînnoiește la fiecare interacțiune cu pagina ascunsă.",
       "ttlUpdated": "Timpul de relogare setat la {{value}}",
       "openHiddenPage": "Deschide pagina cu cheltuielile ascunse →",
       "pinModalSet": "Setează PIN",
@@ -636,7 +638,8 @@
       "empty": "Niciun șablon definit",
       "emptyPre": "Niciun șablon fix definit",
       "namePlaceholder": "ex: Terapie",
-      "deleteConfirmMessage": "Sigur vrei să ștergi acest șablon?"
+      "deleteConfirmMessage": "Sigur vrei să ștergi acest șablon?",
+      "deleteButton": "Șterge cheltuiala fixă"
     },
     "quick": {
       "title": "Cheltuială rapidă",
@@ -652,7 +655,8 @@
       "todayInline": "azi {{value}}",
       "decreaseAria": "Scade",
       "increaseAria": "Adaugă",
-      "deleteConfirmMessage": "Sigur vrei să ștergi acest șablon? Cheltuielile generate de el rămân în istoric."
+      "deleteConfirmMessage": "Sigur vrei să ștergi acest șablon? Cheltuielile generate de el rămân în istoric.",
+      "deleteButton": "Șterge cheltuiala rapidă"
     },
     "predefined": {
       "title": "Cheltuială predefinită",
@@ -662,7 +666,8 @@
       "empty": "Niciun șablon predefinit",
       "namePlaceholder": "ex: Comandă Freshful",
       "defaultCurrency": "Monedă implicită",
-      "deleteConfirmMessage": "Sigur vrei să ștergi acest șablon?"
+      "deleteConfirmMessage": "Sigur vrei să ștergi acest șablon?",
+      "deleteButton": "Șterge cheltuiala predefinită"
     }
   },
   "categories": {

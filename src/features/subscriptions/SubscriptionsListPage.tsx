@@ -20,8 +20,8 @@ import { IconArrowLeft, IconCreditCard, IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
-import { formatMoney, formatRon, round2 } from '@/lib/money';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
+import { formatMoney, formatRon, round2, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { useFxRates } from '@/lib/useFxRates';
 import { BrandTile } from '@/components/BrandTile';
@@ -38,7 +38,9 @@ export function SubscriptionsListPage() {
   const cats = useCategories();
   const toggle = useToggleSubscription();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
-  const fx = useFxRates((subs.data ?? []).map((s) => s.currency));
+  const displayCurrency = useDefaultCurrency();
+  const fx = useFxRates([...(subs.data ?? []).map((s) => s.currency), displayCurrency]);
+  const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);
 
   const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
   const [totalCurrencies, setTotalCurrencies] = useState<Set<string>>(new Set());
@@ -125,6 +127,8 @@ export function SubscriptionsListPage() {
                   subscription={sub}
                   category={catById.get(sub.category_id ?? '') ?? null}
                   rateRon={fx.rateOf(sub.currency)}
+                  displayCurrency={displayCurrency}
+                  displayRate={displayRate}
                   onToggle={(active) => toggle.mutate({ id: sub.id, active })}
                   onClick={() => navigate(`/subscriptions/${sub.id}/edit`)}
                   t={t}
@@ -145,7 +149,11 @@ export function SubscriptionsListPage() {
                   </Text>
                 </Box>
                 <Text fw={800} size="xl">
-                  {monthlyTotalRon === null ? '...' : formatRon(monthlyTotalRon)}
+                  {monthlyTotalRon === null
+                    ? '...'
+                    : displayRate !== null
+                      ? formatMoney(monthlyTotalRon / displayRate, displayCurrency)
+                      : formatRon(monthlyTotalRon)}
                 </Text>
               </Group>
             </Paper>
@@ -160,6 +168,8 @@ function SubscriptionRow({
   subscription,
   category,
   rateRon,
+  displayCurrency,
+  displayRate,
   onToggle,
   onClick,
   t,
@@ -168,6 +178,8 @@ function SubscriptionRow({
   subscription: Subscription;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
+  displayCurrency: Currency;
+  displayRate: number | null;
   onToggle: (active: boolean) => void;
   onClick: () => void;
   t: TFunction;
@@ -175,8 +187,14 @@ function SubscriptionRow({
 }) {
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const cadenceLabel = formatCadence(subscription, t);
-  const showRon = subscription.currency !== 'RON' && rateRon !== null;
-  const amountRon = showRon ? Number(subscription.amount) * rateRon : null;
+  let amountDisplay: number | null = null;
+  if (subscription.currency !== displayCurrency) {
+    const rowRateToRon = subscription.currency === 'RON' ? 1 : rateRon;
+    if (rowRateToRon !== null && displayRate !== null && displayRate > 0) {
+      amountDisplay = (Number(subscription.amount) * rowRateToRon) / displayRate;
+    }
+  }
+  const showConversion = amountDisplay !== null;
 
   return (
     <Paper withBorder radius="md" p="sm" style={{ opacity: subscription.active ? 1 : 0.55 }}>
@@ -204,7 +222,7 @@ function SubscriptionRow({
           </Group>
           <Text size="xs" c="dimmed">
             {formatMoney(Number(subscription.amount), subscription.currency)}
-            {showRon && amountRon !== null && ` ≈ ${formatRon(amountRon)}`}
+            {showConversion && amountDisplay !== null && ` ≈ ${formatMoney(amountDisplay, displayCurrency)}`}
             {' · '}{cadenceLabel}
           </Text>
         </Box>

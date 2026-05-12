@@ -23,7 +23,9 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { CURRENCIES, type Currency } from '@/lib/money';
+import { useDefaultCurrency } from '@/features/settings/api';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { getFxRate } from '@/lib/fx';
 import { ymd } from '@/lib/dates';
 import { confirmDelete } from '@/lib/confirm';
@@ -45,9 +47,17 @@ export function SavingsFormPage() {
   const upsert = useUpsertSaving();
   const del = useDeleteSaving();
 
+  const defaultCurrency = useDefaultCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('EUR');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (params.id) return;
+    setCurrency(defaultCurrency);
+  }, [defaultCurrency, params.id, currencyTouched]);
   const [direction, setDirection] = useState<SavingsDirection>('in');
   const [accountName, setAccountName] = useState('');
   const [date, setDate] = useState<Date>(new Date());
@@ -78,6 +88,11 @@ export function SavingsFormPage() {
     currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
       ? amount * fxRate.data.rate_to_ron
       : null;
+  // Convert the FX preview's RON value into the user's display currency so the
+  // hint reads "≈ X GBP" instead of "≈ Y RON" for non-RON display users.
+  const todayDisplay = useTodayDisplayRate();
+  const amountDisplayPreview =
+    amountRonPreview !== null ? todayDisplay.convertFromRon(amountRonPreview) : null;
 
   const accountSuggestions = useMemo(() => {
     const set = new Set<string>();
@@ -182,19 +197,22 @@ export function SavingsFormPage() {
             label={t('savings.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />
         </Group>
 
-        {currency !== 'RON' && (
+        {currency !== todayDisplay.displayCurrency && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
               ? t('savings.form.fxLoading')
-              : amountRonPreview !== null
+              : amountDisplayPreview !== null
                 ? t('savings.form.fxPreview', {
-                    amount: formatRon(amountRonPreview),
+                    amount: todayDisplay.formatInDisplay(amountDisplayPreview),
                     date: dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY'),
                   })
                 : fxRate.isError

@@ -119,18 +119,38 @@ export function useDeleteBudget() {
   });
 }
 
+import type { Currency } from '@/lib/money';
+
+export type BudgetExpenseRow = {
+  amount_original: number;
+  currency_original: Currency;
+  amount_ron: number;
+  occurred_on: string;
+};
+
 /**
  * Compute the spent amount for a budget by summing expense.amount_ron for occurred_on dates
  * that fall within the budget's selected_days (if `period_kind = 'days'`) or [period_start, period_end].
+ *
+ * Returns BOTH the RON-aggregated spent/remaining (for backwards compat + RON-default
+ * users) AND the raw expense rows so callers wanting display-currency conversion
+ * can pass them through useDisplayConversion for historical accuracy.
  */
 export function useBudgetProgress(budget: Budget | null | undefined) {
   const { profileId } = useAuth();
   return useQuery({
     queryKey: [...BUDGETS_KEY, profileId, 'progress', budget?.id, budget?.period_start, budget?.period_end],
     enabled: Boolean(profileId && budget),
-    queryFn: async (): Promise<{ spent: number; pct: number; remaining: number }> => {
-      if (!budget) return { spent: 0, pct: 0, remaining: 0 };
-      let query = supabase.from('expenses').select('amount_ron, occurred_on, category_id, subcategory_id');
+    queryFn: async (): Promise<{
+      spent: number;
+      pct: number;
+      remaining: number;
+      expenses: BudgetExpenseRow[];
+    }> => {
+      if (!budget) return { spent: 0, pct: 0, remaining: 0, expenses: [] };
+      let query = supabase
+        .from('expenses')
+        .select('amount_original, currency_original, amount_ron, occurred_on, category_id, subcategory_id');
 
       // Time filter
       if (budget.period_kind === 'days' && budget.selected_days && budget.selected_days.length > 0) {
@@ -149,12 +169,14 @@ export function useBudgetProgress(budget: Budget | null | undefined) {
       }
       const { data, error } = await query;
       if (error) throw error;
-      const spent = (data ?? []).reduce((s, r) => s + Number(r.amount_ron), 0);
+      const rows = (data ?? []) as BudgetExpenseRow[];
+      const spent = rows.reduce((s, r) => s + Number(r.amount_ron), 0);
       const pct = budget.amount_ron > 0 ? (spent / Number(budget.amount_ron)) * 100 : 0;
       return {
         spent,
         pct,
         remaining: Number(budget.amount_ron) - spent,
+        expenses: rows,
       };
     },
   });

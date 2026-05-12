@@ -31,13 +31,14 @@ import {
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { CURRENCIES, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { cleanExpenseName, diacriticsFilter, normalize } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { useDeleteExpense, useExpense, useRecentExpenses, useUpsertExpense } from './api';
 import { useAutoSuggest } from './useAutoSuggest';
 import { usePredefinedExpense } from '@/features/predefined-expenses/api';
@@ -63,9 +64,21 @@ export function AddExpensePage() {
   const upsert = useUpsertExpense();
   const del = useDeleteExpense();
 
+  const defaultCurrency = useDefaultCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('RON');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  // Mirror user's default currency into the form until they manually pick or
+  // a template pre-fills it. Profile loads async so the initial useState value
+  // is the RON fallback — this effect catches the real value on later renders.
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (params.id) return; // editing existing expense — use stored currency
+    if (searchParams.get('predefined')) return; // pre-filled from template
+    setCurrency(defaultCurrency);
+  }, [defaultCurrency, params.id, searchParams, currencyTouched]);
   const [date, setDate] = useState<Date>(() => {
     const d = searchParams.get('date');
     return d ? new Date(d) : new Date();
@@ -95,6 +108,9 @@ export function AddExpensePage() {
     currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
       ? amount * fxRate.data.rate_to_ron
       : null;
+  const todayDisplay = useTodayDisplayRate();
+  const amountDisplayPreview =
+    amountRonPreview !== null ? todayDisplay.convertFromRon(amountRonPreview) : null;
 
   useEffect(() => {
     if (editingId || didLoadPredefined) return;
@@ -340,19 +356,22 @@ export function AddExpensePage() {
             label={t('expenses.add.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />
         </Group>
 
-        {currency !== 'RON' && (
+        {currency !== todayDisplay.displayCurrency && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
               ? t('expenses.add.fxLoading')
-              : amountRonPreview !== null
+              : amountDisplayPreview !== null
                 ? t('expenses.add.fxPreview', {
-                    amount: formatRon(amountRonPreview),
+                    amount: todayDisplay.formatInDisplay(amountDisplayPreview),
                     date: dayjs(fxRate.data?.date ?? dateIso).format('D MMM YYYY'),
                   })
                 : fxRate.isError

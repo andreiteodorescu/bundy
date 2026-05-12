@@ -40,7 +40,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
-import { formatMoney, formatRon } from '@/lib/money';
+import { formatMoney, type Currency } from '@/lib/money';
+import { useDefaultCurrency } from '@/features/settings/api';
 import { useFxRates } from '@/lib/useFxRates';
 import { useGoBack } from '@/lib/useGoBack';
 import { getIcon } from '@/data/icons.registry';
@@ -61,7 +62,9 @@ export function QuickExpensesListPage() {
   const cats = useCategories();
   const step = useStepQuickExpense();
   const reorder = useReorderQuickExpenses();
-  const fx = useFxRates((templates.data ?? []).map((t) => t.currency));
+  const displayCurrency = useDefaultCurrency();
+  const fx = useFxRates([...(templates.data ?? []).map((t) => t.currency), displayCurrency]);
+  const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);
 
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
 
@@ -189,6 +192,8 @@ export function QuickExpensesListPage() {
                       qty={today.data?.get(tpl.id)?.quantity ?? 0}
                       category={catById.get(tpl.category_id ?? '') ?? null}
                       rateRon={fx.rateOf(tpl.currency)}
+                      displayCurrency={displayCurrency}
+                      displayRate={displayRate}
                       reorderMode={reorderMode}
                       onStep={(delta) => step.mutate({ template: tpl, delta })}
                       onEdit={() => navigate(`/quick-expenses/${tpl.id}/edit`)}
@@ -211,6 +216,8 @@ function QuickRow({
   qty,
   category,
   rateRon,
+  displayCurrency,
+  displayRate,
   reorderMode,
   onStep,
   onEdit,
@@ -221,6 +228,8 @@ function QuickRow({
   qty: number;
   category: { color: string; icon: string; name: string } | null;
   rateRon: number | null;
+  displayCurrency: Currency;
+  displayRate: number | null;
   reorderMode: boolean;
   onStep: (delta: 1 | -1) => void;
   onEdit: () => void;
@@ -234,8 +243,15 @@ function QuickRow({
   const Icon = getIcon(template.icon ?? category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
   const lineTotal = Number(template.amount) * qty;
-  const showRon = template.currency !== 'RON' && rateRon !== null;
-  const unitRon = showRon ? Number(template.amount) * rateRon : null;
+  // Convert unit price to display currency via cross-rate (hide when native).
+  let unitDisplay: number | null = null;
+  if (template.currency !== displayCurrency) {
+    const rowRateToRon = template.currency === 'RON' ? 1 : rateRon;
+    if (rowRateToRon !== null && displayRate !== null && displayRate > 0) {
+      unitDisplay = (Number(template.amount) * rowRateToRon) / displayRate;
+    }
+  }
+  const showConversion = unitDisplay !== null;
 
   return (
     <Paper
@@ -295,7 +311,7 @@ function QuickRow({
           </Text>
           <Text size="xs" c="dimmed">
             {formatMoney(Number(template.amount), template.currency)}
-            {showRon && unitRon !== null && ` ≈ ${formatRon(unitRon)}`}
+            {showConversion && unitDisplay !== null && ` ≈ ${formatMoney(unitDisplay, displayCurrency)}`}
             {qty > 0 ? ` · ${t('templates.quick.todayInline', { value: formatMoney(lineTotal, template.currency) })}` : ''}
           </Text>
         </Box>

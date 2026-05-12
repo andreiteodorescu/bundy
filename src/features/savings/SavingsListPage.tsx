@@ -32,6 +32,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { formatMoney, formatRon } from '@/lib/money';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { useFxRates } from '@/lib/useFxRates';
 import { useSavings } from './api';
 import type { SavingsTransaction } from '@/types';
@@ -114,6 +115,17 @@ export function SavingsListPage() {
   const ronFallbackNet = ronFallback.totalIn - ronFallback.totalOut;
   const showEur = eurRate !== null;
 
+  // Secondary "in your local currency" line beneath the main EUR sum. Shows
+  // the RON / GBP / etc. equivalent of the savings, using today's rate. Hidden
+  // when display currency === EUR (would be redundant — main is already EUR).
+  const today = useTodayDisplayRate();
+  const subDisplayValue =
+    today.displayCurrency === 'EUR'
+      ? null
+      : netRon !== null
+        ? today.convertFromRon(netRon)
+        : null;
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const hasFilters =
@@ -164,9 +176,9 @@ export function SavingsListPage() {
                 >
                   {showEur ? formatMoney(netEur, 'EUR') : formatRon(ronFallbackNet)}
                 </Text>
-                {showEur && netRon !== null && (
+                {showEur && subDisplayValue !== null && (
                   <Text size="xs" c="dimmed" lh={1.1}>
-                    {formatRon(netRon)}
+                    {today.formatInDisplay(subDisplayValue)}
                   </Text>
                 )}
               </Box>
@@ -308,6 +320,7 @@ export function SavingsListPage() {
 
 function SavingsRow({ tx, onClick, t }: { tx: SavingsTransaction; onClick: () => void; t: TFunction }) {
   const isIn = tx.direction === 'in';
+  const today = useTodayDisplayRate();
   return (
     <UnstyledButton onClick={onClick}>
       <Paper withBorder radius="md" p="sm">
@@ -350,11 +363,15 @@ function SavingsRow({ tx, onClick, t }: { tx: SavingsTransaction; onClick: () =>
               {isIn ? '+' : '−'}
               {formatMoney(Number(tx.amount), tx.currency)}
             </Text>
-            {tx.currency !== 'RON' && (
-              <Text size="xs" c="dimmed">
-                ≈ {formatRon(Number(tx.amount_ron))}
-              </Text>
-            )}
+            {tx.currency !== today.displayCurrency && (() => {
+              const inDisplay = today.convertFromRon(Number(tx.amount_ron));
+              if (inDisplay === null) return null;
+              return (
+                <Text size="xs" c="dimmed">
+                  ≈ {today.formatInDisplay(inDisplay)}
+                </Text>
+              );
+            })()}
           </Box>
         </Group>
       </Paper>

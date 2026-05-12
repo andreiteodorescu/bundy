@@ -71,7 +71,9 @@
       "companyCardDisabled": "Company card features disabled",
       "companyCardWarning": "You have existing expenses tagged as \"company card\". Disabling will hide them from totals UI but they remain in the database with their tag intact. Re-enabling restores them. Continue?",
       "companyCardWarningTitle": "Disable company card features",
-      "companyCardDisableConfirm": "Disable"
+      "companyCardDisableConfirm": "Disable",
+      "defaultCurrencyLabel": "Default currency",
+      "defaultCurrencyDescription": "Pre-filled on expense, subscription, savings forms. You can still override per entry."
     },
     "profile": {
       "divider": "Profile",
@@ -106,7 +108,7 @@
       "pinDisabled": "PIN disabled",
       "pinEnabled": "PIN set",
       "ttlLabel": "PIN re-prompt timeout",
-      "ttlDescription": "How long after inactivity (or when returning from background) the PIN is required again. The window resets on every interaction with the hidden page.",
+      "ttlDescription": "How long after inactivity the PIN is required again. The window resets on every interaction with the hidden page.",
       "ttlUpdated": "Re-login timeout set to {{value}}",
       "openHiddenPage": "Open hidden expenses page →",
       "pinModalSet": "Set PIN",
@@ -636,7 +638,8 @@
       "empty": "No templates defined",
       "emptyPre": "No fixed templates defined",
       "namePlaceholder": "e.g. Therapy",
-      "deleteConfirmMessage": "Are you sure you want to delete this template?"
+      "deleteConfirmMessage": "Are you sure you want to delete this template?",
+      "deleteButton": "Delete fixed expense"
     },
     "quick": {
       "title": "Quick expense",
@@ -652,7 +655,8 @@
       "todayInline": "today {{value}}",
       "decreaseAria": "Decrease",
       "increaseAria": "Increase",
-      "deleteConfirmMessage": "Are you sure you want to delete this template? Generated expenses stay in history."
+      "deleteConfirmMessage": "Are you sure you want to delete this template? Generated expenses stay in history.",
+      "deleteButton": "Delete quick expense"
     },
     "predefined": {
       "title": "Predefined expense",
@@ -662,7 +666,8 @@
       "empty": "No predefined templates",
       "namePlaceholder": "e.g. Freshful order",
       "defaultCurrency": "Default currency",
-      "deleteConfirmMessage": "Are you sure you want to delete this template?"
+      "deleteConfirmMessage": "Are you sure you want to delete this template?",
+      "deleteButton": "Delete predefined expense"
     }
   },
   "categories": {

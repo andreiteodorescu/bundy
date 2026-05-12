@@ -19,8 +19,9 @@ import { useTranslation } from 'react-i18next';
 import { useCategories } from '@/features/categories/api';
 import { useUpsertExpense } from '@/features/expenses/api';
 import { todayIso } from '@/lib/dates';
-import { formatMoney, formatRon } from '@/lib/money';
+import { formatMoney } from '@/lib/money';
 import { useFxRates } from '@/lib/useFxRates';
+import { useDefaultCurrency } from '@/features/settings/api';
 import { getIcon } from '@/data/icons.registry';
 import { categoryDisplayName } from '@/i18n/displayName';
 import { useFixedExpenses } from './api';
@@ -34,7 +35,9 @@ export function FixedExpensesPrePage() {
   const cats = useCategories();
   const upsert = useUpsertExpense();
   const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
-  const fxRates = useFxRates((fixed.data ?? []).map((f) => f.currency));
+  const displayCurrency = useDefaultCurrency();
+  const fxRates = useFxRates([...(fixed.data ?? []).map((f) => f.currency), displayCurrency]);
+  const displayRate = displayCurrency === 'RON' ? 1 : fxRates.rateOf(displayCurrency);
 
   async function quickAdd(fx: FixedExpense) {
     try {
@@ -117,9 +120,17 @@ export function FixedExpensesPrePage() {
               const category = catById.get(fx.category_id ?? '') ?? null;
               const Icon = getIcon(category?.icon);
               const color = category?.color ?? 'var(--mantine-color-gray-6)';
-              const rate = fxRates.rateOf(fx.currency);
-              const showRon = fx.currency !== 'RON' && rate !== null;
-              const amountRon = showRon ? Number(fx.amount) * rate : null;
+              // Compute the row's value in the user's display currency via
+              // cross-rate (rowRate_RON / displayRate_RON). Hide when the row
+              // is already in the display currency.
+              let amountDisplay: number | null = null;
+              if (fx.currency !== displayCurrency) {
+                const rowRateToRon = fx.currency === 'RON' ? 1 : fxRates.rateOf(fx.currency);
+                if (rowRateToRon !== null && displayRate !== null && displayRate > 0) {
+                  amountDisplay = (Number(fx.amount) * rowRateToRon) / displayRate;
+                }
+              }
+              const showConversion = amountDisplay !== null;
               const categoryName = category ? categoryDisplayName(category, t) : t('templates.noCategory');
               return (
                 <UnstyledButton key={fx.id} onClick={() => quickAdd(fx)} disabled={upsert.isPending}>
@@ -152,9 +163,9 @@ export function FixedExpensesPrePage() {
                         <Text fw={700} size="lg">
                           {formatMoney(Number(fx.amount), fx.currency)}
                         </Text>
-                        {showRon && amountRon !== null && (
+                        {showConversion && amountDisplay !== null && (
                           <Text size="xs" c="dimmed">
-                            ≈ {formatRon(amountRon)}
+                            ≈ {formatMoney(amountDisplay, displayCurrency)}
                           </Text>
                         )}
                       </Box>

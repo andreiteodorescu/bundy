@@ -24,6 +24,7 @@ import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { useDefaultCurrency } from '@/features/settings/api';
 import { getFxRate } from '@/lib/fx';
 import { ymd } from '@/lib/dates';
 import { confirmDelete } from '@/lib/confirm';
@@ -47,9 +48,17 @@ export function InvestmentsFormPage() {
   const upsert = useUpsertInvestment();
   const del = useDeleteInvestment();
 
+  const defaultCurrency = useDefaultCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('RON');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (params.id) return;
+    setCurrency(defaultCurrency);
+  }, [defaultCurrency, params.id, currencyTouched]);
   const [direction, setDirection] = useState<InvestmentDirection>('in');
   const [instrumentType, setInstrumentType] = useState<InvestmentInstrumentType>('etf');
   const [broker, setBroker] = useState('');
@@ -187,7 +196,10 @@ export function InvestmentsFormPage() {
             label={t('investments.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />

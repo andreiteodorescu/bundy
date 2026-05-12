@@ -22,7 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { CURRENCIES, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
@@ -30,7 +30,8 @@ import { diacriticsFilter } from '@/lib/text';
 import { BrandPicker } from '@/components/BrandPicker';
 import { BrandTile } from '@/components/BrandTile';
 import { useCategories, useSubcategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import {
   useDeleteSubscription,
@@ -51,9 +52,17 @@ export function SubscriptionFormPage() {
   const upsert = useUpsertSubscription();
   const del = useDeleteSubscription();
 
+  const defaultCurrency = useDefaultCurrency();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('RON');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (params.id) return;
+    setCurrency(defaultCurrency);
+  }, [defaultCurrency, params.id, currencyTouched]);
   const [cadence, setCadence] = useState<SubscriptionCadence>('monthly');
   const [chargeDay, setChargeDay] = useState<number | ''>(1);
   const [chargeMonth, setChargeMonth] = useState<number | ''>(1);
@@ -78,6 +87,9 @@ export function SubscriptionFormPage() {
     currency !== 'RON' && fxRate.data && typeof amount === 'number' && amount > 0
       ? amount * fxRate.data.rate_to_ron
       : null;
+  const todayDisplay = useTodayDisplayRate();
+  const amountDisplayPreview =
+    amountRonPreview !== null ? todayDisplay.convertFromRon(amountRonPreview) : null;
 
   useEffect(() => {
     const sub = editing.data;
@@ -245,18 +257,21 @@ export function SubscriptionFormPage() {
             label={t('subscriptions.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />
         </Group>
 
-        {currency !== 'RON' && (
+        {currency !== todayDisplay.displayCurrency && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
               ? t('subscriptions.form.fxLoading')
-              : amountRonPreview !== null
-                ? t('subscriptions.form.fxPreviewToday', { amount: formatRon(amountRonPreview) })
+              : amountDisplayPreview !== null
+                ? t('subscriptions.form.fxPreviewToday', { amount: todayDisplay.formatInDisplay(amountDisplayPreview) })
                 : fxRate.isError
                   ? t('subscriptions.form.fxUnavailable')
                   : t('subscriptions.form.fxEnterAmount')}

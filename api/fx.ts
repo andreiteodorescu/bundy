@@ -12,7 +12,8 @@ import { createClient } from '@supabase/supabase-js';
  */
 export const config = { runtime: 'nodejs' };
 
-const SUPPORTED = new Set(['EUR', 'USD']);
+// Keep in sync with src/lib/money.ts CURRENCIES (minus RON which doesn't need FX).
+const SUPPORTED = new Set(['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'HUF', 'PLN']);
 
 type RateRow = { date: string; currency: string; rate_to_ron: number };
 

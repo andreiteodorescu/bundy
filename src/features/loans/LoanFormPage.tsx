@@ -24,13 +24,14 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { CURRENCIES, formatRon, type Currency } from '@/lib/money';
+import { CURRENCIES, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
 import { confirmDelete } from '@/lib/confirm';
 import { ymd } from '@/lib/dates';
 import { diacriticsFilter } from '@/lib/text';
 import { useCategories, useSubcategories } from '@/features/categories/api';
-import { useCompanyCardEnabled } from '@/features/settings/api';
+import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import { ROMANIAN_BANKS } from '@/data/banks';
 import { useDeleteLoan, useLoan, useUpsertLoan } from './api';
@@ -47,11 +48,19 @@ export function LoanFormPage() {
   const upsert = useUpsertLoan();
   const del = useDeleteLoan();
 
+  const defaultCurrency = useDefaultCurrency();
   const [name, setName] = useState('');
   const [bank, setBank] = useState('');
   const [totalAmount, setTotalAmount] = useState<number | ''>('');
   const [monthlyPayment, setMonthlyPayment] = useState<number | ''>('');
-  const [currency, setCurrency] = useState<Currency>('RON');
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency);
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+
+  useEffect(() => {
+    if (currencyTouched) return;
+    if (params.id) return;
+    setCurrency(defaultCurrency);
+  }, [defaultCurrency, params.id, currencyTouched]);
   const [chargeDay, setChargeDay] = useState<number | ''>(15);
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -76,6 +85,9 @@ export function LoanFormPage() {
     currency !== 'RON' && fxRate.data && typeof monthlyPayment === 'number' && monthlyPayment > 0
       ? monthlyPayment * fxRate.data.rate_to_ron
       : null;
+  const todayDisplay = useTodayDisplayRate();
+  const monthlyDisplayPreview =
+    monthlyRonPreview !== null ? todayDisplay.convertFromRon(monthlyRonPreview) : null;
 
   useEffect(() => {
     if (!isNew) return;
@@ -238,18 +250,21 @@ export function LoanFormPage() {
             label={t('loans.form.currency')}
             data={CURRENCIES.map((c) => ({ value: c, label: c }))}
             value={currency}
-            onChange={(v) => setCurrency((v as Currency) ?? 'RON')}
+            onChange={(v) => {
+              setCurrencyTouched(true);
+              setCurrency((v as Currency) ?? 'RON');
+            }}
             allowDeselect={false}
             w={92}
           />
         </Group>
 
-        {currency !== 'RON' && (
+        {currency !== todayDisplay.displayCurrency && (
           <Text size="xs" c="dimmed" mt={-8}>
             {fxRate.isLoading
               ? t('loans.form.fxLoading')
-              : monthlyRonPreview !== null
-                ? t('loans.form.fxPreviewToday', { amount: formatRon(monthlyRonPreview) })
+              : monthlyDisplayPreview !== null
+                ? t('loans.form.fxPreviewToday', { amount: todayDisplay.formatInDisplay(monthlyDisplayPreview) })
                 : fxRate.isError
                   ? t('loans.form.fxUnavailable')
                   : t('loans.form.fxEnterAmount')}

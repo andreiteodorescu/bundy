@@ -35,7 +35,8 @@ import { cleanExpenseName } from '@/lib/text';
 import { exportExpensesCsv, exportExpensesPdf } from './exportExpenses';
 import { useExpensesByMonth } from './api';
 import { splitMonthIntoWeeks } from '@/lib/dates';
-import { formatRon } from '@/lib/money';
+import { formatMoney, formatRon } from '@/lib/money';
+import { useDisplayConversion } from '@/lib/displayCurrency';
 import { getIcon } from '@/data/icons.registry';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
 import type { Category, Expense, Subcategory } from '@/types';
@@ -87,6 +88,7 @@ export function ExpensesListPage() {
   const weeks = useMemo(() => splitMonthIntoWeeks(month), [month]);
   const expensesAll = expensesQ.data ?? [];
   const expensesVisible = useMemo(() => expensesAll.filter((e) => !e.hidden), [expensesAll]);
+  const display = useDisplayConversion(expensesAll);
 
   const grouped = useMemo(() => {
     return weeks.map((w) => {
@@ -104,14 +106,16 @@ export function ExpensesListPage() {
           if (dateCmp !== 0) return dateCmp;
           return (a.created_at ?? '').localeCompare(b.created_at ?? '');
         });
-      const total = items.reduce((sum, e) => sum + Number(e.amount_ron), 0);
+      const total = items.reduce((sum, e) => sum + (display.convert(e) ?? 0), 0);
       return { week: w, items, total };
     });
-  }, [weeks, expensesVisible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weeks, expensesVisible, display.convert]);
 
   const { personalTotal, companyCardTotal } = expensesAll.reduce(
     (acc, e) => {
-      const amt = Number(e.amount_ron);
+      const amt = display.convert(e);
+      if (amt === null) return acc; // rate still loading
       if (companyCardEnabled && e.tags?.includes('company-card')) {
         acc.companyCardTotal += amt;
       } else {
@@ -223,7 +227,7 @@ export function ExpensesListPage() {
                 {isCurrentMonth ? t('expenses.totals.personalToToday') : t('expenses.totals.personalMonth')}
               </Text>
               <Text fw={700} size="xl">
-                {formatRon(personalTotal)}
+                {display.formatInDisplay(personalTotal)}
               </Text>
             </Group>
             {companyCardTotal > 0 && (
@@ -232,7 +236,7 @@ export function ExpensesListPage() {
                   {t('expenses.totals.company')}
                 </Text>
                 <Text fw={600} size="sm" c="dimmed">
-                  {formatRon(companyCardTotal)}
+                  {display.formatInDisplay(companyCardTotal)}
                 </Text>
               </Group>
             )}
@@ -259,7 +263,7 @@ export function ExpensesListPage() {
                     {g.week.label}
                   </Text>
                   <Text size="sm" fw={600}>
-                    {formatRon(g.total)}
+                    {display.formatInDisplay(g.total)}
                   </Text>
                 </Group>
                 <Stack gap={6}>
@@ -272,6 +276,8 @@ export function ExpensesListPage() {
                       onClick={() => navigate(`/expenses/${exp.id}/edit`)}
                       t={t}
                       showCompanyBadge={companyCardEnabled}
+                      displayCurrency={display.displayCurrency}
+                      displayAmount={display.convert(exp)}
                     />
                   ))}
                 </Stack>
@@ -291,6 +297,8 @@ function ExpenseRow({
   onClick,
   t,
   showCompanyBadge,
+  displayCurrency,
+  displayAmount,
 }: {
   expense: Expense;
   category: Category | null;
@@ -298,6 +306,8 @@ function ExpenseRow({
   onClick: () => void;
   t: TFunction;
   showCompanyBadge: boolean;
+  displayCurrency: import('@/lib/money').Currency;
+  displayAmount: number | null;
 }) {
   const Icon = getIcon(category?.icon);
   const color = category?.color ?? 'var(--mantine-color-gray-6)';
@@ -363,8 +373,12 @@ function ExpenseRow({
             </Group>
           </Box>
           <Box ta="right">
-            <Text fw={700}>{formatRon(Number(expense.amount_ron))}</Text>
-            {expense.currency_original !== 'RON' && (
+            <Text fw={700}>
+              {displayAmount !== null
+                ? formatMoney(displayAmount, displayCurrency)
+                : formatRon(Number(expense.amount_ron))}
+            </Text>
+            {expense.currency_original !== displayCurrency && (
               <Text size="xs" c="dimmed">
                 {expense.amount_original} {expense.currency_original}
               </Text>

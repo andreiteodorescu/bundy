@@ -43,7 +43,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ARCHIVE_THRESHOLD_DAYS } from './BudgetsArchivePage';
-import { formatRon } from '@/lib/money';
+import { useTodayDisplayRate } from '@/lib/displayCurrency';
 import { useBudgets, useReorderBudgets } from './api';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
@@ -353,11 +353,24 @@ function BudgetRowBody({
   subById: Map<string, Subcategory>;
   t: TFunction;
 }) {
+  const today = useTodayDisplayRate();
+  const amountInDisplay = today.convertFromRon(Number(b.amount_ron));
+  const formattedAmount = amountInDisplay !== null ? today.formatInDisplay(amountInDisplay) : '…';
   return (
     <Box>
-      <Group justify="space-between" mb={4}>
-        <Text fw={600}>{b.name}</Text>
-        <Text fw={700}>{formatRon(Number(b.amount_ron))}</Text>
+      <Group
+        justify="space-between"
+        mb={4}
+        gap="xs"
+        wrap="nowrap"
+        align="flex-start"
+      >
+        <Text fw={600} style={{ flex: 1, minWidth: 0 }} lineClamp={2}>
+          {b.name}
+        </Text>
+        <Text fw={700} style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>
+          {formattedAmount}
+        </Text>
       </Group>
       <Text size="xs" c="dimmed" mb={6}>
         {b.selected_days?.length
