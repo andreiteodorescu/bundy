@@ -119,32 +119,46 @@ export function SignupPage() {
   }
 
   return (
-    <Center
-      mih="100dvh"
-      px="md"
-      py="md"
-      style={{
-        paddingTop: 'calc(var(--safe-top) + var(--mantine-spacing-md))',
-        paddingBottom: 'calc(var(--safe-bottom) + var(--mantine-spacing-md))',
-      }}
-    >
-      <Paper p="xl" radius="lg" withBorder w="100%" maw={460} pos="relative">
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          size="lg"
-          pos="absolute"
-          top={12}
-          left={12}
-          style={{ zIndex: 2 }}
-          onClick={() => navigate('/login')}
-          aria-label={t('auth.signup.backToLogin')}
-        >
-          <IconArrowLeft size={20} />
-        </ActionIcon>
-        <Group pos="absolute" top={12} right={12} style={{ zIndex: 2 }}>
+    <>
+      {/* Top bar with back + language toggle. Fixed to viewport so it always
+          sits below the iPhone notch (via safe-area-inset-top padding),
+          regardless of how tall the Paper grows. */}
+      <Box
+        pos="fixed"
+        top={0}
+        left={0}
+        right={0}
+        px="md"
+        style={{
+          zIndex: 10,
+          paddingTop: 'calc(var(--safe-top) + 8px)',
+          paddingBottom: 8,
+          pointerEvents: 'none',
+        }}
+      >
+        <Group justify="space-between" style={{ pointerEvents: 'auto' }}>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            onClick={() => navigate('/login')}
+            aria-label={t('auth.signup.backToLogin')}
+          >
+            <IconArrowLeft size={20} />
+          </ActionIcon>
           <LanguageToggle />
         </Group>
+      </Box>
+
+      <Center
+        mih="100dvh"
+        px="md"
+        style={{
+          paddingTop: 'calc(var(--safe-top) + 56px)',
+          paddingBottom: 'calc(var(--safe-bottom) + var(--mantine-spacing-md))',
+        }}
+      >
+        <Paper p="xl" radius="lg" withBorder w="100%" maw={460} pos="relative">
         <form onSubmit={handleSubmit} noValidate>
           <Stack gap="md">
             <Stack gap="xs" align="center">
@@ -241,6 +255,7 @@ export function SignupPage() {
           </Stack>
         </form>
       </Paper>
-    </Center>
+      </Center>
+    </>
   );
 }
