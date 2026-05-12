@@ -56,7 +56,14 @@ export function LoginPage() {
   }
 
   return (
-    <Center h="100dvh" px="md">
+    <Center
+      mih="100dvh"
+      px="md"
+      style={{
+        paddingTop: 'calc(var(--safe-top) + var(--mantine-spacing-md))',
+        paddingBottom: 'calc(var(--safe-bottom) + var(--mantine-spacing-md))',
+      }}
+    >
       <Paper p="xl" radius="lg" withBorder w="100%" maw={420} pos="relative">
         <Group pos="absolute" top={12} right={12} style={{ zIndex: 2 }}>
           <LanguageToggle />
