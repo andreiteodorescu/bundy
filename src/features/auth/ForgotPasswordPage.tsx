@@ -68,7 +68,7 @@ export function ForgotPasswordPage() {
   async function handleResetSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (otp.length !== 8) return setError(t('auth.forgot.otpRequired'));
+    if (otp.length !== 6) return setError(t('auth.forgot.otpRequired'));
     if (password.length < 6) return setError(t('validation.passwordTooShort', { min: 6 }));
     if (password !== confirm) return setError(t('validation.passwordsDontMatch'));
     setLoading(true);
@@ -128,7 +128,7 @@ export function ForgotPasswordPage() {
 
               <Stack gap={4} align="center">
                 <PinInput
-                  length={8}
+                  length={6}
                   type="number"
                   value={otp}
                   onChange={setOtp}
@@ -160,7 +160,7 @@ export function ForgotPasswordPage() {
               <Button
                 type="submit"
                 loading={loading}
-                disabled={otp.length !== 8 || !password || !confirm}
+                disabled={otp.length !== 6 || !password || !confirm}
                 fullWidth
               >
                 {t('auth.forgot.otpSubmit')}
