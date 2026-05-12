@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   ActionIcon,
   Alert,
@@ -56,7 +56,7 @@ import type { Feedback, FeedbackStatus, FeedbackType } from '@/types';
 
 export function FeedbackPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
 
@@ -97,7 +97,7 @@ export function FeedbackPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('feedback.back')}
           </Button>

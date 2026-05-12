@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { seedCategories } from '@/data/categories.seed';
 import { seedSubcategories } from '@/data/subcategories.seed';
+import { seedBankRules } from '@/data/bankRules.seed';
 import type { User } from '@supabase/supabase-js';
 
 /**
@@ -82,7 +83,40 @@ async function seedDefaultsForProfile(profileId: string) {
     .filter((r): r is NonNullable<typeof r> => r !== null);
 
   if (subRows.length > 0) {
-    const { error: subErr } = await supabase.from('subcategories').insert(subRows);
+    const { data: insertedSubs, error: subErr } = await supabase
+      .from('subcategories')
+      .insert(subRows)
+      .select('id, slug');
     if (subErr) throw subErr;
+
+    const subSlugToId = new Map(
+      (insertedSubs ?? []).map((s) => [s.slug as string, s.id as string]),
+    );
+
+    const ruleRows = seedBankRules
+      .map((r) => {
+        const catId = slugToId.get(r.category_slug);
+        if (!catId) return null;
+        const subId = r.subcategory_slug ? subSlugToId.get(r.subcategory_slug) ?? null : null;
+        return {
+          profile_id: profileId,
+          keywords: r.keywords,
+          category_id: catId,
+          subcategory_id: subId,
+          priority: r.priority,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    if (ruleRows.length > 0) {
+      const { error: rulesErr } = await supabase.from('bank_import_rules').insert(ruleRows);
+      // Bank rules are nice-to-have at signup. If the table doesn't exist yet (migration
+      // not applied) or the insert fails for some reason, swallow the error and continue —
+      // the user can add rules manually from the Bank Connections page later.
+      if (rulesErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[bundy] bank rules seed failed (non-fatal):', rulesErr.message);
+      }
+    }
   }
 }

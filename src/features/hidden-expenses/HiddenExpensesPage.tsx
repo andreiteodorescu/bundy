@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -39,6 +40,7 @@ import type { Expense } from '@/types';
 export function HiddenExpensesPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const profile = useProfile();
   const ttl = readSettings(profile.data).hidden_pin_ttl_min ?? DEFAULT_HIDDEN_PIN_TTL_MIN;
   const [unlocked, setUnlocked] = useState(() => isUnlocked(ttl));
@@ -71,7 +73,7 @@ export function HiddenExpensesPage() {
               color="gray"
               size="compact-sm"
               leftSection={<IconArrowLeft size={16} />}
-              onClick={() => navigate('/more')}
+              onClick={goBack}
             >
               {t('hidden.back')}
             </Button>
@@ -101,7 +103,7 @@ function PinPrompt({
   storedHash: string;
 }) {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const [pin, setPin] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +134,7 @@ function PinPrompt({
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('hidden.back')}
           </Button>
@@ -186,6 +188,7 @@ function PinPrompt({
 function HiddenExpensesList() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const { profileId } = useAuth();
   const cats = useCategories();
   const subs = useSubcategories();
@@ -234,7 +237,7 @@ function HiddenExpensesList() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('hidden.back')}
           </Button>

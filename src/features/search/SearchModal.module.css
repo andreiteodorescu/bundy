@@ -1,17 +1,21 @@
 /* Sticky header inside a fullscreen Modal: stays anchored at the top of the
    scroll container regardless of viewport changes (iOS keyboard show/hide,
-   PWA standalone notch handling, etc). */
+   PWA standalone notch handling, etc).
+   Uses the same glass treatment as cards (semi-transparent + backdrop blur)
+   so it feels like the rest of the app instead of a flat gray slab. */
 .stickyHeader {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--mantine-color-body, #1a1b1e);
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  background: rgba(20, 32, 38, 0.65);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(160%) blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   /* Reserve space for the iPhone notch in PWA standalone mode */
   padding-top: env(safe-area-inset-top);
 }
 
 .hint {
-  background: var(--mantine-color-default-hover, rgba(255, 255, 255, 0.04));
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }

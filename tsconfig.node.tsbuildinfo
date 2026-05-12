@@ -1,1 +1,1 @@
-{"root":["./vite.config.ts","./api/fx.ts","./api/cron/generate-recurring.ts"],"version":"5.9.3"}
+{"root":["./vite.config.ts","./api/fx.ts","./api/bank/_gocardless.ts","./api/bank/_supabase.ts","./api/bank/_sync.ts","./api/bank/callback.ts","./api/bank/init.ts","./api/bank/institutions.ts","./api/bank/sync.ts","./api/cron/generate-recurring.ts","./api/cron/sync-bank.ts"],"version":"5.9.3"}

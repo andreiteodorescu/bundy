@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   Alert,
   Badge,
@@ -55,6 +56,7 @@ import { supabase } from '@/lib/supabase';
 
 export function SettingsPage() {
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const { user } = useAuth();
   const profile = useProfile();
   const updateName = useUpdateProfileName();
@@ -215,7 +217,7 @@ export function SettingsPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('settings.back')}
           </Button>

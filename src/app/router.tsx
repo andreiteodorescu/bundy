@@ -99,6 +99,12 @@ const AdminUsersPage = lazy(() =>
 const FeedbackPage = lazy(() =>
   import('@/features/feedback/FeedbackPage').then((m) => ({ default: m.FeedbackPage })),
 );
+const BankConnectionsPage = lazy(() =>
+  import('@/features/bank/BankConnectionsPage').then((m) => ({ default: m.BankConnectionsPage })),
+);
+const BankCallbackPage = lazy(() =>
+  import('@/features/bank/BankCallbackPage').then((m) => ({ default: m.BankCallbackPage })),
+);
 
 function PageFallback() {
   return (
@@ -182,6 +188,8 @@ const router = createBrowserRouter([
       { path: '/hidden-expenses', element: lazyRoute(<HiddenExpensesPage />) },
       { path: '/admin/users', element: lazyRoute(<AdminUsersPage />) },
       { path: '/feedback', element: lazyRoute(<FeedbackPage />) },
+      { path: '/bank', element: lazyRoute(<BankConnectionsPage />) },
+      { path: '/bank/callback', element: lazyRoute(<BankCallbackPage />) },
 
       { path: '*', element: <Navigate to="/home" replace /> },
     ],

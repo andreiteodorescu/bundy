@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   ActionIcon,
   Box,
@@ -52,6 +53,7 @@ import type { FixedExpense } from '@/types';
 export function FixedExpensesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const fixed = useFixedExpenses();
   const cats = useCategories();
   const reorder = useReorderFixedExpenses();
@@ -95,7 +97,7 @@ export function FixedExpensesListPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('templates.back')}
           </Button>

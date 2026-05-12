@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   ActionIcon,
   Alert,
@@ -43,7 +43,7 @@ import {
 
 export function AdminUsersPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
   const users = useAdminUsers();
@@ -69,7 +69,7 @@ export function AdminUsersPage() {
               color="gray"
               size="compact-sm"
               leftSection={<IconArrowLeft size={16} />}
-              onClick={() => navigate('/more')}
+              onClick={goBack}
             >
               {t('admin.back')}
             </Button>
@@ -164,7 +164,7 @@ export function AdminUsersPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('admin.back')}
           </Button>

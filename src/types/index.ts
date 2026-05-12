@@ -272,3 +272,53 @@ export type FeedbackNotification = {
   created_at: string;
 };
 
+export type BankConnectionStatus = 'active' | 'expired' | 'disconnected' | 'error';
+
+export type BankConnection = {
+  id: string;
+  profile_id: string;
+  provider: 'gocardless';
+  provider_requisition_id: string;
+  provider_account_id: string;
+  institution_id: string;
+  institution_name: string;
+  iban: string | null;
+  status: BankConnectionStatus;
+  consent_expires_at: string | null;
+  last_synced_at: string | null;
+  last_sync_error: string | null;
+  created_at: string;
+};
+
+export type BankTransactionStatus = 'pending_review' | 'imported' | 'skipped' | 'ignored';
+
+export type BankTransaction = {
+  id: string;
+  profile_id: string;
+  connection_id: string;
+  provider_transaction_id: string;
+  booked: boolean;
+  amount: number;
+  currency: Currency;
+  merchant_name: string | null;
+  description: string | null;
+  occurred_on: string;
+  raw: Record<string, unknown> | null;
+  matched_rule_id: string | null;
+  expense_id: string | null;
+  status: BankTransactionStatus;
+  created_at: string;
+};
+
+export type BankImportRule = {
+  id: string;
+  profile_id: string;
+  keywords: string[];
+  category_id: string | null;
+  subcategory_id: string | null;
+  tags: string[];
+  priority: number;
+  enabled: boolean;
+  created_at: string;
+};
+

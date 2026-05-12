@@ -228,6 +228,89 @@ Pune site key în `.env.local`, secret key în Supabase → captcha-ul rulează 
 
 ---
 
+## Open Banking (GoCardless Bank Account Data)
+
+**De ce**: importă automat tranzacții bancare în Bundy. Filtrate prin reguli per-keyword (wolt, freshful, mega image, etc.) ca să NU se inserează tot din contul tău, ci doar ce match-uiește o regulă cu categorie + subcategorie pre-asociate.
+
+**Cost**: free tier 50 useri activi / lună (Bundy ar fi unul singur — tu).
+
+### Setup (~15 min)
+
+1. **Cont GoCardless Bank Account Data** (fost Nordigen):
+   - https://bankaccountdata.gocardless.com/ → Sign up → confirm email
+   - User Secrets → Create new → copy `secret_id` + `secret_key` (le vezi o singură dată — salvează-le imediat)
+
+2. **Env vars** — adaugă în `.env.local` (dev) + Vercel Project Settings → Environment Variables (prod):
+   ```
+   GOCARDLESS_SECRET_ID=<secret_id>
+   GOCARDLESS_SECRET_KEY=<secret_key>
+   ```
+   Restartează `npm run dev` după modificări.
+
+3. **Migrații DB** — rulează în Supabase SQL Editor în ordine (dacă nu le-ai rulat deja):
+   - `0031_bank_connections.sql` — tabele bank_connections, bank_transactions, bank_import_rules
+   - `0032_default_bank_rules.sql` — seed-ul cu cele 7 reguli default pe profilul tău
+   - `0033_bank_pending_requisitions.sql` — tabela short-lived pentru OAuth callbacks
+
+4. **Vercel Cron** — `vercel.json` deja configurat cu `/api/cron/sync-bank` zilnic la 00:30 UTC. La următorul deploy va apărea automat în Vercel Dashboard → Crons.
+
+### Flow
+
+1. User → "Mai mult" → "Conexiuni bancare" → "Conectează cont nou"
+2. Modal cu listă bănci RO (BCR, BRD, ING, Raiffeisen, Banca Transilvania, Revolut RO, etc.)
+3. User selectează banca → backend creează GoCardless requisition + agreement (90 zile, full access) → returnează link
+4. Browser redirect la link-ul GoCardless → user se autentifică pe site-ul băncii (Bundy NU vede credențialele bancare)
+5. Banca redirect înapoi la `bundy.ro/bank/callback?ref=<reference>` → BankCallbackPage face POST la `/api/bank/callback` cu reference
+6. Backend verifică ownership (reference ↔ profile_id), fetch-uiește accounts din GoCardless, creează rânduri în `bank_connections`, rulează initial sync (30 zile back)
+7. Pentru fiecare tranzacție booked:
+   - **Match pe regulă** → creează expense cu categoria/subcategoria asociată + tag `from-bank` + `bank_transactions.expense_id` link
+   - **No match** → insert în `bank_transactions` cu `status='pending_review'` (vizibil într-un bucket separat, fără expense)
+8. Cronul daily la 00:30 UTC pull-uiește tranzacțiile noi (ultimele 14 zile) pentru toate `bank_connections.status = 'active'`
+9. La 90 zile, consent-ul expiră → cronul setează status='expired' → UI-ul prompt-uiește user să reconecteze
+
+### Manual sync
+
+Buton "Sincronizează acum" pe fiecare conexiune → POST `/api/bank/sync` cu `connection_id` → același flow de sync, dar declanșat on-demand. Util când vrei să vezi imediat o cheltuială mare.
+
+### Securitate
+
+- Bundy NU stochează credențialele bancare (autentificarea se face pe site-ul băncii prin GoCardless).
+- `GOCARDLESS_SECRET_KEY` e folosit doar server-side în Vercel functions, niciodată expus în client bundle.
+- Endpoint-urile `/api/bank/init`, `/api/bank/callback`, `/api/bank/sync` cer JWT Bearer token (Supabase access token) și verifică profile_id înainte de orice operație.
+- Cronul `/api/cron/sync-bank` cere `Authorization: Bearer $CRON_SECRET` (același token folosit de generate-recurring).
+- RLS pe toate tabelele `bank_*` — userul vede doar propriile date chiar dacă cineva fură anon key-ul.
+- `redirect_origin` în `/api/bank/init` e whitelisted (doar `bundy.ro`, `www.bundy.ro`, `localhost:5173`) ca să prevină open-redirect abuse.
+
+### Reguli de import default
+
+Migrația 0032 inserează 7 reguli pe profilul tău. Pentru useri noi, `seedDefaultsForProfile` în `src/features/auth/bootstrap.ts` le inserează la signup. Cele 7 default:
+
+| Keywords | Categorie | Subcategorie |
+|---|---|---|
+| `wolt`, `wolt food` | Mâncare & Băuturi | Livrare mâncare |
+| `freshful`, `frsh` | Mâncare & Băuturi | Băcănie online |
+| `carrefour`, `mega image` | Mâncare & Băuturi | Băcănie |
+| `digi`, `rds`, `telekom`, `orange`, `vodafone` | Casă & Facturi | Internet / TV / Telefon |
+| `zooplus` | Animale | Mâncare & Accesorii |
+| `emag`, `fashion days` | Cumpărături | Cumpărături online |
+| `uber` | Transport & Mașină | Ride sharing |
+
+**Matching**: case-insensitive, strip diacritice + spații + non-alphanumeric → "MEGA IMAGE 1234 RO", "MegaImage S.A.", "MEGAIMAGE" toate match-uiesc keyword-ul "mega image". Vezi `src/lib/bankMatcher.ts` + tests.
+
+### Troubleshooting
+
+**"GOCARDLESS_SECRET_ID and GOCARDLESS_SECRET_KEY must be set"**: env vars lipsă din Vercel sau `.env.local`. Verifică și restartează dev server.
+
+**"Pending requisition not found" la callback**: rândul din `bank_pending_requisitions` a fost șters (rerun-uit cleanup) sau profile_id-ul JWT-ului nu corespunde. Reîncepe flow-ul de la "Conectează cont nou".
+
+**Tranzacții nu apar după sync**: verifică `bank_transactions` în Supabase. Status `pending_review` = nu match cu nicio regulă (adaugă keyword nou); status `imported` = OK, ar trebui să vezi expense-ul în `expenses` table cu `tags @> ARRAY['from-bank']`.
+
+**Eroare "Requisition not linked yet (status=CR)"**: user a abandonat flow-ul la bancă. Reîncepe.
+
+**Free tier exhausted (50 useri)**: upgrade la Pro plan ($60/lună) sau așteaptă reset lunar.
+
+---
+
 ## Cheltuieli ascunse + PIN (privacy)
 
 **Caz de uz**: vrei să marchezi unele cheltuieli ca private, să nu apară în liste. Suma e inclusă în total (deci totalul matches `total = visible + ascunse`), dar item-ul nu se vede.

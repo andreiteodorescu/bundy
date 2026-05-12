@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   Badge,
   Box,
@@ -29,6 +30,7 @@ import type { Loan } from '@/types';
 export function LoansListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const loans = useLoans();
   const cats = useCategories();
   const toggle = useToggleLoan();
@@ -76,7 +78,7 @@ export function LoansListPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('loans.back')}
           </Button>

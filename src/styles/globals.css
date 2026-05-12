@@ -175,6 +175,13 @@ a {
   color: white !important;
 }
 
+/* Tighter gap between Button leftSection icon and label. Mantine default is
+   ~10px which feels loose with our compact sizes — 4-5px reads as "icon goes
+   with this text" without making the icon look glued to the first letter. */
+.mantine-Button-section[data-position='left'] {
+  margin-inline-end: 5px;
+}
+
 /* Disabled subtle ActionIcon (e.g. chevron next-month button when already on
    current month) — Mantine applies a dark gray bg by default which clashes
    with the new theme. Force transparent + reduced opacity instead. */
@@ -188,6 +195,14 @@ a {
 /* Switch: no border in any state (cleaner against glass cards). */
 .mantine-Switch-track {
   border: none;
+}
+
+/* NavLink: replace Mantine's default dark grey hover/pressed background
+   (looks like a leftover from the old theme) with a subtle bronze tint. */
+.mantine-NavLink-root:hover,
+.mantine-NavLink-root:active,
+.mantine-NavLink-root[data-active] {
+  background-color: rgba(var(--bundy-accent-rgb), 0.08);
 }
 
 /* Recharts bar charts (used inside Mantine BarChart): force the bronze gradient

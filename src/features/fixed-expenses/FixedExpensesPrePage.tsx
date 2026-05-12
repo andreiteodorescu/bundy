@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   Box,
   Button,
@@ -28,6 +29,7 @@ import type { FixedExpense } from '@/types';
 export function FixedExpensesPrePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/home');
   const fixed = useFixedExpenses();
   const cats = useCategories();
   const upsert = useUpsertExpense();
@@ -70,7 +72,7 @@ export function FixedExpensesPrePage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/home')}
+            onClick={goBack}
           >
             {t('templates.back')}
           </Button>

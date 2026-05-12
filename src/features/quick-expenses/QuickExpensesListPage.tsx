@@ -42,6 +42,7 @@ import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon } from '@/lib/money';
 import { useFxRates } from '@/lib/useFxRates';
+import { useGoBack } from '@/lib/useGoBack';
 import { getIcon } from '@/data/icons.registry';
 import {
   useQuickExpenses,
@@ -54,6 +55,7 @@ import type { QuickExpense } from '@/types';
 export function QuickExpensesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const templates = useQuickExpenses();
   const today = useQuickTodayAggregates();
   const cats = useCategories();
@@ -104,7 +106,7 @@ export function QuickExpensesListPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/home')}
+            onClick={goBack}
           >
             {t('templates.back')}
           </Button>
@@ -313,12 +315,6 @@ function QuickRow({
               size="lg"
               variant={qty > 0 ? 'filled' : 'default'}
               radius="sm"
-              color={color.startsWith('#') ? undefined : color}
-              styles={
-                qty > 0 && color.startsWith('#')
-                  ? { root: { background: color } }
-                  : undefined
-              }
               miw={32}
               ta="center"
             >
@@ -331,7 +327,6 @@ function QuickRow({
               onClick={() => onStep(1)}
               disabled={disabled}
               aria-label={t('templates.quick.increaseAria')}
-              styles={color.startsWith('#') ? { root: { background: color } } : undefined}
             >
               <IconPlus size={16} />
             </ActionIcon>

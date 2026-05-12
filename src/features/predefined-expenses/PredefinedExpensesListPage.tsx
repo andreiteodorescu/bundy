@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   ActionIcon,
   Box,
@@ -48,6 +49,7 @@ import type { Category, PredefinedExpense, Subcategory } from '@/types';
 export function PredefinedExpensesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const templates = usePredefinedExpenses();
   const cats = useCategories();
   const subs = useSubcategories();
@@ -95,7 +97,7 @@ export function PredefinedExpensesListPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/home')}
+            onClick={goBack}
           >
             {t('templates.back')}
           </Button>

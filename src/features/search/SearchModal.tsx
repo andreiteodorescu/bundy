@@ -100,7 +100,10 @@ export function SearchModal() {
       withCloseButton={false}
       padding={0}
       transitionProps={{ transition: 'slide-up', duration: 180 }}
-      styles={{ body: { padding: 0, minHeight: '100dvh' } }}
+      styles={{
+        body: { padding: 0, minHeight: '100dvh' },
+        content: { borderRadius: 0 },
+      }}
     >
       <Box className={classes.stickyHeader}>
         <Group gap="xs" p="sm" wrap="nowrap">

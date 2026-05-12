@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   Badge,
   Box,
@@ -40,6 +41,7 @@ const PAGE_SIZE = 20;
 export function SavingsListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const savings = useSavings();
 
   const [search, setSearch] = useState('');
@@ -130,7 +132,7 @@ export function SavingsListPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('savings.back')}
           </Button>

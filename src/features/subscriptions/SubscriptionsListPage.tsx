@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/lib/useGoBack';
 import {
   Badge,
   Box,
@@ -25,33 +26,14 @@ import { getFxRate } from '@/lib/fx';
 import { useFxRates } from '@/lib/useFxRates';
 import { BrandTile } from '@/components/BrandTile';
 import { useSubscriptions, useToggleSubscription } from './api';
+import { monthlyEquivalent } from './utils';
 import type { Subscription } from '@/types';
-
-function monthlyEquivalent(amount: number, cadence: Subscription['cadence']): number {
-  // Convert any cadence to its monthly RON equivalent for the "estimated
-  // monthly total" widget at the bottom of the list.
-  switch (cadence) {
-    case 'daily':
-      return amount * (365.25 / 12); // ≈ 30.44 days/month
-    case 'weekly':
-      return amount * (365.25 / 7) / 12; // ≈ 4.345 weeks/month
-    case 'biweekly':
-      return amount * (365.25 / 14) / 12; // ≈ 2.17 fortnights/month
-    case 'monthly':
-      return amount;
-    case 'quarterly':
-      return amount / 3;
-    case 'semiannual':
-      return amount / 6;
-    case 'yearly':
-      return amount / 12;
-  }
-}
 
 export function SubscriptionsListPage() {
   const { t } = useTranslation();
   const companyCardEnabled = useCompanyCardEnabled();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const subs = useSubscriptions();
   const cats = useCategories();
   const toggle = useToggleSubscription();
@@ -106,7 +88,7 @@ export function SubscriptionsListPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/more')}
+            onClick={goBack}
           >
             {t('subscriptions.back')}
           </Button>
