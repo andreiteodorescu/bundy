@@ -54,7 +54,16 @@ html[data-mantine-color-scheme='dark'],
 html,
 body,
 #root {
+  /* Both height + min-height matter. height:100% keeps Mantine components
+     happy (they need a defined height to compute child heights). min-height:
+     100dvh forces iOS to compute the full dynamic viewport upfront, which
+     fixes the bug where on PWA launch env(safe-area-inset-bottom) initially
+     reports a larger value (as if a browser toolbar were present), pushing
+     the bottom nav up with empty space below it. After scroll, iOS recomputes
+     and the nav settles correctly — this min-height trick gets iOS there
+     before the first paint. */
   height: 100%;
+  min-height: 100dvh;
   margin: 0;
 }
 
