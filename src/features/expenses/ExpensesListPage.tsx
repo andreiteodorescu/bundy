@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Badge,
   Box,
+  Button,
   Center,
   Container,
   Group,
@@ -202,12 +203,17 @@ export function ExpensesListPage() {
           </ActionIcon>
         </Group>
 
-        <Group justify="flex-end">
+        <Group justify="flex-end" mb={-8}>
           <Menu shadow="md" position="bottom-end" withinPortal>
             <Menu.Target>
-              <ActionIcon variant="subtle" aria-label={t('expenses.export.menuLabel')}>
-                <IconDownload size={18} />
-              </ActionIcon>
+              <Button
+                variant="subtle"
+                color="gray"
+                size="compact-xs"
+                rightSection={<IconDownload size={14} style={{ transform: 'translateY(-1px)' }} />}
+              >
+                {t('expenses.export.menuLabel')}
+              </Button>
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Item leftSection={<IconFileTypePdf size={14} />} onClick={() => runExport('pdf')}>
@@ -260,7 +266,11 @@ export function ExpensesListPage() {
               <Stack key={g.week.index} gap={6}>
                 <Group justify="space-between" px={4}>
                   <Text size="sm" fw={600} c="dimmed">
-                    {g.week.label}
+                    {t('expenses.weekLabel', {
+                      num: g.week.index + 1,
+                      start: g.week.start.format('D'),
+                      end: g.week.end.format('D MMM'),
+                    })}
                   </Text>
                   <Text size="sm" fw={600}>
                     {display.formatInDisplay(g.total)}

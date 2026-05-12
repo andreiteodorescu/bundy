@@ -54,9 +54,16 @@ describe('splitMonthIntoWeeks (April rule)', () => {
     }
   });
 
-  it('label format is consistent (Săpt. N, D – D MMM)', () => {
+  it('slice has stable shape: index + start + end (no presentation label)', () => {
     const slices = splitMonthIntoWeeks('2026-04-01');
-    expect(slices[0].label).toMatch(/^Săpt\. 1, \d+ – \d+ /);
+    expect(slices[0]).toEqual(
+      expect.objectContaining({
+        index: 0,
+        start: expect.anything(),
+        end: expect.anything(),
+      }),
+    );
+    expect((slices[0] as { label?: string }).label).toBeUndefined();
   });
 });
 

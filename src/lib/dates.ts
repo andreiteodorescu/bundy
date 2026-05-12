@@ -2,7 +2,6 @@ import dayjs, { Dayjs } from 'dayjs';
 
 export type WeekSlice = {
   index: number;
-  label: string;
   start: Dayjs;
   end: Dayjs;
 };
@@ -15,6 +14,10 @@ export type WeekSlice = {
  * - Final slice ends on the last day of the month (may be partial).
  *
  * Example: April 2026 → 5 slices, last one is Mon 27 Apr - Thu 30 Apr.
+ *
+ * Label formatting is intentionally NOT done here — callers should use i18n
+ * (e.g. `t('expenses.weekLabel', { num, start, end })`) so the abbreviation
+ * (Săpt./Week) and date format follow the current UI language.
  */
 export function splitMonthIntoWeeks(monthAnchor: Dayjs | Date | string): WeekSlice[] {
   const start = dayjs(monthAnchor).startOf('month');
@@ -33,7 +36,6 @@ export function splitMonthIntoWeeks(monthAnchor: Dayjs | Date | string): WeekSli
     if (sliceEnd.isAfter(end)) sliceEnd = end;
     slices.push({
       index,
-      label: formatWeekLabel(index + 1, sliceStart, sliceEnd),
       start: sliceStart.startOf('day'),
       end: sliceEnd.startOf('day'),
     });
@@ -41,10 +43,6 @@ export function splitMonthIntoWeeks(monthAnchor: Dayjs | Date | string): WeekSli
     index += 1;
   }
   return slices;
-}
-
-function formatWeekLabel(num: number, start: Dayjs, end: Dayjs): string {
-  return `Săpt. ${num}, ${start.format('D')} – ${end.format('D MMM')}`;
 }
 
 export function isInRange(d: Dayjs | Date | string, start: Dayjs, end: Dayjs): boolean {
