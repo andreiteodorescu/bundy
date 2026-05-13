@@ -119,6 +119,9 @@ function getHeaders(): Record<string, string> {
     Secret: secret,
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    // Salt Edge's WAF blocks requests without a recognizable User-Agent (default
+    // Edge/Workers UA gets 403). Identify ourselves explicitly.
+    'User-Agent': 'Bundy/1.0 (+https://bundy.ro)',
   };
 }
 
