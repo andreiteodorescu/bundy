@@ -23,6 +23,7 @@ import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { EXPENSES_KEY } from '@/features/expenses/api';
 import { readSettings, useProfile } from '@/features/settings/api';
 import {
   DEFAULT_HIDDEN_PIN_TTL_MIN,
@@ -194,7 +195,9 @@ function HiddenExpensesList() {
   const subs = useSubcategories();
 
   const expenses = useQuery({
-    queryKey: ['hidden_expenses', profileId],
+    // Nested under EXPENSES_KEY so useUpsertExpense's broad invalidate catches it
+    // — otherwise un-hiding an expense leaves it on this list until refresh.
+    queryKey: [...EXPENSES_KEY, profileId, 'hidden'],
     enabled: Boolean(profileId),
     queryFn: async (): Promise<Expense[]> => {
       const { data, error } = await supabase
