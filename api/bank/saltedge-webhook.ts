@@ -1,30 +1,17 @@
-import { getMethod, getServiceClient, json, parseJsonBody } from './_supabase.js';
+import { getMethod, getServiceClient, parseJsonBody, sendJson } from './_supabase.js';
 import { syncConnection } from './_sync.js';
 
 /**
  * POST /api/bank/saltedge-webhook
  *
- * Receives Salt Edge callback notifications:
- *   - "success": new transactions are available → run sync
- *   - "destroy": user revoked connection at provider → mark as disconnected
- *   - "fail": connection moved to error state
- *
- * Webhook payload shape (v6):
- *   {
- *     "meta": { "version": "6.0", "time": "..." },
- *     "data": {
- *       "connection_id": "...",
- *       "customer_id": "...",
- *       "stage": "finish" | "interactive" | ...,
- *       "custom_fields": {...}
- *     }
- *   }
+ * Receives Salt Edge callback notifications (new transactions, consent change,
+ * connection destroyed). When a known connection_id arrives we run a sync;
+ * otherwise we just ack (first-touch is handled by /api/bank/callback).
  *
  * Signature verification: Salt Edge signs webhooks with the app's RSA private
- * key. For sandbox we accept unsigned (Salt Edge sandbox doesn't sign). We'll
- * add HMAC verification with the production cert once we go live.
+ * key. Sandbox doesn't sign — we'll add HMAC verification when going live.
  */
-export const config = { runtime: 'edge' };
+export const config = { runtime: 'nodejs', maxDuration: 60 };
 
 type SaltEdgeWebhookPayload = {
   meta?: { version?: string; time?: string };
@@ -36,18 +23,24 @@ type SaltEdgeWebhookPayload = {
   };
 };
 
-export default async function handler(req: unknown): Promise<Response> {
-  if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);
+type NodeRes = {
+  statusCode: number;
+  setHeader: (k: string, v: string) => void;
+  end: (b?: string) => void;
+};
+
+export default async function handler(req: unknown, res: NodeRes): Promise<void> {
+  if (getMethod(req) !== 'POST') return sendJson(res, { error: 'POST only' }, 405);
 
   let body: SaltEdgeWebhookPayload;
   try {
     body = await parseJsonBody<SaltEdgeWebhookPayload>(req);
   } catch {
-    return json({ error: 'Invalid JSON' }, 400);
+    return sendJson(res, { error: 'Invalid JSON' }, 400);
   }
 
   const connectionId = body.data?.connection_id;
-  if (!connectionId) return json({ ok: true, skipped: 'no connection_id' });
+  if (!connectionId) return sendJson(res, { ok: true, skipped: 'no connection_id' });
 
   const supabase = getServiceClient();
 
@@ -59,16 +52,13 @@ export default async function handler(req: unknown): Promise<Response> {
     .maybeSingle();
 
   if (!row) {
-    // First-touch flow already handled by /api/bank/callback. If a webhook fires
-    // before our callback persists the row, just ack — the user will trigger a
-    // sync soon enough.
-    return json({ ok: true, skipped: 'connection not yet persisted' });
+    return sendJson(res, { ok: true, skipped: 'connection not yet persisted' });
   }
 
   try {
     const stats = await syncConnection(supabase, row, 14);
-    return json({ ok: true, ...stats });
+    sendJson(res, { ok: true, ...stats });
   } catch (err) {
-    return json({ ok: false, error: (err as Error).message }, 502);
+    sendJson(res, { ok: false, error: (err as Error).message }, 502);
   }
 }

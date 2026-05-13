@@ -96,11 +96,31 @@ export async function verifyUserProfile(req: unknown): Promise<{
   return { userId: userRes.user.id, profileId: membership.profile_id };
 }
 
+/**
+ * Web-Response variant — used by Edge runtime handlers.
+ */
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', ...headers },
   });
+}
+
+/**
+ * Node-style response writer — used by `nodejs` runtime handlers, where Vercel
+ * expects us to call `res.end()` on the Node ServerResponse rather than return
+ * a Web Response.
+ */
+export function sendJson(
+  res: { statusCode: number; setHeader: (k: string, v: string) => void; end: (b?: string) => void },
+  body: unknown,
+  status = 200,
+  headers: Record<string, string> = {},
+): void {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json');
+  for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
+  res.end(JSON.stringify(body));
 }
 
 /**

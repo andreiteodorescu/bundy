@@ -1,5 +1,5 @@
 import { listProviders } from './_saltedge.js';
-import { getRequestUrl, json, verifyUserProfile } from './_supabase.js';
+import { getRequestUrl, sendJson, verifyUserProfile } from './_supabase.js';
 
 /**
  * GET /api/bank/institutions?country=RO
@@ -9,21 +9,31 @@ import { getRequestUrl, json, verifyUserProfile } from './_supabase.js';
  *
  * Adapts the Salt Edge shape to a stable client-facing format:
  *   { id, name, bic?, logo, countries }
+ *
+ * Uses Node-style handler (req, res) because Salt Edge's WAF blocks Vercel
+ * Edge-runtime egress (Cloudflare-to-Cloudflare bot filter). Node functions
+ * egress from AWS IPs which pass through cleanly.
  */
-export const config = { runtime: 'edge' };
+export const config = { runtime: 'nodejs', maxDuration: 30 };
 
-export default async function handler(req: unknown): Promise<Response> {
+type NodeRes = {
+  statusCode: number;
+  setHeader: (k: string, v: string) => void;
+  end: (b?: string) => void;
+};
+
+export default async function handler(req: unknown, res: NodeRes): Promise<void> {
   const t0 = Date.now();
   console.log('[bank/institutions] start');
   try {
     const auth = await verifyUserProfile(req);
     console.log('[bank/institutions] auth done in', Date.now() - t0, 'ms, ok:', Boolean(auth));
-    if (!auth) return json({ error: 'Unauthorized' }, 401);
+    if (!auth) return sendJson(res, { error: 'Unauthorized' }, 401);
 
     const url = getRequestUrl(req);
     const country = (url.searchParams.get('country') ?? 'RO').toUpperCase();
     if (!/^[A-Z]{2}$/.test(country)) {
-      return json({ error: 'Invalid country code' }, 400);
+      return sendJson(res, { error: 'Invalid country code' }, 400);
     }
 
     const t1 = Date.now();
@@ -38,12 +48,12 @@ export default async function handler(req: unknown): Promise<Response> {
       countries: [p.country_code],
       transaction_total_days: '90',
     }));
-    return json(adapted, 200, {
+    sendJson(res, adapted, 200, {
       'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('[bank/institutions] failed after', Date.now() - t0, 'ms:', message);
-    return json({ error: message }, 502);
+    sendJson(res, { error: message }, 502);
   }
 }
