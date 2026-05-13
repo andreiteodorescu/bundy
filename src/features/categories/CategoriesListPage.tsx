@@ -28,10 +28,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { IconChevronRight, IconGripVertical, IconPlus } from '@tabler/icons-react';
+import { IconArrowLeft, IconChevronRight, IconGripVertical, IconPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useCategories, useReorderCategories, useSubcategories } from './api';
+import { useGoBack } from '@/lib/useGoBack';
 import { getIcon } from '@/data/icons.registry';
 import { categoryDisplayName } from '@/i18n/displayName';
 import type { Category } from '@/types';
@@ -39,6 +40,7 @@ import type { Category } from '@/types';
 export function CategoriesListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const cats = useCategories();
   const subs = useSubcategories();
   const reorder = useReorderCategories();
@@ -81,6 +83,17 @@ export function CategoriesListPage() {
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
+        <Group gap="xs">
+          <Button
+            variant="subtle"
+            color="gray"
+            size="compact-sm"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={goBack}
+          >
+            {t('common.back')}
+          </Button>
+        </Group>
         <Group justify="space-between" align="center">
           <Title order={2}>{t('categories.listTitle')}</Title>
           <Button

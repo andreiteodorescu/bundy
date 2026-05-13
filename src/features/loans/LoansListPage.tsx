@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoBack } from '@/lib/useGoBack';
 import {
@@ -22,7 +22,6 @@ import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
 import { formatMoney, formatRon, round2, type Currency } from '@/lib/money';
 import { useDefaultCurrency } from '@/features/settings/api';
-import { getFxRate } from '@/lib/fx';
 import { useFxRates } from '@/lib/useFxRates';
 import { getIcon } from '@/data/icons.registry';
 import { useLoans, useToggleLoan } from './api';
@@ -40,37 +39,22 @@ export function LoansListPage() {
   const fx = useFxRates([...(loans.data ?? []).map((l) => l.currency), displayCurrency]);
   const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);
 
-  const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
-
-  useEffect(() => {
+  const monthlyTotalRon = useMemo<number | null>(() => {
     const active = (loans.data ?? []).filter((l) => l.active);
-    if (active.length === 0) {
-      setMonthlyTotalRon(0);
-      return;
-    }
-    const today = dayjs().format('YYYY-MM-DD');
-    let cancelled = false;
-    (async () => {
-      let total = 0;
-      for (const loan of active) {
-        const monthly = Number(loan.monthly_payment);
-        if (loan.currency === 'RON') {
-          total += monthly;
-        } else {
-          try {
-            const rate = await getFxRate(today, loan.currency);
-            total += monthly * rate.rate_to_ron;
-          } catch {
-            /* skip if FX unavailable */
-          }
-        }
+    if (active.length === 0) return 0;
+    if (fx.isLoading) return null;
+    let total = 0;
+    for (const loan of active) {
+      const monthly = Number(loan.monthly_payment);
+      if (loan.currency === 'RON') {
+        total += monthly;
+      } else {
+        const rate = fx.rateOf(loan.currency);
+        if (rate !== null) total += monthly * rate;
       }
-      if (!cancelled) setMonthlyTotalRon(round2(total));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loans.data]);
+    }
+    return round2(total);
+  }, [loans.data, fx.isLoading]);
 
   return (
     <Container size="sm" py="md">
@@ -128,12 +112,10 @@ export function LoansListPage() {
             </Stack>
 
             <Paper withBorder radius="md" p="md" mt="xs">
-              <Group justify="space-between" align="flex-start">
-                <Box>
-                  <Text size="xs" c="dimmed">
-                    {t('loans.monthlyTotal')}
-                  </Text>
-                </Box>
+              <Group justify="space-between" align="center" wrap="nowrap">
+                <Text size="xs" c="dimmed">
+                  {t('loans.monthlyTotal')}
+                </Text>
                 <Text fw={800} size="xl">
                   {monthlyTotalRon === null
                     ? '...'

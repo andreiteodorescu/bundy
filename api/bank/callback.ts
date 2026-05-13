@@ -1,16 +1,18 @@
-import { getAccountDetails, getRequisition } from './_gocardless';
+import { getConnection, listAccounts, listConnections } from './_saltedge';
 import { getServiceClient, json, verifyUserProfile } from './_supabase';
 import { syncConnection } from './_sync';
 
 /**
  * POST /api/bank/callback  { reference }
  *
- * Called by the BankCallbackPage after the user returns from the bank's auth flow.
- * Looks up the pending requisition, fetches the linked accounts from GoCardless,
- * creates `bank_connections` rows, and triggers an initial sync.
+ * Called by BankCallbackPage after the user returns from the bank's auth flow
+ * with `?status=success`. We look up the pending row by reference, fetch the
+ * customer's connections from Salt Edge, pick the newest one (created after
+ * the pending row), enumerate its accounts, persist bank_connections rows, and
+ * trigger an initial sync.
  *
- * We don't trust the `reference` from the URL alone — we verify the user owns the
- * pending requisition before doing anything.
+ * We don't trust the URL params alone — the reference must match a pending row
+ * owned by the authenticated profile.
  */
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
@@ -39,47 +41,69 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (!pending) return json({ error: 'Pending requisition not found' }, 404);
 
-  let requisition;
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('saltedge_customer_id')
+    .eq('id', auth.profileId)
+    .maybeSingle();
+
+  const customerId = profile?.saltedge_customer_id as string | null;
+  if (!customerId) return json({ error: 'No Salt Edge customer for profile' }, 404);
+
+  // Pick the connection created after we initiated the pending row. Salt Edge
+  // returns connections newest-first; we filter by provider_code + created_at to
+  // avoid picking up an unrelated reconnection from another tab.
+  let connection;
   try {
-    requisition = await getRequisition(pending.requisition_id);
+    const connections = await listConnections(customerId);
+    const pendingCreatedAt = new Date(pending.created_at).getTime();
+    connection = connections
+      .filter((c) => c.provider_code === pending.institution_id)
+      .find((c) => new Date(c.created_at).getTime() >= pendingCreatedAt - 60_000);
+    if (!connection) {
+      return json({ error: 'No matching connection found yet — try again in a few seconds' }, 409);
+    }
+    // Refresh to get latest status (active vs disabled vs in-progress).
+    connection = await getConnection(connection.id);
   } catch (err) {
     return json({ error: (err as Error).message }, 502);
   }
 
-  if (requisition.status !== 'LN') {
-    return json({ error: `Requisition not linked yet (status=${requisition.status})` }, 409);
+  if (connection.status === 'disabled') {
+    return json({ error: 'Connection is disabled at the provider' }, 409);
   }
 
-  if (requisition.accounts.length === 0) {
-    return json({ error: 'No accounts linked to requisition' }, 400);
+  let accounts;
+  try {
+    accounts = await listAccounts(connection.id);
+  } catch (err) {
+    return json({ error: (err as Error).message }, 502);
   }
 
-  // Compute consent expiry (90 days from now — PSD2 max).
+  if (accounts.length === 0) {
+    return json({ error: 'No accounts linked to connection' }, 400);
+  }
+
+  // PSD2: AIS consent must be refreshed every 90 days. We surface the date so
+  // the UI can prompt re-consent before it expires.
   const consentExpiresAt = new Date();
   consentExpiresAt.setDate(consentExpiresAt.getDate() + 90);
 
   const created: string[] = [];
   const syncStats: Array<{ connectionId: string; imported: number; pending: number }> = [];
 
-  for (const accountId of requisition.accounts) {
-    let details;
-    try {
-      details = await getAccountDetails(accountId);
-    } catch {
-      details = { resourceId: accountId, currency: 'RON' };
-    }
-
-    const { data: connection, error: connErr } = await supabase
+  for (const account of accounts) {
+    const { data: row, error: connErr } = await supabase
       .from('bank_connections')
       .upsert(
         {
           profile_id: auth.profileId,
-          provider: 'gocardless',
-          provider_requisition_id: pending.requisition_id,
-          provider_account_id: accountId,
+          provider: 'saltedge',
+          provider_requisition_id: connection.id,
+          provider_account_id: account.id,
           institution_id: pending.institution_id,
-          institution_name: pending.institution_name ?? pending.institution_id,
-          iban: details.iban ?? null,
+          institution_name: pending.institution_name ?? connection.provider_name,
+          iban: account.extra?.iban ?? null,
           status: 'active',
           consent_expires_at: consentExpiresAt.toISOString(),
         },
@@ -88,13 +112,13 @@ export default async function handler(req: Request): Promise<Response> {
       .select('*')
       .single();
 
-    if (connErr || !connection) continue;
-    created.push(connection.id);
+    if (connErr || !row) continue;
+    created.push(row.id);
 
     try {
-      const stats = await syncConnection(supabase, connection, 30);
+      const stats = await syncConnection(supabase, row, 30);
       syncStats.push({
-        connectionId: connection.id,
+        connectionId: row.id,
         imported: stats.imported,
         pending: stats.pending,
       });
@@ -103,7 +127,6 @@ export default async function handler(req: Request): Promise<Response> {
     }
   }
 
-  // Cleanup the pending requisition row (we don't need it anymore).
   await supabase.from('bank_pending_requisitions').delete().eq('reference', body.reference);
 
   return json({ ok: true, created_count: created.length, sync_stats: syncStats });

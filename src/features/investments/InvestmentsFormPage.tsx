@@ -122,7 +122,7 @@ export function InvestmentsFormPage() {
         occurred_on: ymd(date),
         note: note.trim() || null,
       });
-      navigate('/investments');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('investments.form.errorSave'));
     }
@@ -135,7 +135,7 @@ export function InvestmentsFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/investments');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('investments.form.errorDelete'));
         }
@@ -152,7 +152,7 @@ export function InvestmentsFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/investments')}
+            onClick={() => navigate(-1)}
           >
             {t('investments.back')}
           </Button>

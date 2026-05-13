@@ -277,7 +277,7 @@ export type BankConnectionStatus = 'active' | 'expired' | 'disconnected' | 'erro
 export type BankConnection = {
   id: string;
   profile_id: string;
-  provider: 'gocardless';
+  provider: 'saltedge';
   provider_requisition_id: string;
   provider_account_id: string;
   institution_id: string;

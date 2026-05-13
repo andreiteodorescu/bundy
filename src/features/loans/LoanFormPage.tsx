@@ -175,7 +175,7 @@ export function LoanFormPage() {
           : editing.data?.tags ?? [],
         note: note.trim() || null,
       });
-      navigate('/loans');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('loans.form.errorSave'));
     }
@@ -188,7 +188,7 @@ export function LoanFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/loans');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('loans.form.errorDelete'));
         }
@@ -207,7 +207,7 @@ export function LoanFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/loans')}
+            onClick={() => navigate(-1)}
           >
             {t('loans.back')}
           </Button>
@@ -281,48 +281,55 @@ export function LoanFormPage() {
           inputMode="numeric"
         />
 
-        <Group gap="sm" wrap="nowrap">
-          <DatePickerInput
-            label={t('loans.form.startDate')}
-            flex={1}
-            value={startDate}
-            onChange={(d) => d && setStartDate(dayjs(d as unknown as Date).toDate())}
-            valueFormat="D MMM YYYY"
-            required
-          />
-          <DatePickerInput
-            label={t('loans.form.endDate')}
-            flex={1}
-            value={endDate}
-            onChange={(d) => setEndDate(d ? dayjs(d as unknown as Date).toDate() : null)}
-            valueFormat="D MMM YYYY"
-            clearable
-            description={remainingMonths !== null ? t('loans.form.endDateMonths', { count: remainingMonths }) : undefined}
-          />
+        <Group gap="sm" wrap="nowrap" align="flex-start">
+          <Stack gap={4} flex={1}>
+            <DatePickerInput
+              label={t('loans.form.startDate')}
+              value={startDate}
+              onChange={(d) => d && setStartDate(dayjs(d as unknown as Date).toDate())}
+              valueFormat="D MMM YYYY"
+              required
+            />
+          </Stack>
+          <Stack gap={4} flex={1}>
+            <DatePickerInput
+              label={t('loans.form.endDate')}
+              value={endDate}
+              onChange={(d) => setEndDate(d ? dayjs(d as unknown as Date).toDate() : null)}
+              valueFormat="D MMM YYYY"
+              clearable
+            />
+            {remainingMonths !== null && (
+              <Text size="xs" c="dimmed">
+                {t('loans.form.endDateMonths', { count: remainingMonths })}
+              </Text>
+            )}
+          </Stack>
         </Group>
 
-        <Group gap="sm" wrap="nowrap">
+        <Stack gap={4}>
           <NumberInput
             label={t('loans.form.totalAmount')}
-            flex={1}
             value={totalAmount}
             onChange={(v) => setTotalAmount(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
             min={0}
             decimalScale={2}
             inputMode="decimal"
-            description={t('loans.form.totalAmountHint')}
           />
-          <NumberInput
-            label={t('loans.form.interestRate')}
-            flex={1}
-            value={interestRate}
-            onChange={(v) => setInterestRate(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
-            min={0}
-            max={100}
-            decimalScale={2}
-            inputMode="decimal"
-          />
-        </Group>
+          <Text size="xs" c="dimmed">
+            {t('loans.form.totalAmountHint')}
+          </Text>
+        </Stack>
+
+        <NumberInput
+          label={t('loans.form.interestRate')}
+          value={interestRate}
+          onChange={(v) => setInterestRate(typeof v === 'number' ? v : v === '' ? '' : Number(v))}
+          min={0}
+          max={100}
+          decimalScale={2}
+          inputMode="decimal"
+        />
 
         <Select
           label={t('loans.form.category')}

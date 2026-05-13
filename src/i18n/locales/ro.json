@@ -1139,6 +1139,7 @@
     "callbackSuccess": "Conectat cu succes. {{count}} cheltuieli importate.",
     "callbackSuccessShort": "Conectat cu succes",
     "callbackMissingRef": "Lipsește referința în URL — reîncearcă din pagina de Conexiuni bancare.",
-    "callbackNotAuthenticated": "Nu ești autentificat. Logează-te și reîncearcă."
+    "callbackNotAuthenticated": "Nu ești autentificat. Logează-te și reîncearcă.",
+    "callbackProviderFail": "Banca a respins autorizarea. Reîncearcă sau alege altă bancă."
   }
 }

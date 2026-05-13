@@ -176,7 +176,7 @@ export function SubscriptionFormPage() {
         start_date: ymd(startDate),
         brand_logo: brandLogo,
       });
-      navigate('/subscriptions');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('subscriptions.form.errorSave'));
     }
@@ -189,7 +189,7 @@ export function SubscriptionFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/subscriptions');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('subscriptions.form.errorDelete'));
         }
@@ -206,7 +206,7 @@ export function SubscriptionFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/subscriptions')}
+            onClick={() => navigate(-1)}
           >
             {t('subscriptions.back')}
           </Button>

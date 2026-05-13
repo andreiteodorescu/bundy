@@ -9,9 +9,10 @@ import { supabase } from '@/lib/supabase';
 import { BANK_CONNECTIONS_KEY } from './api';
 
 /**
- * Lands here after the user finishes the bank auth flow at GoCardless.
- * Reads ?ref= from the URL, posts it to /api/bank/callback, and on success
- * redirects back to /bank with a success notification.
+ * Lands here after the user finishes the bank auth flow at Salt Edge. Salt Edge
+ * appends `?status=success|error|fetching` to our return_to URL, which already
+ * carries our `?ref=<reference>` from /api/bank/init. We read both, post the ref
+ * to /api/bank/callback, and on success redirect back to /bank.
  */
 export function BankCallbackPage() {
   const { t } = useTranslation();
@@ -25,8 +26,14 @@ export function BankCallbackPage() {
     async function run() {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get('ref');
+      const seStatus = params.get('status');
       if (!ref) {
         setError(t('bank.callbackMissingRef'));
+        setStatus('error');
+        return;
+      }
+      if (seStatus === 'error' || seStatus === 'fail') {
+        setError(t('bank.callbackProviderFail'));
         setStatus('error');
         return;
       }

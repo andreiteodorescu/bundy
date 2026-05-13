@@ -1139,6 +1139,7 @@
     "callbackSuccess": "Connected successfully. {{count}} expenses imported.",
     "callbackSuccessShort": "Connected successfully",
     "callbackMissingRef": "Missing reference in URL — try again from Bank Connections page.",
-    "callbackNotAuthenticated": "Not authenticated. Log in and try again."
+    "callbackNotAuthenticated": "Not authenticated. Log in and try again.",
+    "callbackProviderFail": "The bank rejected the authorization. Try again or pick another bank."
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoBack } from '@/lib/useGoBack';
 import {
@@ -22,7 +22,6 @@ import type { TFunction } from 'i18next';
 import { useCategories } from '@/features/categories/api';
 import { useCompanyCardEnabled, useDefaultCurrency } from '@/features/settings/api';
 import { formatMoney, formatRon, round2, type Currency } from '@/lib/money';
-import { getFxRate } from '@/lib/fx';
 import { useFxRates } from '@/lib/useFxRates';
 import { BrandTile } from '@/components/BrandTile';
 import { useSubscriptions, useToggleSubscription } from './api';
@@ -42,44 +41,24 @@ export function SubscriptionsListPage() {
   const fx = useFxRates([...(subs.data ?? []).map((s) => s.currency), displayCurrency]);
   const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);
 
-  const [monthlyTotalRon, setMonthlyTotalRon] = useState<number | null>(null);
-  const [totalCurrencies, setTotalCurrencies] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
+  const { monthlyTotalRon, totalCurrencies } = useMemo(() => {
     const active = (subs.data ?? []).filter((s) => s.active);
-    if (active.length === 0) {
-      setMonthlyTotalRon(0);
-      setTotalCurrencies(new Set());
-      return;
+    const currencies = new Set<string>(active.map((s) => s.currency));
+    if (active.length === 0 || fx.isLoading) {
+      return { monthlyTotalRon: active.length === 0 ? 0 : null, totalCurrencies: currencies };
     }
-    const today = dayjs().format('YYYY-MM-DD');
-    let cancelled = false;
-    (async () => {
-      let total = 0;
-      const currencies = new Set<string>();
-      for (const sub of active) {
-        currencies.add(sub.currency);
-        const monthly = monthlyEquivalent(Number(sub.amount), sub.cadence);
-        if (sub.currency === 'RON') {
-          total += monthly;
-        } else {
-          try {
-            const rate = await getFxRate(today, sub.currency);
-            total += monthly * rate.rate_to_ron;
-          } catch {
-            // FX unavailable in dev/offline — skip
-          }
-        }
+    let total = 0;
+    for (const sub of active) {
+      const monthly = monthlyEquivalent(Number(sub.amount), sub.cadence);
+      if (sub.currency === 'RON') {
+        total += monthly;
+      } else {
+        const rate = fx.rateOf(sub.currency);
+        if (rate !== null) total += monthly * rate;
       }
-      if (!cancelled) {
-        setMonthlyTotalRon(round2(total));
-        setTotalCurrencies(currencies);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [subs.data]);
+    }
+    return { monthlyTotalRon: round2(total) as number | null, totalCurrencies: currencies };
+  }, [subs.data, fx.isLoading]);
 
   return (
     <Container size="sm" py="md">

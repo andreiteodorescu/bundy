@@ -123,7 +123,7 @@ export function SavingsFormPage() {
         occurred_on: ymd(date),
         note: note.trim() || null,
       });
-      navigate('/savings');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('savings.form.errorSave'));
     }
@@ -136,7 +136,7 @@ export function SavingsFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/savings');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('savings.form.errorDelete'));
         }
@@ -153,7 +153,7 @@ export function SavingsFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/savings')}
+            onClick={() => navigate(-1)}
           >
             {t('savings.back')}
           </Button>

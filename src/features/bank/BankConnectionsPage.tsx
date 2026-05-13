@@ -46,15 +46,11 @@ import { InstitutionPickerModal } from './InstitutionPickerModal';
 import type { BankConnection, BankImportRule } from '@/types';
 
 /**
- * Feature flag for the bank connection flow. Set to true once GoCardless (or another
- * provider) has accepted the developer account application and the env vars
- * GOCARDLESS_SECRET_ID + GOCARDLESS_SECRET_KEY are configured in Vercel.
- *
- * While false, the "Connect new account" button is disabled and a "coming soon"
- * notice is shown. Rules editor + connections list still render so the existing
- * default rules are visible.
+ * Feature flag for the bank connection flow. Enabled once Salt Edge credentials
+ * (SALTEDGE_APP_ID + SALTEDGE_APP_SECRET) are configured in Vercel. The button
+ * is disabled and a "coming soon" notice is shown when this is false.
  */
-const BANK_CONNECT_ENABLED = false;
+const BANK_CONNECT_ENABLED = true;
 
 export function BankConnectionsPage() {
   const { t } = useTranslation();

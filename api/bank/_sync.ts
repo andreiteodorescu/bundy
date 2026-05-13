@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { extractMerchantText, getTransactions } from './_gocardless';
+import { extractMerchantText, listTransactions } from './_saltedge';
 
 export const config = { runtime: 'nodejs' };
 
@@ -9,6 +9,7 @@ const SUPPORTED_FX = new Set(['EUR', 'USD', 'GBP', 'CHF', 'CAD', 'AUD', 'HUF', '
 type BankConnection = {
   id: string;
   profile_id: string;
+  provider_requisition_id: string;
   provider_account_id: string;
   status: string;
   last_synced_at: string | null;
@@ -56,9 +57,17 @@ export async function syncConnection(
     .eq('enabled', true);
   const rules = (rulesData ?? []) as BankImportRule[];
 
-  let res;
+  let booked;
   try {
-    res = await getTransactions(connection.provider_account_id, dateFrom, dateTo);
+    const txs = await listTransactions({
+      connectionId: connection.provider_requisition_id,
+      accountId: connection.provider_account_id,
+      fromDate: dateFrom,
+      toDate: dateTo,
+    });
+    // Only count "posted" status (already cleared by the bank). Pending bank-side
+    // entries are noisy and often disappear before settling.
+    booked = txs.filter((t) => t.status === 'posted');
   } catch (err) {
     await supabase
       .from('bank_connections')
@@ -70,16 +79,20 @@ export async function syncConnection(
     throw err;
   }
 
-  const booked = res.transactions.booked ?? [];
   let imported = 0;
   let pending = 0;
   let skipped = 0;
   let errors = 0;
 
   for (const tx of booked) {
-    const providerTxId = tx.transactionId ?? tx.internalTransactionId;
+    const providerTxId = tx.id;
     if (!providerTxId) {
       errors++;
+      continue;
+    }
+
+    if (tx.duplicated) {
+      skipped++;
       continue;
     }
 
@@ -95,18 +108,15 @@ export async function syncConnection(
       continue;
     }
 
-    // GoCardless reports debits as negative amounts. We're tracking expenses, so flip
-    // the sign and skip credits (incoming money).
-    const rawAmount = Number(tx.transactionAmount.amount);
-    if (rawAmount >= 0) {
-      // Incoming money — for now we ignore (savings/investments are handled separately).
-      // Insert anyway so the user can see it in pending_review if they want.
+    // Salt Edge reports debits as negative amounts. We're tracking expenses, so flip
+    // the sign and skip credits (incoming money — savings/investments handled separately).
+    if (tx.amount >= 0) {
       skipped++;
       continue;
     }
-    const amount = Math.abs(rawAmount);
-    const currency = tx.transactionAmount.currency;
-    const occurredOn = tx.bookingDate ?? tx.valueDate ?? tx.bookingDateTime?.slice(0, 10);
+    const amount = Math.abs(tx.amount);
+    const currency = tx.currency_code;
+    const occurredOn = tx.made_on;
     if (!occurredOn) {
       errors++;
       continue;

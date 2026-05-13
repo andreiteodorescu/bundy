@@ -34,6 +34,7 @@ import { CSS } from '@dnd-kit/utilities';
 import dayjs from 'dayjs';
 import {
   IconArchive,
+  IconArrowLeft,
   IconCheck,
   IconChevronRight,
   IconGripVertical,
@@ -44,6 +45,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ARCHIVE_THRESHOLD_DAYS } from './BudgetsArchivePage';
 import { useTodayDisplayRate } from '@/lib/displayCurrency';
+import { useGoBack } from '@/lib/useGoBack';
 import { useBudgets, useReorderBudgets } from './api';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
@@ -53,6 +55,7 @@ import type { Budget, Category, Subcategory } from '@/types';
 export function BudgetsListPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const goBack = useGoBack('/more');
   const budgets = useBudgets();
   const cats = useCategories();
   const subs = useSubcategories();
@@ -90,6 +93,17 @@ export function BudgetsListPage() {
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
+        <Group gap="xs">
+          <Button
+            variant="subtle"
+            color="gray"
+            size="compact-sm"
+            leftSection={<IconArrowLeft size={16} />}
+            onClick={goBack}
+          >
+            {t('common.back')}
+          </Button>
+        </Group>
         <Group justify="space-between" align="center" mb={12}>
           <Title order={2}>{t('budgets.title')}</Title>
           <Button
@@ -379,6 +393,9 @@ function BudgetRowBody({
       </Text>
       {(b.category_ids?.length ?? 0) + (b.subcategory_ids?.length ?? 0) > 0 && (
         <Group gap={4} mb="xs" wrap="wrap">
+          {/* Uniform chip style for both category + subcategory badges: light
+              variant with the category color tinting bg + text. No dot, no
+              distinct border, no multi-color combo. */}
           {(b.category_ids ?? []).map((cid) => {
             const c = catById.get(cid);
             if (!c) return null;
@@ -387,7 +404,13 @@ function BudgetRowBody({
                 key={`c-${cid}`}
                 size="xs"
                 variant="light"
-                styles={{ root: { background: `${c.color}22`, color: c.color } }}
+                styles={{
+                  root: {
+                    background: `${c.color}1f`,
+                    color: c.color,
+                    border: 'none',
+                  },
+                }}
               >
                 {categoryDisplayName(c, t)}
               </Badge>
@@ -397,13 +420,19 @@ function BudgetRowBody({
             const s = subById.get(sid);
             if (!s) return null;
             const parent = catById.get(s.parent_category_id);
-            const color = s.color ?? parent?.color ?? 'gray';
+            const color = s.color ?? parent?.color ?? '#888';
             return (
               <Badge
                 key={`s-${sid}`}
                 size="xs"
-                variant="dot"
-                styles={{ root: { borderColor: color, color } }}
+                variant="light"
+                styles={{
+                  root: {
+                    background: `${color}1f`,
+                    color,
+                    border: 'none',
+                  },
+                }}
               >
                 {subcategoryDisplayName(s, t)}
               </Badge>

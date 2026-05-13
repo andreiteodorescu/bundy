@@ -1,15 +1,17 @@
-import { createAgreement, createRequisition } from './_gocardless';
+import { createConnectSession, createCustomer, findCustomerByIdentifier } from './_saltedge';
 import { getServiceClient, json, verifyUserProfile } from './_supabase';
 
 /**
- * POST /api/bank/init  { institution_id, redirect_origin, language? }
+ * POST /api/bank/init  { institution_id, redirect_origin, institution_name? }
  *
- * Starts a GoCardless requisition flow. Returns the link the user needs to visit
- * to authorize at their bank. After they finish there, GoCardless redirects them
- * back to our /bank/callback?ref=<requisition_id>.
+ * Starts a Salt Edge connect session. Creates a Salt Edge customer for the
+ * profile on first use (stored on profiles.saltedge_customer_id), then opens
+ * a connect session and returns the `connect_url` the user visits to authorize
+ * at their bank. After they finish, Salt Edge redirects them back to
+ * /bank/callback?ref=<reference>&status=success.
  *
- * Stores a `pending_requisition` row keyed by the reference so we can match it up
- * on callback (avoids users tampering with the requisition_id in the URL).
+ * Stores a `bank_pending_requisitions` row keyed by our reference so the
+ * callback can match it back to the profile + provider_code.
  */
 export const config = { runtime: 'nodejs' };
 
@@ -35,7 +37,6 @@ export default async function handler(req: Request): Promise<Response> {
     return json({ error: 'institution_id and redirect_origin required' }, 400);
   }
 
-  // Whitelist allowed redirect origins to prevent open-redirect abuse.
   const allowedOrigins = new Set([
     'https://bundy.ro',
     'https://www.bundy.ro',
@@ -46,29 +47,45 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const reference = `${auth.profileId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const redirectUrl = `${redirect_origin}/bank/callback`;
+  const returnTo = `${redirect_origin}/bank/callback?ref=${encodeURIComponent(reference)}`;
+  const supabase = getServiceClient();
 
   try {
-    const agreement = await createAgreement(institution_id);
-    const requisition = await createRequisition({
-      institutionId: institution_id,
-      redirectUrl,
-      reference,
-      agreementId: agreement.id,
-      userLanguage: (body.language ?? 'EN').toUpperCase(),
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('saltedge_customer_id')
+      .eq('id', auth.profileId)
+      .maybeSingle();
+
+    let customerId = profile?.saltedge_customer_id as string | null;
+    if (!customerId) {
+      // Salt Edge identifiers must be unique per app. Use the profile UUID.
+      const existing = await findCustomerByIdentifier(auth.profileId);
+      const customer = existing ?? (await createCustomer(auth.profileId));
+      customerId = customer.id;
+      await supabase
+        .from('profiles')
+        .update({ saltedge_customer_id: customerId })
+        .eq('id', auth.profileId);
+    }
+
+    const session = await createConnectSession({
+      customerId,
+      providerCode: institution_id,
+      returnTo,
     });
 
-    // Store pending requisition so the callback can verify ownership.
-    const supabase = getServiceClient();
     await supabase.from('bank_pending_requisitions').insert({
       reference,
       profile_id: auth.profileId,
-      requisition_id: requisition.id,
+      // Reusing existing columns: requisition_id stores the connect session expiry
+      // (used purely as a marker — the actual lookup is by reference + customer).
+      requisition_id: session.expires_at,
       institution_id,
       institution_name: institution_name ?? institution_id,
     });
 
-    return json({ link: requisition.link, requisition_id: requisition.id, reference });
+    return json({ link: session.connect_url, reference });
   } catch (err) {
     return json({ error: (err as Error).message }, 502);
   }
