@@ -10,7 +10,7 @@ import { getRequestUrl, json, verifyUserProfile } from './_supabase.js';
  * Adapts the Salt Edge shape to a stable client-facing format:
  *   { id, name, bic?, logo, countries }
  */
-export const config = { runtime: 'nodejs', maxDuration: 30 };
+export const config = { runtime: 'edge' };
 
 export default async function handler(req: unknown): Promise<Response> {
   const t0 = Date.now();

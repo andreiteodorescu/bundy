@@ -13,7 +13,7 @@ import { getMethod, getServiceClient, json, parseJsonBody, verifyUserProfile } f
  * Stores a `bank_pending_requisitions` row keyed by our reference so the
  * callback can match it back to the profile + provider_code.
  */
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: 'edge' };
 
 export default async function handler(req: unknown): Promise<Response> {
   if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);

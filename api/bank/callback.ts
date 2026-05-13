@@ -14,7 +14,7 @@ import { syncConnection } from './_sync.js';
  * We don't trust the URL params alone — the reference must match a pending row
  * owned by the authenticated profile.
  */
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: 'edge' };
 
 export default async function handler(req: unknown): Promise<Response> {
   if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);

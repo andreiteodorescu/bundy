@@ -7,7 +7,7 @@ import { syncConnection } from './_sync.js';
  * Manually triggers a sync for a single connection (the "Sync now" button in UI).
  * Verifies ownership, then runs the same sync logic the daily cron runs.
  */
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: 'edge' };
 
 export default async function handler(req: unknown): Promise<Response> {
   if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);

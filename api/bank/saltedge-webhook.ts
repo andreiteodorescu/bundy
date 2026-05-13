@@ -24,7 +24,7 @@ import { syncConnection } from './_sync.js';
  * key. For sandbox we accept unsigned (Salt Edge sandbox doesn't sign). We'll
  * add HMAC verification with the production cert once we go live.
  */
-export const config = { runtime: 'nodejs', maxDuration: 60 };
+export const config = { runtime: 'edge' };
 
 type SaltEdgeWebhookPayload = {
   meta?: { version?: string; time?: string };
