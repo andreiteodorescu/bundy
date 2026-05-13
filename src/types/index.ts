@@ -272,6 +272,15 @@ export type FeedbackNotification = {
   created_at: string;
 };
 
+export type FeedbackComment = {
+  id: string;
+  feedback_id: string;
+  profile_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BankConnectionStatus = 'active' | 'expired' | 'disconnected' | 'error';
 
 export type BankConnection = {

@@ -52,7 +52,10 @@ export function useQuickTodayAggregates() {
   return useQuery({
     queryKey: [...QUICK_TODAY_KEY, profileId, day],
     enabled: Boolean(profileId),
-    staleTime: 0, // always fresh after stepper mutations
+    // 30s gives HomePage a fast remount without forcing a network round-trip;
+    // stepper mutations invalidate this key explicitly, so the badge stays accurate
+    // when the user actually adds quick expenses.
+    staleTime: 30 * 1000,
     queryFn: async (): Promise<Map<string, Expense>> => {
       const { data, error } = await supabase
         .from('expenses')

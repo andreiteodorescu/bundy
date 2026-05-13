@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Container, Group, Paper, Stack, Text, UnstyledButton } from '@mantine/core';
 import {
@@ -26,18 +27,22 @@ export function HomePage() {
   const companyCardEnabled = useCompanyCardEnabled();
   const allExpenses = expenses.data ?? [];
   const display = useDisplayConversion(allExpenses);
-  const { personalTotal, companyCardTotal } = allExpenses.reduce(
-    (acc, e) => {
-      const amt = display.convert(e);
-      if (amt === null) return acc; // rate still loading
-      if (companyCardEnabled && e.tags?.includes('company-card')) {
-        acc.companyCardTotal += amt;
-      } else {
-        acc.personalTotal += amt;
-      }
-      return acc;
-    },
-    { personalTotal: 0, companyCardTotal: 0 },
+  const { personalTotal, companyCardTotal } = useMemo(
+    () =>
+      allExpenses.reduce(
+        (acc, e) => {
+          const amt = display.convert(e);
+          if (amt === null) return acc; // rate still loading
+          if (companyCardEnabled && e.tags?.includes('company-card')) {
+            acc.companyCardTotal += amt;
+          } else {
+            acc.personalTotal += amt;
+          }
+          return acc;
+        },
+        { personalTotal: 0, companyCardTotal: 0 },
+      ),
+    [allExpenses, display, companyCardEnabled],
   );
   const monthLabel = dayjs().format('MMMM YYYY').replace(/^./, (c) => c.toUpperCase());
 

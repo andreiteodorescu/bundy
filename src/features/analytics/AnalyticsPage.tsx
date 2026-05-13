@@ -13,6 +13,7 @@ import {
   Text,
 } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
+import '@mantine/charts/styles.css';
 import { BarChart, DonutChart } from '@mantine/charts';
 import dayjs from 'dayjs';
 import { IconChevronLeft, IconChevronRight, IconReceiptOff } from '@tabler/icons-react';

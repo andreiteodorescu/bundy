@@ -1036,6 +1036,25 @@
       "changeStatus": "Schimbă status",
       "statusUpdated": "Status actualizat"
     },
+    "detail": {
+      "back": "Înapoi",
+      "by": "{{name}}",
+      "byUnknown": "autor necunoscut",
+      "viewDetail": "Vezi detalii",
+      "notFound": "Cererea nu există sau a fost ștearsă.",
+      "commentsTitle": "Comentarii",
+      "commentsEmpty": "Niciun comentariu încă. Fii primul.",
+      "addPlaceholder": "Adaugă un comentariu…",
+      "addButton": "Trimite",
+      "edit": "Editează",
+      "delete": "Șterge",
+      "deleteConfirm": "Ștergi acest comentariu?",
+      "editPlaceholder": "Editează comentariul",
+      "editSave": "Salvează",
+      "editCancel": "Anulează",
+      "errorEmpty": "Comentariul nu poate fi gol",
+      "errorSave": "Nu s-a putut salva"
+    },
     "notifications": {
       "title": "Actualizări de status",
       "empty": "Nicio actualizare nouă",

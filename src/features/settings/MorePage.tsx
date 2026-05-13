@@ -118,14 +118,6 @@ export function MorePage() {
           rightSection={<IconChevronRight size={16} />}
           onClick={() => navigate('/budgets')}
         />
-        <NavLink
-          label={t('more.bank')}
-          description={t('more.bankDescription')}
-          leftSection={<IconBuildingBank size={20} />}
-          rightSection={<IconChevronRight size={16} />}
-          onClick={() => navigate('/bank')}
-        />
-
         <Divider label={t('more.privateDivider')} labelPosition="left" mt="sm" />
         <NavLink
           label={t('more.hiddenExpenses')}

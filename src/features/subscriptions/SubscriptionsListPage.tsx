@@ -36,7 +36,10 @@ export function SubscriptionsListPage() {
   const subs = useSubscriptions();
   const cats = useCategories();
   const toggle = useToggleSubscription();
-  const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+  const catById = useMemo(
+    () => new Map((cats.data ?? []).map((c) => [c.id, c])),
+    [cats.data],
+  );
   const displayCurrency = useDefaultCurrency();
   const fx = useFxRates([...(subs.data ?? []).map((s) => s.currency), displayCurrency]);
   const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);

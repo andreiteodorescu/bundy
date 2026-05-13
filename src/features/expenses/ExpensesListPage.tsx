@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ActionIcon,
@@ -113,18 +113,22 @@ export function ExpensesListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weeks, expensesVisible, display.convert]);
 
-  const { personalTotal, companyCardTotal } = expensesAll.reduce(
-    (acc, e) => {
-      const amt = display.convert(e);
-      if (amt === null) return acc; // rate still loading
-      if (companyCardEnabled && e.tags?.includes('company-card')) {
-        acc.companyCardTotal += amt;
-      } else {
-        acc.personalTotal += amt;
-      }
-      return acc;
-    },
-    { personalTotal: 0, companyCardTotal: 0 },
+  const { personalTotal, companyCardTotal } = useMemo(
+    () =>
+      expensesAll.reduce(
+        (acc, e) => {
+          const amt = display.convert(e);
+          if (amt === null) return acc; // rate still loading
+          if (companyCardEnabled && e.tags?.includes('company-card')) {
+            acc.companyCardTotal += amt;
+          } else {
+            acc.personalTotal += amt;
+          }
+          return acc;
+        },
+        { personalTotal: 0, companyCardTotal: 0 },
+      ),
+    [expensesAll, display, companyCardEnabled],
   );
   const totalCount = expensesAll.length;
   const isCurrentMonth = dayjs(month).isSame(dayjs(), 'month');
@@ -132,6 +136,12 @@ export function ExpensesListPage() {
   function shiftMonth(delta: number) {
     setMonth(dayjs(month).add(delta, 'month').startOf('month').toDate());
   }
+
+  // Stable callback so the memoized ExpenseRow doesn't re-render on every parent render.
+  const handleEditExpense = useCallback(
+    (id: string) => navigate(`/expenses/${id}/edit`),
+    [navigate],
+  );
 
   function runExport(kind: 'csv' | 'pdf') {
     if (totalCount === 0) {
@@ -283,7 +293,7 @@ export function ExpensesListPage() {
                       expense={exp}
                       category={catById.get(exp.category_id ?? '') ?? null}
                       subcategory={subById.get(exp.subcategory_id ?? '') ?? null}
-                      onClick={() => navigate(`/expenses/${exp.id}/edit`)}
+                      onClick={handleEditExpense}
                       t={t}
                       showCompanyBadge={companyCardEnabled}
                       displayCurrency={display.displayCurrency}
@@ -300,7 +310,7 @@ export function ExpensesListPage() {
   );
 }
 
-function ExpenseRow({
+const ExpenseRow = memo(function ExpenseRow({
   expense,
   category,
   subcategory,
@@ -313,7 +323,7 @@ function ExpenseRow({
   expense: Expense;
   category: Category | null;
   subcategory: Subcategory | null;
-  onClick: () => void;
+  onClick: (id: string) => void;
   t: TFunction;
   showCompanyBadge: boolean;
   displayCurrency: import('@/lib/money').Currency;
@@ -325,7 +335,7 @@ function ExpenseRow({
   const subcategoryName = subcategory ? subcategoryDisplayName(subcategory, t) : null;
 
   return (
-    <UnstyledButton onClick={onClick} w="100%">
+    <UnstyledButton onClick={() => onClick(expense.id)} w="100%">
       <Paper withBorder radius="md" p="sm">
         <Group wrap="nowrap" gap="sm">
           <Box
@@ -398,4 +408,4 @@ function ExpenseRow({
       </Paper>
     </UnstyledButton>
   );
-}
+});

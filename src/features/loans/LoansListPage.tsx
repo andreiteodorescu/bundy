@@ -34,7 +34,10 @@ export function LoansListPage() {
   const loans = useLoans();
   const cats = useCategories();
   const toggle = useToggleLoan();
-  const catById = new Map((cats.data ?? []).map((c) => [c.id, c]));
+  const catById = useMemo(
+    () => new Map((cats.data ?? []).map((c) => [c.id, c])),
+    [cats.data],
+  );
   const displayCurrency = useDefaultCurrency();
   const fx = useFxRates([...(loans.data ?? []).map((l) => l.currency), displayCurrency]);
   const displayRate = displayCurrency === 'RON' ? 1 : fx.rateOf(displayCurrency);

@@ -1036,6 +1036,25 @@
       "changeStatus": "Change status",
       "statusUpdated": "Status updated"
     },
+    "detail": {
+      "back": "Back",
+      "by": "by {{name}}",
+      "byUnknown": "unknown author",
+      "viewDetail": "View details",
+      "notFound": "This entry doesn't exist or has been deleted.",
+      "commentsTitle": "Comments",
+      "commentsEmpty": "No comments yet. Be the first.",
+      "addPlaceholder": "Add a comment…",
+      "addButton": "Post",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this comment?",
+      "editPlaceholder": "Edit your comment",
+      "editSave": "Save",
+      "editCancel": "Cancel",
+      "errorEmpty": "Comment can't be empty",
+      "errorSave": "Couldn't save"
+    },
     "notifications": {
       "title": "Status updates",
       "empty": "No new updates",

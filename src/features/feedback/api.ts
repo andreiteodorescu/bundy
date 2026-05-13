@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/features/auth/AuthProvider';
 import type {
   Feedback,
+  FeedbackComment,
   FeedbackNotification,
   FeedbackStatus,
   FeedbackType,
@@ -12,6 +13,8 @@ import type {
 export const FEEDBACK_KEY = ['feedback'] as const;
 export const FEEDBACK_VOTES_KEY = ['feedback_votes'] as const;
 export const FEEDBACK_NOTIF_KEY = ['feedback_notifications'] as const;
+export const FEEDBACK_COMMENTS_KEY = ['feedback_comments'] as const;
+export const FEEDBACK_AUTHORS_KEY = ['feedback_authors'] as const;
 
 export const BUG_STATUSES: FeedbackStatus[] = ['open', 'in_progress', 'fixed', 'wont_fix'];
 export const FEATURE_STATUSES: FeedbackStatus[] = [
@@ -194,5 +197,119 @@ export function useMarkAllNotificationsRead() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: FEEDBACK_NOTIF_KEY }),
+  });
+}
+
+/** Single feedback row by id. Re-uses list cache if available so detail navigation is instant. */
+export function useFeedback(id: string | undefined) {
+  return useQuery({
+    queryKey: [...FEEDBACK_KEY, id],
+    enabled: Boolean(id),
+    queryFn: async (): Promise<Feedback | null> => {
+      const { data, error } = await supabase
+        .from('feedback')
+        .select('*')
+        .eq('id', id!)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as Feedback | null) ?? null;
+    },
+  });
+}
+
+export function useFeedbackComments(feedbackId: string | undefined) {
+  return useQuery({
+    queryKey: [...FEEDBACK_COMMENTS_KEY, feedbackId],
+    enabled: Boolean(feedbackId),
+    queryFn: async (): Promise<FeedbackComment[]> => {
+      const { data, error } = await supabase
+        .from('feedback_comments')
+        .select('*')
+        .eq('feedback_id', feedbackId!)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as FeedbackComment[];
+    },
+  });
+}
+
+/**
+ * Resolve profile_id → name for a set of authors. Uses a security-definer RPC
+ * because the `profiles` table's RLS hides everyone but the caller — the
+ * feedback board is public, so we expose display names (only) via this RPC.
+ */
+export function useFeedbackAuthorNames(profileIds: string[]) {
+  const sorted = [...new Set(profileIds)].sort();
+  const key = sorted.join(',');
+  return useQuery({
+    queryKey: [...FEEDBACK_AUTHORS_KEY, key],
+    enabled: sorted.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async (): Promise<Map<string, string>> => {
+      const { data, error } = await supabase.rpc('feedback_author_names', {
+        profile_ids: sorted,
+      });
+      if (error) throw error;
+      const map = new Map<string, string>();
+      for (const row of (data ?? []) as { profile_id: string; name: string }[]) {
+        map.set(row.profile_id, row.name);
+      }
+      return map;
+    },
+  });
+}
+
+export function useAddFeedbackComment() {
+  const qc = useQueryClient();
+  const { profileId } = useAuth();
+  return useMutation({
+    mutationFn: async (input: { feedbackId: string; body: string }) => {
+      if (!profileId) throw new Error('No profile');
+      const body = input.body.trim();
+      if (!body) throw new Error('Empty body');
+      const { error } = await supabase
+        .from('feedback_comments')
+        .insert({ feedback_id: input.feedbackId, profile_id: profileId, body });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: [...FEEDBACK_COMMENTS_KEY, vars.feedbackId] });
+    },
+  });
+}
+
+export function useUpdateFeedbackComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; body: string; feedbackId: string }) => {
+      const body = input.body.trim();
+      if (!body) throw new Error('Empty body');
+      // .select() detects silent RLS rejections (Supabase returns 0 rows instead of erroring).
+      const { data, error } = await supabase
+        .from('feedback_comments')
+        .update({ body })
+        .eq('id', input.id)
+        .select('id');
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Update blocked (no permission)');
+      }
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: [...FEEDBACK_COMMENTS_KEY, vars.feedbackId] });
+    },
+  });
+}
+
+export function useDeleteFeedbackComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; feedbackId: string }) => {
+      const { error } = await supabase.from('feedback_comments').delete().eq('id', input.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: [...FEEDBACK_COMMENTS_KEY, vars.feedbackId] });
+    },
   });
 }

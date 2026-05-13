@@ -99,12 +99,20 @@ const AdminUsersPage = lazy(() =>
 const FeedbackPage = lazy(() =>
   import('@/features/feedback/FeedbackPage').then((m) => ({ default: m.FeedbackPage })),
 );
-const BankConnectionsPage = lazy(() =>
-  import('@/features/bank/BankConnectionsPage').then((m) => ({ default: m.BankConnectionsPage })),
+const FeedbackDetailPage = lazy(() =>
+  import('@/features/feedback/FeedbackDetailPage').then((m) => ({ default: m.FeedbackDetailPage })),
 );
-const BankCallbackPage = lazy(() =>
-  import('@/features/bank/BankCallbackPage').then((m) => ({ default: m.BankCallbackPage })),
-);
+// Bank connection feature (Open Banking via Salt Edge) is implemented end-to-end
+// in api/bank/* and src/features/bank/* but disabled in the UI — PSD2 / AISP
+// regulations require a legal entity (SRL) for production access, which doesn't
+// fit a personal-use app. Code retained in repo for future revival; the lazy
+// imports below are commented out so the bundle doesn't include the routes.
+// const BankConnectionsPage = lazy(() =>
+//   import('@/features/bank/BankConnectionsPage').then((m) => ({ default: m.BankConnectionsPage })),
+// );
+// const BankCallbackPage = lazy(() =>
+//   import('@/features/bank/BankCallbackPage').then((m) => ({ default: m.BankCallbackPage })),
+// );
 
 function PageFallback() {
   return (
@@ -188,8 +196,7 @@ const router = createBrowserRouter([
       { path: '/hidden-expenses', element: lazyRoute(<HiddenExpensesPage />) },
       { path: '/admin/users', element: lazyRoute(<AdminUsersPage />) },
       { path: '/feedback', element: lazyRoute(<FeedbackPage />) },
-      { path: '/bank', element: lazyRoute(<BankConnectionsPage />) },
-      { path: '/bank/callback', element: lazyRoute(<BankCallbackPage />) },
+      { path: '/feedback/:id', element: lazyRoute(<FeedbackDetailPage />) },
 
       { path: '*', element: <Navigate to="/home" replace /> },
     ],

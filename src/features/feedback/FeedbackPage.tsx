@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGoBack } from '@/lib/useGoBack';
 import {
-  ActionIcon,
   Alert,
   Badge,
-  Box,
   Button,
   Center,
   Container,
   Group,
   Loader,
-  Menu,
   Modal,
   Paper,
   SegmentedControl,
@@ -22,43 +20,33 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core';
-import { notifications as toast } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconArrowUp,
   IconBug,
-  IconCheck,
-  IconChevronDown,
-  IconDots,
-  IconPencil,
   IconPlus,
   IconSparkles,
-  IconTrash,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { useIsAdmin } from '@/features/admin/api';
-import { confirmDelete } from '@/lib/confirm';
 import {
   statusesFor,
-  useDeleteFeedback,
   useFeedbackList,
   useFeedbackNotifications,
   useFeedbackVotes,
   useMarkAllNotificationsRead,
   useToggleVote,
-  useUpdateFeedbackStatus,
   useUpsertFeedback,
 } from './api';
 import type { Feedback, FeedbackStatus, FeedbackType } from '@/types';
 
 export function FeedbackPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const goBack = useGoBack('/more');
   const { user } = useAuth();
-  const isAdmin = useIsAdmin();
 
   const list = useFeedbackList();
   const votes = useFeedbackVotes();
@@ -174,8 +162,7 @@ export function FeedbackPage() {
                 feedback={f}
                 voted={votes.data?.has(f.id) ?? false}
                 isOwn={f.profile_id === user?.id}
-                isAdmin={isAdmin.data === true}
-                onEdit={() => setEditing(f)}
+                onOpenDetail={() => navigate(`/feedback/${f.id}`)}
                 t={t}
               />
             ))}
@@ -208,21 +195,16 @@ function FeedbackRow({
   feedback,
   voted,
   isOwn,
-  isAdmin,
-  onEdit,
+  onOpenDetail,
   t,
 }: {
   feedback: Feedback;
   voted: boolean;
   isOwn: boolean;
-  isAdmin: boolean;
-  onEdit: () => void;
+  onOpenDetail: () => void;
   t: TFunction;
 }) {
   const toggle = useToggleVote();
-  const updateStatus = useUpdateFeedbackStatus();
-  const del = useDeleteFeedback();
-  const allStatuses = statusesFor(feedback.type);
 
   const statusColor: Record<FeedbackStatus, string> = {
     open: 'orange',
@@ -234,35 +216,6 @@ function FeedbackRow({
     done: 'green',
     declined: 'red',
   };
-
-  function handleDelete() {
-    confirmDelete({
-      message: t('feedback.form.deleteConfirm'),
-      onConfirm: () => del.mutateAsync(feedback.id),
-    });
-  }
-
-  function handleStatusChange(status: FeedbackStatus) {
-    updateStatus.mutate(
-      { id: feedback.id, status },
-      {
-        onSuccess: () =>
-          toast.show({ message: t('feedback.admin.statusUpdated'), color: 'green', autoClose: 1500 }),
-        onError: (err) => {
-          // Supabase errors are plain { message, code, details, hint } objects,
-          // not Error instances. Extract any usable text we can.
-          // eslint-disable-next-line no-console
-          console.error('[feedback] status change failed:', err);
-          const message =
-            (err as { message?: string })?.message ||
-            (err as { details?: string })?.details ||
-            (err as { hint?: string })?.hint ||
-            t('common.error');
-          toast.show({ message, color: 'red', autoClose: 6000 });
-        },
-      },
-    );
-  }
 
   return (
     <Paper withBorder radius="md" p="sm">
@@ -290,7 +243,11 @@ function FeedbackRow({
           </Text>
         </UnstyledButton>
 
-        <Box flex={1} miw={0}>
+        <UnstyledButton
+          onClick={onOpenDetail}
+          aria-label={t('feedback.detail.viewDetail')}
+          style={{ flex: 1, minWidth: 0, textAlign: 'left' }}
+        >
           <Group gap={6} wrap="wrap" mb={4}>
             <Badge size="xs" color={feedback.type === 'bug' ? 'red' : 'accent'} variant="light">
               {t(`feedback.type.${feedback.type}`)}
@@ -308,55 +265,14 @@ function FeedbackRow({
             {feedback.title}
           </Text>
           {feedback.body && (
-            <Text size="xs" c="dimmed" mt={4} style={{ whiteSpace: 'pre-wrap' }}>
+            <Text size="xs" c="dimmed" mt={4} lineClamp={3} style={{ whiteSpace: 'pre-wrap' }}>
               {feedback.body}
             </Text>
           )}
           <Text size="xs" c="dimmed" mt={6}>
             {dayjs(feedback.created_at).format('D MMM YYYY')}
           </Text>
-        </Box>
-
-        {(isOwn || isAdmin) && (
-          <Menu shadow="md" position="bottom-end" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" color="gray" size="sm" aria-label="Actions">
-                <IconDots size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              {isOwn && (
-                <Menu.Item leftSection={<IconPencil size={14} />} onClick={onEdit}>
-                  {t('feedback.form.editTitle')}
-                </Menu.Item>
-              )}
-              {isAdmin && (
-                <>
-                  {isOwn && <Menu.Divider />}
-                  <Menu.Label>{t('feedback.admin.changeStatus')}</Menu.Label>
-                  {allStatuses.map((s) => (
-                    <Menu.Item
-                      key={s}
-                      leftSection={s === feedback.status ? <IconCheck size={14} /> : <IconChevronDown size={14} style={{ visibility: 'hidden' }} />}
-                      onClick={() => handleStatusChange(s)}
-                      disabled={s === feedback.status}
-                    >
-                      {t(`feedback.status.${s}`)}
-                    </Menu.Item>
-                  ))}
-                </>
-              )}
-              {isOwn && (
-                <>
-                  <Menu.Divider />
-                  <Menu.Item leftSection={<IconTrash size={14} />} color="red" onClick={handleDelete}>
-                    {t('feedback.form.delete')}
-                  </Menu.Item>
-                </>
-              )}
-            </Menu.Dropdown>
-          </Menu>
-        )}
+        </UnstyledButton>
       </Group>
     </Paper>
   );
