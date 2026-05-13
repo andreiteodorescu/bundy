@@ -1,5 +1,5 @@
 import { createConnectSession, createCustomer, findCustomerByIdentifier } from './_saltedge.js';
-import { getServiceClient, json, verifyUserProfile } from './_supabase.js';
+import { getMethod, getServiceClient, json, parseJsonBody, verifyUserProfile } from './_supabase.js';
 
 /**
  * POST /api/bank/init  { institution_id, redirect_origin, institution_name? }
@@ -15,8 +15,8 @@ import { getServiceClient, json, verifyUserProfile } from './_supabase.js';
  */
 export const config = { runtime: 'nodejs' };
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+export default async function handler(req: unknown): Promise<Response> {
+  if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);
   const auth = await verifyUserProfile(req);
   if (!auth) return json({ error: 'Unauthorized' }, 401);
 
@@ -27,7 +27,7 @@ export default async function handler(req: Request): Promise<Response> {
     language?: string;
   };
   try {
-    body = (await req.json()) as typeof body;
+    body = await parseJsonBody<typeof body>(req);
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }

@@ -1,4 +1,4 @@
-import { getServiceClient, json, verifyUserProfile } from './_supabase.js';
+import { getMethod, getServiceClient, json, parseJsonBody, verifyUserProfile } from './_supabase.js';
 import { syncConnection } from './_sync.js';
 
 /**
@@ -9,14 +9,14 @@ import { syncConnection } from './_sync.js';
  */
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+export default async function handler(req: unknown): Promise<Response> {
+  if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);
   const auth = await verifyUserProfile(req);
   if (!auth) return json({ error: 'Unauthorized' }, 401);
 
   let body: { connection_id?: string };
   try {
-    body = (await req.json()) as typeof body;
+    body = await parseJsonBody<{ connection_id?: string }>(req);
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }

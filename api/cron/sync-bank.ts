@@ -1,4 +1,4 @@
-import { getServiceClient, json } from '../bank/_supabase.js';
+import { getHeader, getServiceClient, json } from '../bank/_supabase.js';
 import { syncConnection } from '../bank/_sync.js';
 
 /**
@@ -14,8 +14,8 @@ import { syncConnection } from '../bank/_sync.js';
  */
 export const config = { runtime: 'nodejs', maxDuration: 60 };
 
-export default async function handler(req: Request): Promise<Response> {
-  const auth = req.headers.get('authorization');
+export default async function handler(req: unknown): Promise<Response> {
+  const auth = getHeader(req, 'authorization');
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return json({ error: 'Unauthorized' }, 401);
   }

@@ -1,4 +1,4 @@
-import { getServiceClient, json } from './_supabase.js';
+import { getMethod, getServiceClient, json, parseJsonBody } from './_supabase.js';
 import { syncConnection } from './_sync.js';
 
 /**
@@ -36,12 +36,12 @@ type SaltEdgeWebhookPayload = {
   };
 };
 
-export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+export default async function handler(req: unknown): Promise<Response> {
+  if (getMethod(req) !== 'POST') return json({ error: 'POST only' }, 405);
 
   let body: SaltEdgeWebhookPayload;
   try {
-    body = (await req.json()) as SaltEdgeWebhookPayload;
+    body = await parseJsonBody<SaltEdgeWebhookPayload>(req);
   } catch {
     return json({ error: 'Invalid JSON' }, 400);
   }

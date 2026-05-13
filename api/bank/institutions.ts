@@ -1,5 +1,5 @@
 import { listProviders } from './_saltedge.js';
-import { json, verifyUserProfile } from './_supabase.js';
+import { getRequestUrl, json, verifyUserProfile } from './_supabase.js';
 
 /**
  * GET /api/bank/institutions?country=RO
@@ -12,12 +12,12 @@ import { json, verifyUserProfile } from './_supabase.js';
  */
 export const config = { runtime: 'nodejs' };
 
-export default async function handler(req: Request): Promise<Response> {
+export default async function handler(req: unknown): Promise<Response> {
   try {
     const auth = await verifyUserProfile(req);
     if (!auth) return json({ error: 'Unauthorized' }, 401);
 
-    const url = new URL(req.url);
+    const url = getRequestUrl(req);
     const country = (url.searchParams.get('country') ?? 'RO').toUpperCase();
     if (!/^[A-Z]{2}$/.test(country)) {
       return json({ error: 'Invalid country code' }, 400);
