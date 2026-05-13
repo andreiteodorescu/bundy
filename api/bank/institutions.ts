@@ -1,5 +1,5 @@
-import { listProviders } from './_saltedge';
-import { json, verifyUserProfile } from './_supabase';
+import { listProviders } from './_saltedge.js';
+import { json, verifyUserProfile } from './_supabase.js';
 
 /**
  * GET /api/bank/institutions?country=RO
@@ -13,16 +13,16 @@ import { json, verifyUserProfile } from './_supabase';
 export const config = { runtime: 'nodejs' };
 
 export default async function handler(req: Request): Promise<Response> {
-  const auth = await verifyUserProfile(req);
-  if (!auth) return json({ error: 'Unauthorized' }, 401);
-
-  const url = new URL(req.url);
-  const country = (url.searchParams.get('country') ?? 'RO').toUpperCase();
-  if (!/^[A-Z]{2}$/.test(country)) {
-    return json({ error: 'Invalid country code' }, 400);
-  }
-
   try {
+    const auth = await verifyUserProfile(req);
+    if (!auth) return json({ error: 'Unauthorized' }, 401);
+
+    const url = new URL(req.url);
+    const country = (url.searchParams.get('country') ?? 'RO').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(country)) {
+      return json({ error: 'Invalid country code' }, 400);
+    }
+
     const providers = await listProviders(country);
     const adapted = providers.map((p) => ({
       id: p.code,
@@ -35,6 +35,8 @@ export default async function handler(req: Request): Promise<Response> {
       'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
     });
   } catch (err) {
-    return json({ error: (err as Error).message }, 502);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[bank/institutions] failed:', message);
+    return json({ error: message }, 502);
   }
 }

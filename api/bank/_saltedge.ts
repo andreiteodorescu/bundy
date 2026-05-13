@@ -138,7 +138,6 @@ export async function listProviders(country: string): Promise<SeProvider[]> {
   do {
     const qs = new URLSearchParams({
       country_code: country.toUpperCase(),
-      mode: 'oauth,web,api',
       include_fakes: 'true',
     });
     if (nextId) qs.set('from_id', nextId);
@@ -146,7 +145,9 @@ export async function listProviders(country: string): Promise<SeProvider[]> {
     all.push(...res.data);
     nextId = res.meta?.next_id ?? null;
   } while (nextId);
-  return all.filter((p) => p.status === 'active');
+  // Drop providers explicitly marked inactive/disabled. Anything else (active,
+  // beta, test) we keep so sandbox-only providers show up too.
+  return all.filter((p) => p.status !== 'inactive' && p.status !== 'disabled');
 }
 
 export async function createCustomer(identifier: string): Promise<SeCustomer> {

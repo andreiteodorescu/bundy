@@ -1,5 +1,5 @@
-import { createConnectSession, createCustomer, findCustomerByIdentifier } from './_saltedge';
-import { getServiceClient, json, verifyUserProfile } from './_supabase';
+import { createConnectSession, createCustomer, findCustomerByIdentifier } from './_saltedge.js';
+import { getServiceClient, json, verifyUserProfile } from './_supabase.js';
 
 /**
  * POST /api/bank/init  { institution_id, redirect_origin, institution_name? }
@@ -48,9 +48,9 @@ export default async function handler(req: Request): Promise<Response> {
 
   const reference = `${auth.profileId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const returnTo = `${redirect_origin}/bank/callback?ref=${encodeURIComponent(reference)}`;
-  const supabase = getServiceClient();
 
   try {
+    const supabase = getServiceClient();
     const { data: profile } = await supabase
       .from('profiles')
       .select('saltedge_customer_id')
@@ -87,6 +87,8 @@ export default async function handler(req: Request): Promise<Response> {
 
     return json({ link: session.connect_url, reference });
   } catch (err) {
-    return json({ error: (err as Error).message }, 502);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[bank/init] failed:', message);
+    return json({ error: message }, 502);
   }
 }

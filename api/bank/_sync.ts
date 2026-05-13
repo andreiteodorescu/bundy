@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { extractMerchantText, listTransactions } from './_saltedge';
+import { extractMerchantText, listTransactions } from './_saltedge.js';
 
 export const config = { runtime: 'nodejs' };
 

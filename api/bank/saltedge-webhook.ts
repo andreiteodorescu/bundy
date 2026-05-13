@@ -1,5 +1,5 @@
-import { getServiceClient, json } from './_supabase';
-import { syncConnection } from './_sync';
+import { getServiceClient, json } from './_supabase.js';
+import { syncConnection } from './_sync.js';
 
 /**
  * POST /api/bank/saltedge-webhook

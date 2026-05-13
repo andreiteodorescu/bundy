@@ -1,5 +1,5 @@
-import { getServiceClient, json } from '../bank/_supabase';
-import { syncConnection } from '../bank/_sync';
+import { getServiceClient, json } from '../bank/_supabase.js';
+import { syncConnection } from '../bank/_sync.js';
 
 /**
  * Daily cron — sync all active bank connections for all profiles. Mirrors the

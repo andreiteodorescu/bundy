@@ -1,6 +1,6 @@
-import { getConnection, listAccounts, listConnections } from './_saltedge';
-import { getServiceClient, json, verifyUserProfile } from './_supabase';
-import { syncConnection } from './_sync';
+import { getConnection, listAccounts, listConnections } from './_saltedge.js';
+import { getServiceClient, json, verifyUserProfile } from './_supabase.js';
+import { syncConnection } from './_sync.js';
 
 /**
  * POST /api/bank/callback  { reference }
