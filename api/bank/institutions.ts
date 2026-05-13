@@ -13,8 +13,11 @@ import { getRequestUrl, json, verifyUserProfile } from './_supabase.js';
 export const config = { runtime: 'nodejs', maxDuration: 30 };
 
 export default async function handler(req: unknown): Promise<Response> {
+  const t0 = Date.now();
+  console.log('[bank/institutions] start');
   try {
     const auth = await verifyUserProfile(req);
+    console.log('[bank/institutions] auth done in', Date.now() - t0, 'ms, ok:', Boolean(auth));
     if (!auth) return json({ error: 'Unauthorized' }, 401);
 
     const url = getRequestUrl(req);
@@ -23,7 +26,11 @@ export default async function handler(req: unknown): Promise<Response> {
       return json({ error: 'Invalid country code' }, 400);
     }
 
+    const t1 = Date.now();
+    console.log('[bank/institutions] calling Salt Edge providers for', country);
     const providers = await listProviders(country);
+    console.log('[bank/institutions] Salt Edge returned', providers.length, 'providers in', Date.now() - t1, 'ms');
+
     const adapted = providers.map((p) => ({
       id: p.code,
       name: p.name,
@@ -36,7 +43,7 @@ export default async function handler(req: unknown): Promise<Response> {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[bank/institutions] failed:', message);
+    console.error('[bank/institutions] failed after', Date.now() - t0, 'ms:', message);
     return json({ error: message }, 502);
   }
 }
