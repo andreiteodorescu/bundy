@@ -119,7 +119,7 @@ export function BudgetFormPage() {
         category_ids: categoryIds,
         subcategory_ids: subcategoryIds,
       });
-      navigate('/budgets');
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('budgets.form.errorSave'));
     }
@@ -132,7 +132,7 @@ export function BudgetFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(params.id!);
-          navigate('/budgets');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('budgets.form.errorDelete'));
         }
@@ -149,7 +149,7 @@ export function BudgetFormPage() {
             color="gray"
             size="compact-sm"
             leftSection={<IconArrowLeft size={16} />}
-            onClick={() => navigate('/budgets')}
+            onClick={() => navigate(-1)}
           >
             {t('budgets.back')}
           </Button>

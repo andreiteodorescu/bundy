@@ -97,7 +97,21 @@ export function useUpsertSubscription() {
       if (error) throw error;
       return data as Subscription;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY }),
+    // Patch the cache with the returned row so the list (and its computed total)
+    // updates instantly. Background invalidation reconciles with server state.
+    onSuccess: (saved) => {
+      qc.setQueryData<Subscription[]>(SUBSCRIPTIONS_KEY, (old) => {
+        if (!old) return [saved];
+        const idx = old.findIndex((s) => s.id === saved.id);
+        if (idx >= 0) {
+          const copy = old.slice();
+          copy[idx] = saved;
+          return copy;
+        }
+        return [...old, saved];
+      });
+      qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY });
+    },
   });
 }
 
@@ -108,7 +122,12 @@ export function useDeleteSubscription() {
       const { error } = await supabase.from('subscriptions').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY }),
+    onSuccess: (_, id) => {
+      qc.setQueryData<Subscription[]>(SUBSCRIPTIONS_KEY, (old) =>
+        old?.filter((s) => s.id !== id) ?? [],
+      );
+      qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY });
+    },
   });
 }
 
@@ -122,6 +141,17 @@ export function useToggleSubscription() {
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY }),
+    onMutate: async ({ id, active }) => {
+      await qc.cancelQueries({ queryKey: SUBSCRIPTIONS_KEY });
+      const previous = qc.getQueryData<Subscription[]>(SUBSCRIPTIONS_KEY);
+      qc.setQueryData<Subscription[]>(SUBSCRIPTIONS_KEY, (old) =>
+        (old ?? []).map((s) => (s.id === id ? { ...s, active } : s)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(SUBSCRIPTIONS_KEY, ctx.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY }),
   });
 }

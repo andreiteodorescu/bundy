@@ -99,7 +99,21 @@ export function useUpsertLoan() {
       if (error) throw error;
       return data as Loan;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: LOANS_KEY }),
+    // Patch the cache with the returned row so the list (and its computed total)
+    // updates instantly. The background invalidation reconciles with server state.
+    onSuccess: (saved) => {
+      qc.setQueryData<Loan[]>(LOANS_KEY, (old) => {
+        if (!old) return [saved];
+        const idx = old.findIndex((l) => l.id === saved.id);
+        if (idx >= 0) {
+          const copy = old.slice();
+          copy[idx] = saved;
+          return copy;
+        }
+        return [...old, saved];
+      });
+      qc.invalidateQueries({ queryKey: LOANS_KEY });
+    },
   });
 }
 
@@ -110,7 +124,10 @@ export function useDeleteLoan() {
       const { error } = await supabase.from('loans').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: LOANS_KEY }),
+    onSuccess: (_, id) => {
+      qc.setQueryData<Loan[]>(LOANS_KEY, (old) => old?.filter((l) => l.id !== id) ?? []);
+      qc.invalidateQueries({ queryKey: LOANS_KEY });
+    },
   });
 }
 
@@ -121,6 +138,19 @@ export function useToggleLoan() {
       const { error } = await supabase.from('loans').update({ active }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: LOANS_KEY }),
+    // Optimistic — flip the active flag in the cache before the round-trip so the
+    // toggle is snappy. Rollback on error.
+    onMutate: async ({ id, active }) => {
+      await qc.cancelQueries({ queryKey: LOANS_KEY });
+      const previous = qc.getQueryData<Loan[]>(LOANS_KEY);
+      qc.setQueryData<Loan[]>(LOANS_KEY, (old) =>
+        (old ?? []).map((l) => (l.id === id ? { ...l, active } : l)),
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(LOANS_KEY, ctx.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: LOANS_KEY }),
   });
 }

@@ -93,7 +93,7 @@ export function CategoryFormPage() {
       if (isNew) {
         navigate(`/categories/${result.id}/edit`, { replace: true });
       } else {
-        navigate('/categories');
+        navigate(-1);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('categories.form.errorSave'));
@@ -107,7 +107,7 @@ export function CategoryFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(editing.id);
-          navigate('/categories');
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('categories.form.errorDelete'));
         }
@@ -125,7 +125,7 @@ export function CategoryFormPage() {
           <Button
             variant="subtle"
             color="gray"
-            onClick={() => navigate('/categories')}
+            onClick={() => navigate(-1)}
             leftSection={<IconArrowLeft size={16} />}
             size="compact-sm"
           >
