@@ -124,30 +124,32 @@ function getHeaders(): Record<string, string> {
 
 async function seFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = { ...getHeaders(), ...((init.headers as Record<string, string>) ?? {}) };
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Salt Edge ${init.method ?? 'GET'} ${path} → ${res.status}: ${body}`);
+  // 8s timeout — Salt Edge endpoints normally answer in < 1s. Anything beyond
+  // that is a hang and would just consume our Vercel function budget.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, { ...init, headers, signal: controller.signal });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Salt Edge ${init.method ?? 'GET'} ${path} → ${res.status}: ${body}`);
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
   }
-  return (await res.json()) as T;
 }
 
 export async function listProviders(country: string): Promise<SeProvider[]> {
-  const all: SeProvider[] = [];
-  let nextId: string | null = null;
-  do {
-    const qs = new URLSearchParams({
-      country_code: country.toUpperCase(),
-      include_fakes: 'true',
-    });
-    if (nextId) qs.set('from_id', nextId);
-    const res = await seFetch<SeListResponse<SeProvider>>(`/providers?${qs.toString()}`);
-    all.push(...res.data);
-    nextId = res.meta?.next_id ?? null;
-  } while (nextId);
-  // Drop providers explicitly marked inactive/disabled. Anything else (active,
-  // beta, test) we keep so sandbox-only providers show up too.
-  return all.filter((p) => p.status !== 'inactive' && p.status !== 'disabled');
+  // Single page — Salt Edge returns up to 100 providers per page, more than
+  // enough for a country list (RO has ~30 banks). Avoids unbounded loops if
+  // their `next_id` cursor misbehaves.
+  const qs = new URLSearchParams({
+    country_code: country.toUpperCase(),
+    include_fakes: 'true',
+  });
+  const res = await seFetch<SeListResponse<SeProvider>>(`/providers?${qs.toString()}`);
+  return res.data.filter((p) => p.status !== 'inactive' && p.status !== 'disabled');
 }
 
 export async function createCustomer(identifier: string): Promise<SeCustomer> {
