@@ -102,7 +102,7 @@ export function SubcategoryFormPage() {
         color: overrideColor ? color : null,
         sort_order: editing?.sort_order,
       });
-      navigate(`/categories/${parentId}/edit`);
+      navigate(-1);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('categories.subcategoryForm.errorSave'));
     }
@@ -115,7 +115,7 @@ export function SubcategoryFormPage() {
       onConfirm: async () => {
         try {
           await del.mutateAsync(editing.id);
-          navigate(`/categories/${editing.parent_category_id}/edit`);
+          navigate(-1);
         } catch (err) {
           setError(err instanceof Error ? err.message : t('categories.subcategoryForm.errorDelete'));
         }
@@ -132,11 +132,7 @@ export function SubcategoryFormPage() {
           <Button
             variant="subtle"
             color="gray"
-            onClick={() =>
-              parentId
-                ? navigate(`/categories/${parentId}/edit`)
-                : navigate('/categories')
-            }
+            onClick={() => navigate(-1)}
             leftSection={<IconArrowLeft size={16} />}
             size="compact-sm"
           >
