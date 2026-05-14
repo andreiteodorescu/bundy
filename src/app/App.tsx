@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Providers } from './providers';
 import { AppRouter } from './router';
 import { SwUpdatePrompt } from '@/components/SwUpdatePrompt';
@@ -29,6 +30,7 @@ export function App() {
       <GradientDefs />
       <AppRouter />
       <SwUpdatePrompt />
+      <Analytics />
     </Providers>
   );
 }
