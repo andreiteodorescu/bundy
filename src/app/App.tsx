@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics, track } from '@vercel/analytics/react';
 import { Providers } from './providers';
 import { AppRouter } from './router';
 import { SwUpdatePrompt } from '@/components/SwUpdatePrompt';
@@ -22,6 +22,21 @@ export function App() {
       requestAnimationFrame(() => {
         root.scrollTop = 0;
       });
+    });
+  }, []);
+
+  // One-shot per session — tag the visit as installed PWA vs browser so the
+  // Vercel Analytics dashboard can distinguish them. Also captures the launch
+  // surface (homescreen icon vs deeplink) when the browser exposes it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      // iOS-specific: navigator.standalone is true when launched from homescreen.
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    track('app_open', {
+      surface: isStandalone ? 'pwa' : 'browser',
+      display_mode: isStandalone ? 'standalone' : 'browser-tab',
     });
   }, []);
 
