@@ -18,7 +18,7 @@ Domain: **bundy.ro**
 | Iconițe brand | `simple-icons` + SVG/PNG/JPEG static | 13 brand-uri din simple-icons (CC0) + 13 fișiere oficiale ale userului |
 | State server | TanStack Query | Cache + invalidare după mutații |
 | State client | Zustand | Local UI state (dacă e nevoie) |
-| Forms | React Hook Form + Zod | Validare (folosit selectiv) |
+| Forms | `useState` + validare manuală inline | Pragmatic la scala curentă; RHF + Zod considerat dar n-am simțit nevoia |
 | Routing | React Router v6 (Data Router) | Route splitting via `lazy()` |
 | Date | dayjs + ro locale + isoWeek | Săptămâni Mon-start, formatare ro-RO |
 | Fuzzy | Fuse.js | History match în autocomplete |
@@ -31,8 +31,8 @@ Domain: **bundy.ro**
 | Captcha | hCaptcha | Anti-bot pe signup/login/forgot |
 | i18n | `react-i18next` | RO-first cu fallback EN, switch în Settings, locale persistat în profil |
 | Export | `jsPDF` + `jspdf-autotable` (lazy) | PDF/CSV export pe ExpensesListPage, code-split (~420KB lazy chunk) |
-| DB backup | GitHub Actions + Supabase CLI | Cron daily la 02:00 UTC, schema + data dump gzipped commited în repo |
-| Tests | Vitest + @testing-library/react | 117 teste (unit + integration) — splitMonthIntoWeeks, monthlyEquivalent, chargeDatesInWindow, suggestCategory, computeBudgetStatus, getFxRate, PIN, bankMatcher, displayCurrency |
+| DB backup | GitHub Actions + Supabase CLI | Cron daily la 02:00 UTC, schema + data dump gzipped pushed într-un repo privat separat (`bundy-backups`) |
+| Tests | Vitest + @testing-library/react | ~96 cazuri în 10 fișiere — splitMonthIntoWeeks, monthlyEquivalent, chargeDatesInWindow, suggestCategory, computeBudgetStatus, getFxRate, PIN, bankMatcher, displayCurrency |
 
 ---
 
@@ -274,86 +274,25 @@ Pune site key în `.env.local`, secret key în Supabase → captcha-ul rulează 
 
 ---
 
-## Open Banking (GoCardless Bank Account Data)
+## Open Banking (abandonat — codul rămâne în repo)
 
-**De ce**: importă automat tranzacții bancare în Bundy. Filtrate prin reguli per-keyword (wolt, freshful, mega image, etc.) ca să NU se inserează tot din contul tău, ci doar ce match-uiește o regulă cu categorie + subcategorie pre-asociate.
+Am vrut import automat de tranzacții bancare în Bundy. Am încercat două integrări end-to-end și ambele s-au lovit de blocaje regulatorii.
 
-**Cost**: free tier 50 useri activi / lună (Bundy ar fi unul singur — tu).
+**1. GoCardless Bank Account Data** (fost Nordigen) — implementat tot flow-ul: requisitions, consent PSD2, daily cron sync. La signup pentru cont developer, m-au refuzat: nu mai acceptă useri noi pentru API-ul standalone de Account Data.
 
-### Setup (~15 min)
+**2. Salt Edge** (alternativa cea mai mare din UE) — rescris integrarea de la zero: customers, connect sessions, webhooks, parse-uire tranzacții. Sandbox-ul a funcționat. Pentru production access cer entitate juridică (SRL/SA), reviewuri legale și licențiere PSD2/AISP. Pentru un personal app, disproporționat.
 
-1. **Cont GoCardless Bank Account Data** (fost Nordigen):
-   - https://bankaccountdata.gocardless.com/ → Sign up → confirm email
-   - User Secrets → Create new → copy `secret_id` + `secret_key` (le vezi o singură dată — salvează-le imediat)
+**Concluzia**: API-urile bancare în UE sunt construite în jurul operatorilor reglementați (TPP licențiați). Persoanele fizice care vor să acceseze automat propriile date bancare nu au cale legală directă fără intermediari care la rândul lor cer status corporativ. Decis să renunț la feature.
 
-2. **Env vars** — adaugă în `.env.local` (dev) + Vercel Project Settings → Environment Variables (prod):
-   ```
-   GOCARDLESS_SECRET_ID=<secret_id>
-   GOCARDLESS_SECRET_KEY=<secret_key>
-   ```
-   Restartează `npm run dev` după modificări.
+**Status în repo**:
+- Cod backend (`api/bank/*`) și frontend (`src/features/bank/*`) rămân pentru viitor
+- UI scos din bundle: route-urile `/bank` și `/bank/callback` sunt comentate în `src/app/router.tsx`, link-ul "Conexiuni bancare" scos din `MorePage`
+- DB schema (migrațiile 0031–0036) rămâne — nu strică nimic, doar ocupă tabele goale
+- Cronul `/api/cron/sync-bank` rămâne configurat, dar nu are conexiuni active de procesat → no-op zilnic
 
-3. **Migrații DB** — rulează în Supabase SQL Editor în ordine (dacă nu le-ai rulat deja):
-   - `0031_bank_connections.sql` — tabele bank_connections, bank_transactions, bank_import_rules
-   - `0032_default_bank_rules.sql` — seed-ul cu cele 7 reguli default pe profilul tău
-   - `0033_bank_pending_requisitions.sql` — tabela short-lived pentru OAuth callbacks
+**Reguli de import** (`bank_import_rules`): seed-ul cu 7 reguli RO (wolt, freshful, mega image, digi/orange/vodafone, zooplus, emag, uber) e inserat tot la signup pentru useri noi (în caz că revin pe feature). Vezi `src/data/bankRules.seed.ts` + `src/lib/bankMatcher.ts`.
 
-4. **Vercel Cron** — `vercel.json` deja configurat cu `/api/cron/sync-bank` zilnic la 00:30 UTC. La următorul deploy va apărea automat în Vercel Dashboard → Crons.
-
-### Flow
-
-1. User → "Mai mult" → "Conexiuni bancare" → "Conectează cont nou"
-2. Modal cu listă bănci RO (BCR, BRD, ING, Raiffeisen, Banca Transilvania, Revolut RO, etc.)
-3. User selectează banca → backend creează GoCardless requisition + agreement (90 zile, full access) → returnează link
-4. Browser redirect la link-ul GoCardless → user se autentifică pe site-ul băncii (Bundy NU vede credențialele bancare)
-5. Banca redirect înapoi la `bundy.ro/bank/callback?ref=<reference>` → BankCallbackPage face POST la `/api/bank/callback` cu reference
-6. Backend verifică ownership (reference ↔ profile_id), fetch-uiește accounts din GoCardless, creează rânduri în `bank_connections`, rulează initial sync (30 zile back)
-7. Pentru fiecare tranzacție booked:
-   - **Match pe regulă** → creează expense cu categoria/subcategoria asociată + tag `from-bank` + `bank_transactions.expense_id` link
-   - **No match** → insert în `bank_transactions` cu `status='pending_review'` (vizibil într-un bucket separat, fără expense)
-8. Cronul daily la 00:30 UTC pull-uiește tranzacțiile noi (ultimele 14 zile) pentru toate `bank_connections.status = 'active'`
-9. La 90 zile, consent-ul expiră → cronul setează status='expired' → UI-ul prompt-uiește user să reconecteze
-
-### Manual sync
-
-Buton "Sincronizează acum" pe fiecare conexiune → POST `/api/bank/sync` cu `connection_id` → același flow de sync, dar declanșat on-demand. Util când vrei să vezi imediat o cheltuială mare.
-
-### Securitate
-
-- Bundy NU stochează credențialele bancare (autentificarea se face pe site-ul băncii prin GoCardless).
-- `GOCARDLESS_SECRET_KEY` e folosit doar server-side în Vercel functions, niciodată expus în client bundle.
-- Endpoint-urile `/api/bank/init`, `/api/bank/callback`, `/api/bank/sync` cer JWT Bearer token (Supabase access token) și verifică profile_id înainte de orice operație.
-- Cronul `/api/cron/sync-bank` cere `Authorization: Bearer $CRON_SECRET` (același token folosit de generate-recurring).
-- RLS pe toate tabelele `bank_*` — userul vede doar propriile date chiar dacă cineva fură anon key-ul.
-- `redirect_origin` în `/api/bank/init` e whitelisted (doar `bundy.ro`, `www.bundy.ro`, `localhost:5173`) ca să prevină open-redirect abuse.
-
-### Reguli de import default
-
-Migrația 0032 inserează 7 reguli pe profilul tău. Pentru useri noi, `seedDefaultsForProfile` în `src/features/auth/bootstrap.ts` le inserează la signup. Cele 7 default:
-
-| Keywords | Categorie | Subcategorie |
-|---|---|---|
-| `wolt`, `wolt food` | Mâncare & Băuturi | Livrare mâncare |
-| `freshful`, `frsh` | Mâncare & Băuturi | Băcănie online |
-| `carrefour`, `mega image` | Mâncare & Băuturi | Băcănie |
-| `digi`, `rds`, `telekom`, `orange`, `vodafone` | Casă & Facturi | Internet / TV / Telefon |
-| `zooplus` | Animale | Mâncare & Accesorii |
-| `emag`, `fashion days` | Cumpărături | Cumpărături online |
-| `uber` | Transport & Mașină | Ride sharing |
-
-**Matching**: case-insensitive, strip diacritice + spații + non-alphanumeric → "MEGA IMAGE 1234 RO", "MegaImage S.A.", "MEGAIMAGE" toate match-uiesc keyword-ul "mega image". Vezi `src/lib/bankMatcher.ts` + tests.
-
-### Troubleshooting
-
-**"GOCARDLESS_SECRET_ID and GOCARDLESS_SECRET_KEY must be set"**: env vars lipsă din Vercel sau `.env.local`. Verifică și restartează dev server.
-
-**"Pending requisition not found" la callback**: rândul din `bank_pending_requisitions` a fost șters (rerun-uit cleanup) sau profile_id-ul JWT-ului nu corespunde. Reîncepe flow-ul de la "Conectează cont nou".
-
-**Tranzacții nu apar după sync**: verifică `bank_transactions` în Supabase. Status `pending_review` = nu match cu nicio regulă (adaugă keyword nou); status `imported` = OK, ar trebui să vezi expense-ul în `expenses` table cu `tags @> ARRAY['from-bank']`.
-
-**Eroare "Requisition not linked yet (status=CR)"**: user a abandonat flow-ul la bancă. Reîncepe.
-
-**Free tier exhausted (50 useri)**: upgrade la Pro plan ($60/lună) sau așteaptă reset lunar.
+**Lecția**: verifică termenii legali ÎNAINTE de a arhitectura un feature care depinde de regulamente. Cele ~3-4 zile de cod ar fi fost ușor evitabile cu o oră de research la început.
 
 ---
 
@@ -522,7 +461,7 @@ Comportament curent (intenționat):
 
 Link fallback rămâne în email pentru cei care preferă (deschide în Safari, comportament vechi).
 
-### Vitest test suite (117 teste, 10 fișiere)
+### Vitest test suite (~96 cazuri, 10 fișiere)
 Setup în `vitest.config.ts` + `src/test/setup.ts` (jsdom environment + dayjs plugins preconfigurate).
 
 Acoperă **math critic** unde un bug ar însemna calcule greșite peste tot:
@@ -584,15 +523,21 @@ ExpensesListPage → Menu icon (sus-dreapta) → "Exportă PDF" sau "Exportă CS
 
 ### Daily DB backup via GitHub Actions
 Workflow `.github/workflows/db-backup.yml` rulează zilnic la 02:00 UTC (+ manual trigger):
-1. Setup supabase CLI.
-2. **Pass 1**: `supabase db dump --schema public > schema.sql` (DDL: tables, columns, indexes, RLS policies, triggers, functions).
-3. **Pass 2**: `supabase db dump --data-only > data.sql` (INSERTs pentru toate row-urile).
-4. Concatenare `schema.sql + data.sql` → gzip → commit în `backups/YYYY-MM-DD.sql.gz` în repo.
-5. Cleanup: șterge backup-uri mai vechi de 30 zile pe push-ul commit-ului.
+1. Checkout într-un repo PRIVAT separat (`bundy-backups`) folosind un PAT cu scope `contents:write`.
+2. Setup supabase CLI.
+3. **Pass 1**: `supabase db dump > schema.sql` (DDL: tables, columns, indexes, RLS policies, triggers, functions).
+4. **Pass 2**: `supabase db dump --data-only > data.sql` (INSERTs pentru toate row-urile).
+5. Concatenare `schema.sql + data.sql` → gzip → commit în `backups/YYYY-MM-DD.sql.gz` în repo-ul **privat**.
+6. Cleanup: șterge backup-uri mai vechi de 30 zile pe push-ul commit-ului.
 
-**Secret necesar**: `SUPABASE_DB_URL` în GitHub repo secrets, format Session pooler (port 5432, host `aws-0-eu-central-1.pooler.supabase.com`). Direct connection (db.xxxxx.supabase.co) **nu funcționează** pe GitHub Actions — Supabase direct connection e IPv6-only iar GitHub runners n-au IPv6. Session pooler e IPv4.
+**Decizia de a folosi un repo separat privat**: dump-ul include `auth.users` (emailuri, parole bcrypt-hashed), `auth.sessions`, `auth.refresh_tokens`, plus toate datele financiare ale userilor. Nu pot sta în repo-ul aplicației, care e public. Repo-ul privat de backup e accesibil doar mie + tokenului din workflow.
 
-**Restore**: descarcă `.sql.gz` → `gunzip` → rulează în Supabase SQL Editor sau prin `psql`.
+**Secrete necesare în repo-ul aplicației**:
+- `SUPABASE_DB_URL` — Session pooler (port 5432, host `aws-0-eu-central-1.pooler.supabase.com`). Direct connection e IPv6-only iar GitHub runners n-au IPv6.
+- `BACKUP_REPO` — `<owner>/bundy-backups`.
+- `BACKUP_REPO_TOKEN` — fine-grained PAT cu `contents:write` doar pe repo-ul de backup.
+
+**Restore**: clonează `bundy-backups` privat → descarcă `.sql.gz` → `gunzip` → rulează în Supabase SQL Editor sau prin `psql`.
 
 ### "Card de firmă" — toggle în Settings
 Switch în Settings → "Funcționalități" → "Card de firmă" (`profiles.company_card_enabled`):
