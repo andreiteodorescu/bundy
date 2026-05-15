@@ -21,6 +21,7 @@ function budget(overrides: Partial<Budget> = {}): Budget {
     thresholds_pct: [50, 80, 100],
     category_ids: [],
     subcategory_ids: [],
+    include_company_card: false,
     sort_order: 0,
     created_at: TODAY.format('YYYY-MM-DD'),
     ...overrides,

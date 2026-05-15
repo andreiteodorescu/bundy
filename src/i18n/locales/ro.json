@@ -847,6 +847,8 @@
       "scopedCategoriesInfo": "ℹ Bugetul scopat pe categorii întregi. Pentru a alege subcategorii specifice, șterge categoriile.",
       "scopedSubcategoriesInfo": "ℹ Bugetul scopat pe subcategorii specifice. Pentru a alege categorii întregi, șterge subcategoriile.",
       "scopedAllInfo": "⚠ Fără categorii sau subcategorii alese, bugetul însumează tot ce cheltui în perioada respectivă.",
+      "includeCompanyCard": "Include cheltuielile pe firmă",
+      "includeCompanyCardHint": "Implicit, cheltuielile cu tag „company-card” sunt excluse (la fel ca în Home / Analytics). Activează dacă vrei să le urmărești în acest buget.",
       "clearCategories": "Șterge categoriile",
       "clearSubcategories": "Șterge subcategoriile",
       "submit": "Salvează",

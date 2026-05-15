@@ -168,6 +168,9 @@ export type Budget = {
   /** Filter by subcategory_id specifically. Empty = no filter. Combined with category_ids
    *  via OR (an expense matches if its category OR subcategory is in the respective list). */
   subcategory_ids: string[];
+  /** When false (default), expenses tagged `company-card` are excluded from "spent" — matches
+   *  how the rest of the app treats company-card. Set true to opt this budget back in. */
+  include_company_card: boolean;
   sort_order: number;
   created_at: string;
 };

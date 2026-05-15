@@ -30,15 +30,15 @@ export const CURRENCIES: Currency[] = [
 
 const formatters = new Map<string, Intl.NumberFormat>();
 
-function getFormatter(currency: Currency, locale = 'ro-RO'): Intl.NumberFormat {
-  const key = `${locale}:${currency}`;
+function getFormatter(currency: Currency, digits: number, locale = 'ro-RO'): Intl.NumberFormat {
+  const key = `${locale}:${currency}:${digits}`;
   let f = formatters.get(key);
   if (!f) {
     f = new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
     });
     formatters.set(key, f);
   }
@@ -46,7 +46,11 @@ function getFormatter(currency: Currency, locale = 'ro-RO'): Intl.NumberFormat {
 }
 
 export function formatMoney(amount: number, currency: Currency = 'RON'): string {
-  return getFormatter(currency).format(amount);
+  // Smart decimals: hide the ",00" tail when the amount is a whole unit (130 RON
+  // instead of 130,00 RON); keep two decimals otherwise (459,29 RON, 0,05 EUR).
+  // Multiply-then-modulo avoids float-precision false negatives (e.g. 0.1+0.2).
+  const isWhole = Math.round(amount * 100) % 100 === 0;
+  return getFormatter(currency, isWhole ? 0 : 2).format(amount);
 }
 
 export function formatRon(amount: number): string {

@@ -847,6 +847,8 @@
       "scopedCategoriesInfo": "ℹ Budget scoped on whole categories. To pick specific subcategories, clear the categories.",
       "scopedSubcategoriesInfo": "ℹ Budget scoped on specific subcategories. To pick whole categories, clear the subcategories.",
       "scopedAllInfo": "⚠ With no categories or subcategories chosen, the budget sums everything you spend in the period.",
+      "includeCompanyCard": "Include company card expenses",
+      "includeCompanyCardHint": "By default, expenses tagged \"company-card\" are excluded (same as Home / Analytics). Turn on if you want to track them in this budget.",
       "clearCategories": "Clear categories",
       "clearSubcategories": "Clear subcategories",
       "submit": "Save",

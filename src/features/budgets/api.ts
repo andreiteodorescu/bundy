@@ -66,6 +66,8 @@ export type UpsertBudgetInput = {
   category_ids?: string[];
   /** Optional scope: specific subcategories. Combined with category_ids via OR. */
   subcategory_ids?: string[];
+  /** Opt-in: include company-card expenses in "spent". Default false. */
+  include_company_card?: boolean;
 };
 
 export function useUpsertBudget() {
@@ -85,6 +87,7 @@ export function useUpsertBudget() {
         thresholds_pct: input.thresholds_pct ?? [50, 75, 90, 100],
         category_ids: input.category_ids ?? [],
         subcategory_ids: input.subcategory_ids ?? [],
+        include_company_card: input.include_company_card ?? false,
       };
       if (input.id) {
         const { data, error } = await supabase
@@ -150,7 +153,7 @@ export function useBudgetProgress(budget: Budget | null | undefined) {
       if (!budget) return { spent: 0, pct: 0, remaining: 0, expenses: [] };
       let query = supabase
         .from('expenses')
-        .select('amount_original, currency_original, amount_ron, occurred_on, category_id, subcategory_id');
+        .select('amount_original, currency_original, amount_ron, occurred_on, category_id, subcategory_id, tags');
 
       // Time filter
       if (budget.period_kind === 'days' && budget.selected_days && budget.selected_days.length > 0) {
@@ -169,7 +172,12 @@ export function useBudgetProgress(budget: Budget | null | undefined) {
       }
       const { data, error } = await query;
       if (error) throw error;
-      const rows = (data ?? []) as BudgetExpenseRow[];
+      const allRows = (data ?? []) as (BudgetExpenseRow & { tags: string[] | null })[];
+      // Exclude company-card expenses unless the budget explicitly opted in. Mirrors
+      // how Home / Analytics / Expenses list treat company-card as separate tracking.
+      const rows: BudgetExpenseRow[] = budget.include_company_card
+        ? allRows
+        : allRows.filter((r) => !(r.tags ?? []).includes('company-card'));
       const spent = rows.reduce((s, r) => s + Number(r.amount_ron), 0);
       const pct = budget.amount_ron > 0 ? (spent / Number(budget.amount_ron)) * 100 : 0;
       return {

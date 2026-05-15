@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Alert,
+  Box,
   Button,
   Center,
   Container,
@@ -12,6 +13,7 @@ import {
   NumberInput,
   Select,
   Stack,
+  Switch,
   Text,
   TextInput,
   Title,
@@ -28,6 +30,7 @@ import { useBudget, useDeleteBudget, useUpsertBudget } from './api';
 import { getFxRate } from '@/lib/fx';
 import { useCategories, useSubcategories } from '@/features/categories/api';
 import { categoryDisplayName, subcategoryDisplayName } from '@/i18n/displayName';
+import { useCompanyCardEnabled } from '@/features/settings/api';
 
 export function BudgetFormPage() {
   const { t } = useTranslation();
@@ -39,6 +42,7 @@ export function BudgetFormPage() {
   const del = useDeleteBudget();
   const cats = useCategories();
   const subs = useSubcategories();
+  const companyCardEnabled = useCompanyCardEnabled();
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
@@ -46,6 +50,7 @@ export function BudgetFormPage() {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [subcategoryIds, setSubcategoryIds] = useState<string[]>([]);
+  const [includeCompanyCard, setIncludeCompanyCard] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,6 +62,7 @@ export function BudgetFormPage() {
     setSelectedDays(b.selected_days ?? []);
     setCategoryIds(b.category_ids ?? []);
     setSubcategoryIds(b.subcategory_ids ?? []);
+    setIncludeCompanyCard(b.include_company_card ?? false);
   }, [editing.data]);
 
   const subcategoryOptions = useMemo(() => {
@@ -118,6 +124,7 @@ export function BudgetFormPage() {
         selected_days: selectedDays,
         category_ids: categoryIds,
         subcategory_ids: subcategoryIds,
+        include_company_card: companyCardEnabled ? includeCompanyCard : false,
       });
       navigate(-1);
     } catch (err) {
@@ -269,6 +276,25 @@ export function BudgetFormPage() {
           <Text size="xs" c="dimmed" mt={-8}>
             {t('budgets.form.scopedAllInfo')}
           </Text>
+        )}
+
+        {companyCardEnabled && (
+          <Group wrap="nowrap" align="flex-start" gap="sm">
+            <Switch
+              checked={includeCompanyCard}
+              onChange={(e) => setIncludeCompanyCard(e.currentTarget.checked)}
+              aria-label={t('budgets.form.includeCompanyCard')}
+              mt={2}
+            />
+            <Box flex={1} miw={0}>
+              <Text size="sm" fw={500}>
+                {t('budgets.form.includeCompanyCard')}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t('budgets.form.includeCompanyCardHint')}
+              </Text>
+            </Box>
+          </Group>
         )}
 
         {error && (
