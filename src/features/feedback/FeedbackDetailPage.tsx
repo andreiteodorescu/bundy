@@ -87,7 +87,7 @@ export function FeedbackDetailPage() {
     return (
       <Container size="sm" py="md">
         <Stack gap="md">
-          <BackButton t={t} onClick={() => navigate('/feedback')} />
+          <BackButton t={t} onClick={() => navigate(-1)} />
           <Alert color="gray">{t('feedback.detail.notFound')}</Alert>
         </Stack>
       </Container>
@@ -97,14 +97,14 @@ export function FeedbackDetailPage() {
   return (
     <Container size="sm" py="md">
       <Stack gap="md">
-        <BackButton t={t} onClick={() => navigate('/feedback')} />
+        <BackButton t={t} onClick={() => navigate(-1)} />
 
         <FeedbackCard
           feedback={feedback.data}
           authorName={authors.data?.get(feedback.data.profile_id) ?? null}
           isOwn={isOwn}
           isAdmin={canChangeStatus}
-          onDeleted={() => navigate('/feedback')}
+          onDeleted={() => navigate(-1)}
           t={t}
         />
 

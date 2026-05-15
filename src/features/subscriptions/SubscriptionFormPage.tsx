@@ -5,6 +5,7 @@ import {
   Box,
   Button,
   Center,
+  Collapse,
   Container,
   Divider,
   Group,
@@ -16,11 +17,12 @@ import {
   Text,
   TextInput,
   Title,
+  UnstyledButton,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { IconAlertCircle, IconArrowLeft, IconTrash } from '@tabler/icons-react';
+import { IconAlertCircle, IconArrowLeft, IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { CURRENCIES, type Currency } from '@/lib/money';
 import { getFxRate } from '@/lib/fx';
@@ -73,6 +75,7 @@ export function SubscriptionFormPage() {
   const [companyCardTouched, setCompanyCardTouched] = useState(false);
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [brandLogo, setBrandLogo] = useState<string | null>(null);
+  const [brandPickerOpen, setBrandPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const todayIso = dayjs().format('YYYY-MM-DD');
@@ -223,23 +226,33 @@ export function SubscriptionFormPage() {
         />
 
         <Box>
-          <Group gap={6} mb={6} align="center">
-            <Text size="sm" fw={500}>
-              {t('subscriptions.form.logo')}
+          <UnstyledButton
+            onClick={() => setBrandPickerOpen((o) => !o)}
+            style={{ width: '100%' }}
+          >
+            <Group justify="space-between" wrap="nowrap">
+              <Group gap={8} align="center">
+                <BrandTile
+                  name={name}
+                  brandSlug={brandLogo}
+                  fallbackIconName={null}
+                  fallbackColor="var(--mantine-color-dimmed)"
+                  size={28}
+                  iconSize={16}
+                />
+                <Text size="sm" fw={500}>
+                  {t('subscriptions.form.logo')}
+                </Text>
+              </Group>
+              {brandPickerOpen ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+            </Group>
+          </UnstyledButton>
+          <Collapse in={brandPickerOpen}>
+            <Text size="xs" c="dimmed" mt="sm" mb="xs">
+              {t('subscriptions.form.logoHint')}
             </Text>
-            <BrandTile
-              name={name}
-              brandSlug={brandLogo}
-              fallbackIconName={null}
-              fallbackColor="var(--mantine-color-dimmed)"
-              size={28}
-              iconSize={16}
-            />
-          </Group>
-          <Text size="xs" c="dimmed" mb="xs">
-            {t('subscriptions.form.logoHint')}
-          </Text>
-          <BrandPicker value={brandLogo} onChange={setBrandLogo} />
+            <BrandPicker value={brandLogo} onChange={setBrandLogo} />
+          </Collapse>
         </Box>
 
         <Group gap="sm" wrap="nowrap" align="end">
