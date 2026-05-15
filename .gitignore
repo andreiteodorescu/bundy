@@ -38,3 +38,7 @@ supabase/.branches
 # Misc
 coverage
 .cache
+
+# DB backups go to a separate private repo (see .github/workflows/db-backup.yml)
+# never commit them here.
+backups/
